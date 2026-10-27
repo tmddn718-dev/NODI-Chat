@@ -22,31 +22,31 @@ export function ConnectScreen({ onConnect }: Props) {
       setApiKey("");
       setStatus("success");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "연결에 실패했습니다.");
+      setError(reason instanceof Error ? reason.message : "연결하지 못했어요.");
       setStatus("error");
     }
   }
 
   return (
-    <main className="connect-shell">
+    <main id="main-content" className="connect-shell">
       <section className="connect-intro">
         <Brand />
         <div className="intro-copy">
-          <p className="overline">MEETING COORDINATOR</p>
-          <h1>대화만 하면,<br />회의 시간이 정리됩니다.</h1>
-          <p>참석자 일정과 선호 조건을 확인하고, 설명 가능한 후보 시간을 제안합니다.</p>
+          <p className="overline">회의 일정 도우미</p>
+          <h1>대화만 하면,<br />회의 시간이 정리돼요.</h1>
+          <p>참석자 일정과 원하는 조건을 확인해 잘 맞는 시간을 찾아드려요.</p>
         </div>
         <div className="trust-note">
           <ShieldCheck size={24} weight="duotone" />
-          <span>API Key는 브라우저나 데이터베이스에 저장하지 않습니다.</span>
+          <span>API Key는 브라우저나 데이터베이스에 저장하지 않아요.</span>
         </div>
       </section>
 
       <section className="connect-panel" aria-labelledby="connect-title">
         <div className="connect-card">
           <span className="key-icon"><Key size={26} weight="duotone" /></span>
-          <h2 id="connect-title">Groq 연결</h2>
-          <p className="muted">AI 회의 도우미를 시작하려면 Groq API Key를 연결해 주세요.</p>
+          <h2 id="connect-title">Groq를 연결해 주세요</h2>
+          <p className="muted">AI로 회의 시간을 찾으려면 API Key가 필요해요.</p>
           <form onSubmit={submit}>
             <label htmlFor="api-key">Groq API Key</label>
             <div className={`input-with-action ${status === "error" ? "field-error" : ""}`}>
@@ -66,13 +66,13 @@ export function ConnectScreen({ onConnect }: Props) {
               </button>
             </div>
             <p id="key-help" className={status === "error" ? "error-text" : "helper-text"} role={status === "error" ? "alert" : undefined}>
-              {error || "Key는 서버의 임시 메모리 세션에만 보관됩니다."}
+              {error || "Key는 서버가 열려 있는 동안에만 기억해요."}
             </p>
             <button className="primary-button connect-button" disabled={!apiKey.trim() || status === "loading"}>
-              {status === "loading" ? "연결 확인 중..." : "연결 테스트하고 시작"}
+              {status === "loading" ? "확인하고 있어요..." : "연결하고 시작하기"}
             </button>
           </form>
-          <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-link">Groq Console에서 Key 발급</a>
+          <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-link">API Key가 없어요</a>
         </div>
       </section>
     </main>

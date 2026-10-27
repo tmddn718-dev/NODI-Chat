@@ -1,4 +1,5 @@
-import { CalendarBlank, Clock, MapPin, UsersThree, VideoCamera } from "@phosphor-icons/react";
+import { CalendarBlank, Check, Clock, GlobeHemisphereEast, MapPin, PencilSimple, UsersThree, VideoCamera, X } from "@phosphor-icons/react";
+import { type FormEvent, useEffect, useState } from "react";
 import type { MeetingDraft } from "../types";
 
 const labels = {
@@ -7,25 +8,66 @@ const labels = {
   any: "시간 무관",
 };
 
-export function MeetingSummary({ meeting }: { meeting: MeetingDraft }) {
+const splitNames = (value: string) => [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+
+export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; onChange?: (meeting: MeetingDraft) => void }) {
   const attendees = meeting.attendees ?? [];
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(meeting);
+  const [attendeeText, setAttendeeText] = useState(attendees.join(", "));
+  const [requiredText, setRequiredText] = useState((meeting.requiredAttendees ?? []).join(", "));
+  const confirmedFields = [meeting.title, meeting.purpose, meeting.durationMinutes, attendees.length, meeting.requiredAttendees !== undefined, meeting.preferredTime, meeting.dateStart, meeting.dateEnd].filter(Boolean).length;
+
+  useEffect(() => {
+    setDraft(meeting);
+    setAttendeeText((meeting.attendees ?? []).join(", "));
+    setRequiredText((meeting.requiredAttendees ?? []).join(", "));
+  }, [meeting]);
+
+  function save(event: FormEvent) {
+    event.preventDefault();
+    const nextAttendees = splitNames(attendeeText);
+    const required = draft.requiredAttendees === undefined && !requiredText.trim()
+      ? undefined
+      : splitNames(requiredText).filter((name) => nextAttendees.includes(name));
+    onChange?.({ ...draft, attendees: nextAttendees, requiredAttendees: required });
+    setEditing(false);
+  }
+
   return (
     <section className="summary-card" aria-labelledby="summary-title">
       <div className="section-heading">
-        <h2 id="summary-title">회의 정보</h2>
-        <span>{meeting.title ? "작성 중" : "대기 중"}</span>
+        <h2 id="summary-title">지금까지 정한 내용</h2>
+        {onChange ? <div className="summary-heading-actions"><span>{confirmedFields}/8 입력</span><button className="summary-edit-button" onClick={() => setEditing((value) => !value)}>{editing ? <X /> : <PencilSimple />}{editing ? "닫기" : "바꾸기"}</button></div> : <span>{meeting.title ? "작성 중" : "시작 전"}</span>}
       </div>
-      <div className="summary-title-block">
-        <p className={meeting.title ? "" : "empty-value"}>{meeting.title || "회의 제목을 알려주세요"}</p>
-        {meeting.purpose && <small>{meeting.purpose}</small>}
-      </div>
-      <dl className="summary-list">
-        <div><dt><Clock /></dt><dd>{meeting.durationMinutes ? `${meeting.durationMinutes}분` : "소요 시간 미정"}</dd></div>
-        <div><dt><UsersThree /></dt><dd>{attendees.length ? attendees.join(", ") : "참석자 미정"}</dd></div>
-        <div><dt><CalendarBlank /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜 범위 미정"}</dd></div>
-        <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <VideoCamera />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : meeting.meetingType === "online" ? "온라인 회의" : "방식 미정"}</dd></div>
-      </dl>
-      {meeting.preferredTime && <span className="soft-tag">{labels[meeting.preferredTime]}</span>}
+      {editing ? (
+        <form className="summary-edit-form" onSubmit={save}>
+          <label>회의명<input value={draft.title ?? ""} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
+          <label>목적<textarea rows={2} value={draft.purpose ?? ""} onChange={(event) => setDraft({ ...draft, purpose: event.target.value })} /></label>
+          <label>소요 시간(분)<input type="number" min="15" max="480" step="15" value={draft.durationMinutes ?? ""} onChange={(event) => setDraft({ ...draft, durationMinutes: Number(event.target.value) || undefined })} /></label>
+          <label>참석자(쉼표로 구분)<input value={attendeeText} onChange={(event) => setAttendeeText(event.target.value)} /></label>
+          <label>꼭 참석할 사람<input value={requiredText} onChange={(event) => setRequiredText(event.target.value)} /></label>
+          <div className="summary-date-fields"><label>시작일<input type="date" value={draft.dateStart ?? ""} onChange={(event) => setDraft({ ...draft, dateStart: event.target.value })} /></label><label>종료일<input type="date" value={draft.dateEnd ?? ""} min={draft.dateStart} onChange={(event) => setDraft({ ...draft, dateEnd: event.target.value })} /></label></div>
+          <label>선호 시간<select value={draft.preferredTime ?? ""} onChange={(event) => setDraft({ ...draft, preferredTime: event.target.value as MeetingDraft["preferredTime"] })}><option value="">선택</option><option value="morning">오전</option><option value="afternoon">오후</option><option value="any">상관없음</option></select></label>
+          <button className="primary-button"><Check /> 저장하기</button>
+        </form>
+      ) : (
+        <>
+          <div className="summary-title-block">
+            <p className={meeting.title ? "" : "empty-value"}>{meeting.title || "어떤 회의인지 알려주세요"}</p>
+            {meeting.purpose && <small>{meeting.purpose}</small>}
+          </div>
+          <dl className="summary-list">
+            <div><dt><Clock /></dt><dd>{meeting.durationMinutes ? `${meeting.durationMinutes}분` : "시간을 알려주세요"}</dd></div>
+            <div><dt><UsersThree /></dt><dd>{attendees.length ? attendees.join(", ") : "함께할 사람을 골라주세요"}</dd></div>
+            <div><dt><UsersThree /></dt><dd>{meeting.requiredAttendees === undefined ? "꼭 참석할 사람을 골라주세요" : meeting.requiredAttendees.length ? `${meeting.requiredAttendees.join(", ")} 꼭 참석` : "꼭 참석할 사람 없음"}</dd></div>
+            <div><dt><CalendarBlank /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜를 골라주세요"}</dd></div>
+            <div><dt><GlobeHemisphereEast /></dt><dd>{meeting.timezone ?? "Asia/Seoul"} · 데모 기준</dd></div>
+            <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <VideoCamera />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : meeting.meetingType === "online" ? "온라인 회의" : "진행 방식을 알려주세요"}</dd></div>
+          </dl>
+          {meeting.preferredTime && <span className="soft-tag">{labels[meeting.preferredTime]}</span>}
+        </>
+      )}
     </section>
   );
 }

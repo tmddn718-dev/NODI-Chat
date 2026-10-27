@@ -8,16 +8,16 @@ export function SettingsDialog({ onClose, onDisconnect }: { onClose: () => void;
         <h2 id="settings-title">설정</h2>
         <div className="setting-row">
           <span><Key /></span>
-          <div><strong>Groq API</strong><p>서버 임시 세션에 안전하게 연결됨</p></div>
-          <span className="connected-label">연결됨</span>
+          <div><strong>Groq API</strong><p>서버가 열려 있는 동안에만 Key를 기억해요</p></div>
+          <span className="connected-label">연결했어요</span>
         </div>
         <div className="setting-row disabled-row">
           <span><Plug /></span>
-          <div><strong>Google / Microsoft Calendar</strong><p>OAuth 연동은 후속 단계에서 제공</p></div>
-          <span>미연결</span>
+          <div><strong>Google / Microsoft Calendar</strong><p>지금은 데모 캘린더만 사용할 수 있어요</p></div>
+          <span>준비 중</span>
         </div>
-        <p className="settings-note">iCal은 읽기 전용, CalDAV는 쓰기 가능 공급자로 분리할 준비가 되어 있습니다.</p>
-        <button className="danger-button full-button" onClick={onDisconnect}>API Key 변경 또는 연결 해제</button>
+        <p className="settings-note">iCal은 읽기 전용, CalDAV는 일정 쓰기용으로 나눠 연결할 예정이에요.</p>
+        <button className="danger-button full-button" onClick={onDisconnect}>API Key 다시 연결하기</button>
       </section>
     </div>
   );

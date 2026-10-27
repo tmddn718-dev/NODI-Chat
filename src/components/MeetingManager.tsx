@@ -6,11 +6,13 @@ export function MeetingManager({
   event,
   onUpdate,
   onCancel,
+  onBack,
   onNew,
 }: {
   event: MeetingEvent;
   onUpdate: (title: string) => Promise<void>;
   onCancel: () => Promise<void>;
+  onBack: () => void;
   onNew: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -33,7 +35,7 @@ export function MeetingManager({
       await onUpdate(title.trim());
       setEditing(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "수정하지 못했습니다.");
+      setError(reason instanceof Error ? reason.message : "바꾸지 못했어요.");
     } finally {
       setLoading(false);
     }
@@ -45,32 +47,33 @@ export function MeetingManager({
     try {
       await onCancel();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "취소하지 못했습니다.");
+      setError(reason instanceof Error ? reason.message : "취소하지 못했어요.");
       setLoading(false);
     }
   }
 
   if (event.status === "cancelled") {
     return (
-      <main className="result-view">
+      <main id="main-content" className="result-view">
         <section className="result-card cancelled">
           <span className="result-icon"><Warning weight="duotone" /></span>
-          <p className="overline">DEMO CALENDAR</p>
-          <h1>회의가 취소되었습니다</h1>
-          <p>실제 캘린더나 참석자 초대에는 영향을 주지 않았습니다.</p>
+          <p className="overline">데모 캘린더</p>
+          <h1>회의를 취소했어요</h1>
+          <p>실제 캘린더와 참석자 초대에는 영향을 주지 않았어요.</p>
           <button className="primary-button" onClick={onNew}>새 회의 만들기</button>
+          <button className="text-link standalone-link" onClick={onBack}>내 회의로 돌아가기</button>
         </section>
       </main>
     );
   }
 
   return (
-    <main className="result-view">
+    <main id="main-content" className="result-view">
       <section className="result-card">
         <span className="result-icon"><CalendarCheck weight="duotone" /></span>
-        <span className="demo-badge">데모 확정</span>
-        <h1>회의 일정을 만들었습니다</h1>
-        <p>시뮬레이션이 완료되었습니다. 실제 캘린더 이벤트나 초대는 생성되지 않았습니다.</p>
+        <span className="demo-badge">시간을 정했어요 · 데모</span>
+        <h1>회의 시간이 정해졌어요</h1>
+        <p>데모 안에서만 정했어요. 실제 캘린더와 초대에는 아직 반영하지 않았어요.</p>
         <div className="event-details">
           {editing ? (
             <form onSubmit={save} className="edit-form">
@@ -82,14 +85,21 @@ export function MeetingManager({
             <><h2>{event.meeting.title}</h2><p>{date}</p><p>{event.meeting.attendees?.join(", ")}</p></>
           )}
         </div>
+        <div className="result-statuses" aria-label="회의 처리 상태">
+          <span className="status-badge status-success"><CalendarCheck weight="fill" /> 시간 정함</span>
+          <span className={`status-badge ${event.calendarSyncStatus === "synced" ? "status-success" : event.calendarSyncStatus === "failed" ? "status-error" : "status-neutral"}`}>{event.calendarSyncStatus === "synced" ? "캘린더 반영" : event.calendarSyncStatus === "failed" ? "동기화 실패" : "캘린더 미반영"}</span>
+          <span className="status-badge status-neutral">{event.invitationSent ? "초대 전송" : "초대 미전송"}</span>
+          <span className="status-badge status-neutral">준비 사항 없음</span>
+        </div>
         {error && <p className="dialog-error" role="alert">{error}</p>}
         {!editing && (
           <div className="manage-actions">
-            <button className="secondary-button" onClick={() => setEditing(true)}><PencilSimple /> 제목 변경</button>
+            <button className="secondary-button" onClick={() => setEditing(true)}><PencilSimple /> 제목 바꾸기</button>
             <button className="danger-button" onClick={cancel} disabled={loading}><Trash /> {loading ? "취소 중..." : "회의 취소"}</button>
           </div>
         )}
-        <button className="text-link standalone-link" onClick={onNew}>다른 회의 만들기</button>
+        <button className="text-link standalone-link" onClick={onNew}>새 회의 만들기</button>
+        <button className="text-link standalone-link" onClick={onBack}>내 회의 목록</button>
       </section>
     </main>
   );
