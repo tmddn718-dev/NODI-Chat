@@ -73,6 +73,7 @@ function normalizeMeeting(value: unknown, fallback: MeetingDraft): MeetingDraft 
     preferredTime: ["morning", "afternoon", "any"].includes(String(input.preferredTime))
       ? input.preferredTime as MeetingDraft["preferredTime"]
       : fallback.preferredTime,
+    timezone: text("timezone") ?? fallback.timezone ?? "Asia/Seoul",
     meetingType: ["online", "in-person"].includes(String(input.meetingType))
       ? input.meetingType as MeetingDraft["meetingType"]
       : fallback.meetingType,
@@ -91,10 +92,10 @@ export async function chatWithGroq(
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
   const system = `You are NODI, a concise meeting scheduling assistant. Today in Asia/Seoul is ${today}.
 Return only a valid JSON object with keys "assistantMessage" and "meeting". Never use markdown.
-The meeting object must preserve known values and may contain: title, purpose, durationMinutes, attendees, requiredAttendees, dateStart, dateEnd, preferredTime (morning|afternoon|any), meetingType (online|in-person), location, priority.
+The meeting object must preserve known values and may contain: title, purpose, durationMinutes, attendees, requiredAttendees, dateStart, dateEnd, preferredTime (morning|afternoon|any), timezone, meetingType (online|in-person), location, priority.
 Extract new facts from the latest user message. Resolve relative dates into YYYY-MM-DD in Asia/Seoul. Remove duplicate attendees case-insensitively.
-Required fields are title, durationMinutes, attendees, dateStart, dateEnd. Ask for only the most useful missing information, ideally grouping two closely related items. Never ask again for a known field.
-When all required fields exist, say that you found enough information and will calculate candidates. Do not invent availability, conflicts, scores, or calendar connection status.
+Required fields are title, purpose, durationMinutes, attendees, requiredAttendees, preferredTime, dateStart, dateEnd. An empty requiredAttendees array means there is no availability rule. Ask for exactly one missing field per turn, in that order. Describe requiredAttendees as people whose availability is needed to hold this meeting, never as important or optional people. Never ask again for a known field.
+When all required fields exist, say that the meeting details are ready and the attendee availability must be confirmed next. Do not invent availability, conflicts, scores, or calendar connection status.
 Reply in ${language === "ko" ? "natural Korean" : "English"}. Current draft: ${JSON.stringify(meeting)}`;
   const payload = await groqFetch(apiKey, "/chat/completions", {
     method: "POST",

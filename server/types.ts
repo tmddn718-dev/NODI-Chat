@@ -1,4 +1,5 @@
 export type MeetingDraft = {
+  version?: number;
   title?: string;
   purpose?: string;
   durationMinutes?: number;
@@ -7,6 +8,7 @@ export type MeetingDraft = {
   dateStart?: string;
   dateEnd?: string;
   preferredTime?: "morning" | "afternoon" | "any";
+  timezone?: string;
   meetingType?: "online" | "in-person";
   location?: string;
   priority?: string;
@@ -24,6 +26,7 @@ export type DemoPerson = {
   email: string;
   timezone: string;
   calendarStatus: "connected" | "unavailable";
+  recentMeetingAt?: string;
   blocks: CalendarBlock[];
 };
 
@@ -38,6 +41,25 @@ export type Candidate = {
   reason: string;
   unavailable: string[];
   unknown: string[];
+  tentative: string[];
+  noResponse: string[];
+  calendarFreeCount: number;
+  manualAvailableCount: number;
+  conflictCount: number;
+  unknownCount: number;
+  acceptedCount: number;
+  checkedAt: string;
+  basedOnMeetingVersion: number;
+  basisKey: string;
+};
+
+export type AvailabilityStatus = "available" | "unavailable" | "tentative" | "no_response";
+
+export type AvailabilityResponse = {
+  attendee: string;
+  status: AvailabilityStatus;
+  start?: string;
+  end?: string;
 };
 
 export type MeetingEvent = {
@@ -45,5 +67,43 @@ export type MeetingEvent = {
   status: "confirmed" | "cancelled";
   meeting: MeetingDraft;
   candidate: Candidate;
+  availability: AvailabilityResponse[];
+  version: number;
+  updatedAt: string;
+  calendarSyncStatus: "not_connected" | "synced" | "failed";
+  preparationStatus: "not_required" | "in_progress" | "awaiting_input" | "ready" | "attention_required";
+  invitationSent: boolean;
   createdAt: string;
+};
+
+export type InvitationRecord = {
+  id: string;
+  token: string;
+  requestId: string;
+  meeting: MeetingDraft;
+  availability: AvailabilityResponse[];
+  participantAccess: Array<{ attendee: string; token: string }>;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DraftPayload = {
+  meeting: MeetingDraft;
+  availability: AvailabilityResponse[];
+  messages: Array<{ id: string; role: "user" | "assistant"; content: string }>;
+  invitationToken?: string;
+  invitationLinks?: Array<{ attendee: string; urlToken: string }>;
+  invitationRequestId?: string;
+  input?: string;
+  language?: "ko" | "en";
+  model?: string;
+};
+
+export type DraftRecord = {
+  workspaceId: string;
+  version: number;
+  payload: DraftPayload;
+  createdAt: string;
+  updatedAt: string;
 };

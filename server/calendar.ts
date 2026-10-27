@@ -1,10 +1,10 @@
-import type { Candidate, MeetingDraft, MeetingEvent } from "./types.ts";
+import type { AvailabilityResponse, Candidate, MeetingDraft, MeetingEvent } from "./types.ts";
 
 export interface CalendarProvider {
   readonly id: "demo" | "google" | "microsoft" | "ical" | "caldav";
   readonly writable: boolean;
-  getFreeBusy(meeting: MeetingDraft): Promise<Candidate[]>;
-  createEvent(meeting: MeetingDraft, candidate: Candidate): Promise<MeetingEvent>;
+  getFreeBusy(meeting: MeetingDraft, responses?: AvailabilityResponse[]): Promise<Candidate[]>;
+  createEvent(meeting: MeetingDraft, candidate: Candidate, responses: AvailabilityResponse[], requestId: string): Promise<MeetingEvent>;
   updateEvent(id: string, meeting: MeetingDraft): Promise<MeetingEvent>;
   deleteEvent(id: string): Promise<void>;
 }

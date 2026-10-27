@@ -5,16 +5,21 @@ import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { demoPeople } from "./demo-data.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
+import { DraftConflictError, DraftStore } from "./draft-store.ts";
 import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
+import { InvitationStore } from "./invitation-store.ts";
+import { searchPeople } from "./people.ts";
 import { validateMeeting } from "./recommendation.ts";
-import type { Candidate, MeetingDraft } from "./types.ts";
+import type { AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
 const sessionCookie = "nodi_session";
 const sessionTtl = 4 * 60 * 60 * 1000;
-const sessions = new Map<string, { apiKey: string; models: string[]; touchedAt: number }>();
+const sessions = new Map<string, { apiKey: string; models: string[]; touchedAt: number; workspaceId: string }>();
 const provider = new DemoCalendarProvider();
+const invitationStore = new InvitationStore();
+const draftStore = new DraftStore();
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "100kb" }));
@@ -40,6 +45,65 @@ function clearSession(res: Response, id?: string) {
   res.clearCookie(sessionCookie, { httpOnly: true, sameSite: "strict" });
 }
 
+function parseAvailability(value: unknown): AvailabilityResponse[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AvailabilityResponse[] => {
+    if (!item || typeof item !== "object") return [];
+    const input = item as Record<string, unknown>;
+    const attendee = typeof input.attendee === "string" ? input.attendee.trim().slice(0, 200) : "";
+    const status = input.status;
+    if (!attendee || !["available", "unavailable", "tentative", "no_response"].includes(String(status))) return [];
+    const dateTime = (field: "start" | "end") => typeof input[field] === "string" && Number.isFinite(Date.parse(input[field] as string))
+      ? input[field] as string
+      : undefined;
+    return [{ attendee, status: status as AvailabilityResponse["status"], start: dateTime("start"), end: dateTime("end") }];
+  });
+}
+
+function readInvitationToken(value: unknown) {
+  return typeof value === "string" && /^[a-f0-9]{48}$/.test(value) ? value : "";
+}
+
+function parseDraftPayload(value: unknown): DraftPayload {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const messages = Array.isArray(input.messages) ? input.messages.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const message = item as Record<string, unknown>;
+    if ((message.role !== "user" && message.role !== "assistant") || typeof message.content !== "string") return [];
+    return [{
+      id: typeof message.id === "string" ? message.id.slice(0, 100) : crypto.randomUUID(),
+      role: message.role as "user" | "assistant",
+      content: message.content.slice(0, 4000),
+    }];
+  }) : [];
+  const links = Array.isArray(input.invitationLinks) ? input.invitationLinks.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const link = item as Record<string, unknown>;
+    return typeof link.attendee === "string" && readInvitationToken(link.urlToken)
+      ? [{ attendee: link.attendee.slice(0, 200), urlToken: link.urlToken as string }]
+      : [];
+  }) : undefined;
+  return {
+    meeting: (input.meeting && typeof input.meeting === "object" ? input.meeting : {}) as MeetingDraft,
+    availability: parseAvailability(input.availability),
+    messages,
+    invitationToken: readInvitationToken(input.invitationToken) || undefined,
+    invitationLinks: links,
+    invitationRequestId: typeof input.invitationRequestId === "string" ? input.invitationRequestId.slice(0, 100) : undefined,
+    input: typeof input.input === "string" ? input.input.slice(0, 4000) : undefined,
+    language: input.language === "en" ? "en" : "ko",
+    model: typeof input.model === "string" ? input.model.slice(0, 200) : undefined,
+  };
+}
+
+async function resolveAvailability(body: Record<string, unknown>) {
+  const invitationToken = readInvitationToken(body.invitationToken);
+  if (!invitationToken) return parseAvailability(body.availability);
+  const invitation = await invitationStore.get(invitationToken);
+  if (!invitation) throw new Error("초대 응답을 찾을 수 없습니다. 링크를 다시 만들어 주세요.");
+  return invitation.availability;
+}
+
 app.get("/api/health", (_req, res) => res.json({ ok: true, mode: "demo" }));
 
 app.get("/api/session", (req, res) => {
@@ -59,7 +123,8 @@ app.post("/api/session/connect", async (req, res, next) => {
     const previous = getSession(req).id;
     if (previous) sessions.delete(previous);
     const id = crypto.randomBytes(32).toString("hex");
-    sessions.set(id, { apiKey, models, touchedAt: Date.now() });
+    const workspaceId = crypto.createHash("sha256").update(apiKey).digest("hex");
+    sessions.set(id, { apiKey, models, touchedAt: Date.now(), workspaceId });
     res.cookie(sessionCookie, id, {
       httpOnly: true,
       sameSite: "strict",
@@ -75,6 +140,37 @@ app.post("/api/session/connect", async (req, res, next) => {
 app.delete("/api/session", (req, res) => {
   clearSession(res, getSession(req).id);
   res.status(204).end();
+});
+
+app.get("/api/draft", requireSession, async (req, res, next) => {
+  try {
+    const draft = await draftStore.get(getSession(req).session!.workspaceId);
+    res.json({ draft: draft ? { version: draft.version, payload: draft.payload, createdAt: draft.createdAt, updatedAt: draft.updatedAt } : null });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/draft", requireSession, async (req, res, next) => {
+  try {
+    const expectedVersion = Number(req.body.expectedVersion);
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
+      return res.status(400).json({ error: "초안 버전을 확인해 주세요.", code: "invalid_input" });
+    }
+    const draft = await draftStore.save(getSession(req).session!.workspaceId, expectedVersion, parseDraftPayload(req.body.payload));
+    res.json({ draft: { version: draft.version, payload: draft.payload, createdAt: draft.createdAt, updatedAt: draft.updatedAt } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/draft", requireSession, async (req, res, next) => {
+  try {
+    await draftStore.delete(getSession(req).session!.workspaceId);
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/models", requireSession, async (req, res, next) => {
@@ -122,36 +218,145 @@ app.post("/api/chat", requireSession, async (req, res, next) => {
 
 app.get("/api/demo/people", (_req, res) => res.json({ people: demoPeople, label: "데모 데이터" }));
 
-app.post("/api/recommendations", async (req, res, next) => {
+app.get("/api/people", requireSession, async (req, res, next) => {
   try {
-    const candidates = await provider.getFreeBusy((req.body.meeting ?? {}) as MeetingDraft);
-    res.json({ candidates, mode: "demo", checkedAt: new Date().toISOString() });
+    const query = typeof req.query.query === "string" ? req.query.query.slice(0, 100) : "";
+    res.json({ people: searchPeople(demoPeople, await provider.listEvents(), query), mode: "demo" });
   } catch (error) {
     next(error);
   }
 });
 
-app.post("/api/events", async (req, res, next) => {
+app.post("/api/invitations", requireSession, async (req, res, next) => {
   try {
-    const event = await provider.createEvent(req.body.meeting as MeetingDraft, req.body.candidate as Candidate);
+    const meeting = (req.body.meeting ?? {}) as MeetingDraft;
+    const missing = validateMeeting(meeting);
+    if (missing.length) return res.status(400).json({ error: `초대 전에 필요한 정보가 있습니다: ${missing.join(", ")}`, code: "invalid_meeting" });
+    const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
+    if (!requestId) return res.status(400).json({ error: "초대 요청 식별자가 필요합니다.", code: "invalid_input" });
+    const invitation = await invitationStore.create(meeting, requestId);
+    res.status(201).json({
+      token: invitation.token,
+      links: invitation.participantAccess.map(({ attendee, token: urlToken }) => ({ attendee, urlToken })),
+      expiresAt: invitation.expiresAt,
+      updatedAt: invitation.updatedAt,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/invitations/:token", async (req, res, next) => {
+  try {
+    const token = readInvitationToken(req.params.token);
+    const access = token ? await invitationStore.getByAccessToken(token) : undefined;
+    if (!access) return res.status(404).json({ error: "유효하지 않거나 만료된 초대 링크입니다.", code: "not_found" });
+    const { record: invitation, attendee } = access;
+    const currentStatus = invitation.availability.find((item) => item.attendee === attendee)?.status ?? "no_response";
+    res.json({
+      invitation: {
+        meeting: {
+          ...invitation.meeting,
+          attendees: [attendee],
+          requiredAttendees: invitation.meeting.requiredAttendees?.filter((name) => name === attendee),
+        },
+        attendee,
+        currentStatus,
+        expiresAt: invitation.expiresAt,
+        updatedAt: invitation.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/invitations/:token/availability", requireSession, async (req, res, next) => {
+  try {
+    const token = readInvitationToken(req.params.token);
+    const invitation = token ? await invitationStore.get(token) : undefined;
+    if (!invitation) return res.status(404).json({ error: "초대 응답을 찾을 수 없습니다.", code: "not_found" });
+    res.json({ availability: invitation.availability, updatedAt: invitation.updatedAt });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/invitations/:token/responses", async (req, res, next) => {
+  try {
+    const token = readInvitationToken(req.params.token);
+    const status = req.body.status;
+    if (!token || !["available", "unavailable", "tentative"].includes(String(status))) {
+      return res.status(400).json({ error: "응답 정보를 확인해 주세요.", code: "invalid_input" });
+    }
+    const start = typeof req.body.start === "string" && Number.isFinite(Date.parse(req.body.start)) ? req.body.start : undefined;
+    const end = typeof req.body.end === "string" && Number.isFinite(Date.parse(req.body.end)) ? req.body.end : undefined;
+    if (status === "available" && (!start || !end || Date.parse(start) >= Date.parse(end))) {
+      return res.status(400).json({ error: "가능한 시작·종료 시간을 확인해 주세요.", code: "invalid_input" });
+    }
+    const invitation = await invitationStore.respond(token, status as "available" | "unavailable" | "tentative", start, end);
+    res.json({ saved: true, status, updatedAt: invitation.updatedAt });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/recommendations", requireSession, async (req, res, next) => {
+  try {
+    const availability = await resolveAvailability(req.body as Record<string, unknown>);
+    const candidates = await provider.getFreeBusy((req.body.meeting ?? {}) as MeetingDraft, availability);
+    res.json({ candidates, availability, mode: "manual", checkedAt: new Date().toISOString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/events", requireSession, async (_req, res, next) => {
+  try {
+    res.json({ events: await provider.listEvents() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/events/:id", requireSession, async (req, res, next) => {
+  try {
+    const event = (await provider.listEvents()).find((item) => item.id === String(req.params.id));
+    if (!event) return res.status(404).json({ error: "회의를 찾을 수 없습니다.", code: "not_found" });
+    res.json({ event });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/events", requireSession, async (req, res, next) => {
+  try {
+    const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
+    if (!requestId) return res.status(400).json({ error: "확정 요청 식별자가 필요합니다.", code: "invalid_input" });
+    const event = await provider.createEvent(
+      req.body.meeting as MeetingDraft,
+      req.body.candidate as Candidate,
+      await resolveAvailability(req.body as Record<string, unknown>),
+      requestId,
+    );
     res.status(201).json({ event, mode: "demo", invitationSent: false });
   } catch (error) {
     next(error);
   }
 });
 
-app.patch("/api/events/:id", async (req, res, next) => {
+app.patch("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    const event = await provider.updateEvent(req.params.id, req.body.meeting as MeetingDraft);
+    const event = await provider.updateEvent(String(req.params.id), req.body.meeting as MeetingDraft);
     res.json({ event, mode: "demo" });
   } catch (error) {
     next(error);
   }
 });
 
-app.delete("/api/events/:id", async (req, res, next) => {
+app.delete("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    await provider.deleteEvent(req.params.id);
+    await provider.deleteEvent(String(req.params.id));
     res.json({ cancelled: true, mode: "demo" });
   } catch (error) {
     next(error);
@@ -161,7 +366,8 @@ app.delete("/api/events/:id", async (req, res, next) => {
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const known = error instanceof UpstreamError;
   const message = error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
-  res.status(known ? error.status : 400).json({ error: message, code: known ? error.code : "request_failed" });
+  const conflict = error instanceof DraftConflictError;
+  res.status(known ? error.status : conflict ? 409 : 400).json({ error: message, code: known ? error.code : conflict ? "draft_conflict" : "request_failed" });
 });
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));

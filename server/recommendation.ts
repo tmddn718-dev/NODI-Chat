@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { demoPeople } from "./demo-data.ts";
-import type { Candidate, DemoPerson, MeetingDraft } from "./types.ts";
+import type { AvailabilityResponse, Candidate, DemoPerson, MeetingDraft } from "./types.ts";
 
 const DAY_MS = 86_400_000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -40,19 +41,29 @@ function dateRange(start: string, end: string) {
 export function validateMeeting(meeting: MeetingDraft) {
   const missing: string[] = [];
   if (!meeting.title?.trim()) missing.push("회의 제목");
-  if (!meeting.durationMinutes || meeting.durationMinutes < 15) missing.push("소요 시간");
+  if (!meeting.purpose?.trim()) missing.push("회의 목적");
+  if (!meeting.durationMinutes || meeting.durationMinutes < 15 || meeting.durationMinutes > 480) missing.push("소요 시간");
   if (!meeting.attendees?.length) missing.push("참석자");
-  if (!meeting.dateStart || !meeting.dateEnd) missing.push("날짜 범위");
+  if (meeting.requiredAttendees === undefined) missing.push("일정 확정 조건");
+  if (!meeting.preferredTime) missing.push("선호 시간대");
+  if (!meeting.dateStart || !meeting.dateEnd || meeting.dateStart > meeting.dateEnd) missing.push("날짜 범위");
   return missing;
 }
 
-export function recommendSlots(meeting: MeetingDraft, people = demoPeople): Candidate[] {
+export function recommendSlots(meeting: MeetingDraft, people = demoPeople, responses?: AvailabilityResponse[]): Candidate[] {
   const missing = validateMeeting(meeting);
   if (missing.length) throw new Error(`필수 정보가 필요합니다: ${missing.join(", ")}`);
 
   const uniqueAttendees = [...new Set(meeting.attendees!.map((value) => value.trim()).filter(Boolean))];
   const required = new Set((meeting.requiredAttendees ?? []).map(normalize));
+  const responseByAttendee = new Map((responses ?? []).map((response) => [normalize(response.attendee), response]));
   const duration = meeting.durationMinutes!;
+  const basedOnMeetingVersion = meeting.version ?? 1;
+  const basisKey = createHash("sha256")
+    .update(JSON.stringify({ meeting, responses: responses ?? null }))
+    .digest("hex")
+    .slice(0, 20);
+  const checkedAt = new Date().toISOString();
   const slots: Candidate[] = [];
 
   for (const date of dateRange(meeting.dateStart!, meeting.dateEnd!)) {
@@ -64,14 +75,38 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople): Cand
       const end = new Date(start.getTime() + duration * 60_000);
       const unavailable: string[] = [];
       const unknown: string[] = [];
+      const tentative: string[] = [];
+      const noResponse: string[] = [];
       let available = 0;
+      let calendarFreeCount = 0;
+      let manualAvailableCount = 0;
       let requiredAvailable = true;
 
       for (const attendee of uniqueAttendees) {
         const person = findPerson(attendee, people);
         const isRequired = required.has(normalize(attendee));
+        const response = responseByAttendee.get(normalize(attendee));
+        if (response && response.status !== "no_response") {
+          if (response.status === "tentative") {
+            unknown.push(attendee);
+            tentative.push(attendee);
+            if (isRequired) requiredAvailable = false;
+            continue;
+          }
+          const insideAvailableWindow = response.status === "available" && response.start && response.end &&
+            start >= new Date(response.start) && end <= new Date(response.end);
+          if (insideAvailableWindow) {
+            available += 1;
+            manualAvailableCount += 1;
+          } else {
+            unavailable.push(attendee);
+            if (isRequired) requiredAvailable = false;
+          }
+          continue;
+        }
         if (!person || person.calendarStatus !== "connected") {
           unknown.push(attendee);
+          noResponse.push(attendee);
           if (isRequired) requiredAvailable = false;
           continue;
         }
@@ -83,6 +118,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople): Cand
           }
         } else {
           available += 1;
+          calendarFreeCount += 1;
         }
       }
 
@@ -100,9 +136,11 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople): Cand
         Math.round(attendanceRatio * 65 + (requiredAvailable ? 20 : 0) + (preferred ? 10 : 0) + (allKnown ? 5 : 0)),
       );
       const reasonParts = [
-        requiredAvailable ? "필수 참석자 일정 확인" : "필수 참석자 확인 필요",
+        requiredAvailable ? "일정 확정 조건 충족" : "일정 확정 조건 확인 필요",
         preferred ? "선호 시간대 반영" : "선호 시간대 외",
       ];
+      if (calendarFreeCount) reasonParts.push(`캘린더 빈 시간 ${calendarFreeCount}명`);
+      if (manualAvailableCount) reasonParts.push(`직접 가능 응답 ${manualAvailableCount}명`);
       if (unknown.length) reasonParts.push(`${unknown.length}명 일정 미확인`);
 
       slots.push({
@@ -116,11 +154,21 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople): Cand
         reason: reasonParts.join(", "),
         unavailable,
         unknown,
+        tentative,
+        noResponse,
+        calendarFreeCount,
+        manualAvailableCount,
+        conflictCount: unavailable.length,
+        unknownCount: unknown.length,
+        acceptedCount: 0,
+        checkedAt,
+        basedOnMeetingVersion,
+        basisKey,
       });
     }
   }
 
   return slots
-    .sort((a, b) => b.score - a.score || a.start.localeCompare(b.start))
+    .sort((a, b) => Number(b.requiredAvailable) - Number(a.requiredAvailable) || b.score - a.score || a.start.localeCompare(b.start))
     .slice(0, 3);
 }

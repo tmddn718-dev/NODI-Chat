@@ -1,44 +1,57 @@
 import { randomUUID } from "node:crypto";
 import type { CalendarProvider } from "./calendar.ts";
+import { FileMeetingStore } from "./store.ts";
 import { recommendSlots } from "./recommendation.ts";
-import type { Candidate, MeetingDraft, MeetingEvent } from "./types.ts";
+import type { AvailabilityResponse, Candidate, MeetingDraft } from "./types.ts";
 
 export class DemoCalendarProvider implements CalendarProvider {
   readonly id = "demo" as const;
   readonly writable = true;
-  private events = new Map<string, MeetingEvent>();
 
-  async getFreeBusy(meeting: MeetingDraft) {
-    return recommendSlots(meeting);
+  constructor(private readonly store = new FileMeetingStore()) {}
+
+  async getFreeBusy(meeting: MeetingDraft, responses?: AvailabilityResponse[]) {
+    return recommendSlots(meeting, undefined, responses);
   }
 
-  async createEvent(meeting: MeetingDraft, candidate: Candidate) {
-    const latest = recommendSlots(meeting).find((item) => item.id === candidate.id);
-    if (!latest || latest.score !== candidate.score || !latest.requiredAvailable) {
+  async createEvent(meeting: MeetingDraft, candidate: Candidate, responses: AvailabilityResponse[], requestId: string) {
+    const existing = await this.store.findByRequestId(requestId);
+    if (existing) return existing;
+    const latest = recommendSlots(meeting, undefined, responses).find((item) => item.id === candidate.id);
+    if (!latest || latest.basisKey !== candidate.basisKey || latest.basedOnMeetingVersion !== candidate.basedOnMeetingVersion || !latest.requiredAvailable) {
       throw new Error("확정 직전 일정이 변경되었습니다. 후보 시간을 다시 확인해 주세요.");
     }
-    const event: MeetingEvent = {
+    const now = new Date().toISOString();
+    const event = {
       id: randomUUID(),
-      status: "confirmed",
+      status: "confirmed" as const,
       meeting,
       candidate: latest,
-      createdAt: new Date().toISOString(),
+      availability: responses,
+      version: 1,
+      calendarSyncStatus: "not_connected" as const,
+      preparationStatus: "not_required" as const,
+      invitationSent: false,
+      createdAt: now,
+      updatedAt: now,
     };
-    this.events.set(event.id, event);
-    return event;
+    return this.store.create(event, requestId);
   }
 
   async updateEvent(id: string, meeting: MeetingDraft) {
-    const existing = this.events.get(id);
+    const existing = await this.store.get(id);
     if (!existing || existing.status === "cancelled") throw new Error("수정할 회의를 찾을 수 없습니다.");
-    const updated = { ...existing, meeting };
-    this.events.set(id, updated);
-    return updated;
+    const updated = { ...existing, meeting, version: existing.version + 1, updatedAt: new Date().toISOString() };
+    return this.store.save(updated, existing.requestId);
   }
 
   async deleteEvent(id: string) {
-    const existing = this.events.get(id);
+    const existing = await this.store.get(id);
     if (!existing || existing.status === "cancelled") throw new Error("취소할 회의를 찾을 수 없습니다.");
-    this.events.set(id, { ...existing, status: "cancelled" });
+    await this.store.save({ ...existing, status: "cancelled", version: existing.version + 1, updatedAt: new Date().toISOString() }, existing.requestId);
+  }
+
+  async listEvents() {
+    return (await this.store.list()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 }

@@ -13,6 +13,7 @@ export const demoPeople: DemoPerson[] = [
     email: "minji@nodi.demo",
     timezone: "Asia/Seoul",
     calendarStatus: "connected",
+    recentMeetingAt: "2026-10-24T10:00:00+09:00",
     blocks: [
       block("2026-10-28", "10:00", "11:00", "제품 스탠드업"),
       block("2026-10-28", "14:00", "15:30", "고객 인터뷰"),
@@ -26,6 +27,7 @@ export const demoPeople: DemoPerson[] = [
     email: "junho@nodi.demo",
     timezone: "Asia/Seoul",
     calendarStatus: "connected",
+    recentMeetingAt: "2026-10-22T14:30:00+09:00",
     blocks: [
       block("2026-10-28", "09:00", "10:30", "개발 주간 회의"),
       block("2026-10-28", "13:00", "14:00", "코드 리뷰"),
@@ -39,6 +41,7 @@ export const demoPeople: DemoPerson[] = [
     email: "sora@nodi.demo",
     timezone: "Asia/Seoul",
     calendarStatus: "connected",
+    recentMeetingAt: "2026-10-18T11:00:00+09:00",
     blocks: [
       block("2026-10-28", "11:00", "12:30", "디자인 리뷰"),
       block("2026-10-29", "09:30", "11:00", "브랜드 워크숍"),
