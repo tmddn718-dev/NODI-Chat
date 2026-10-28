@@ -1,5 +1,5 @@
 import { ListChecks } from "lucide-react";
-import type { GuidedChoice, GuidedStep } from "../guided";
+import { STAGE_TITLES, STAGE_TOTAL, stageOf, type GuidedChoice, type GuidedStep } from "../guided";
 
 export function GuidedChoices({
   step,
@@ -10,18 +10,19 @@ export function GuidedChoices({
   onSelect: (choice: GuidedChoice) => void;
   onDirectInput: (placeholder: string) => void;
 }) {
+  const stage = stageOf(step.key);
   return (
     <section className="guided-card" aria-labelledby={`guided-${step.key}`}>
       <div className="guided-heading">
         <span><ListChecks /></span>
         <div>
-          <p>{step.number} / {step.total} · {step.title}</p>
+          <p>{stage} / {STAGE_TOTAL}단계 · {STAGE_TITLES[stage - 1]}</p>
           <h2 id={`guided-${step.key}`}>{step.question}</h2>
         </div>
       </div>
       <div className="guided-progress-row">
-        <progress className="guided-progress" max={step.total} value={step.number} aria-label={`${step.total}단계 중 ${step.number}단계`} />
-        <span>{Math.round((step.number / step.total) * 100)}%</span>
+        <progress className="guided-progress" max={STAGE_TOTAL} value={stage} aria-label={`${STAGE_TOTAL}단계 중 ${stage}단계`} />
+        <span>{stage}/{STAGE_TOTAL}</span>
       </div>
       <div className="guided-options" aria-label={`${step.title} 추천 목록`}>
         {step.choices.map((choice) => (

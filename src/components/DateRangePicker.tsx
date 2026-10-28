@@ -96,11 +96,11 @@ export function DateRangePicker({
       <div className="guided-heading">
         <span><Calendar /></span>
         <div>
-          <p>7–8 / 8 · {ko ? "일정 범위" : "Date range"}</p>
+          <p>3 / 6{ko ? "단계 · 날짜와 시간 조건" : " · Date range"}</p>
           <h2 id="date-range-title">{ko ? "언제부터 언제까지 찾아볼까요?" : "What date range should NODI search?"}</h2>
         </div>
       </div>
-      <progress className="guided-progress" max="8" value="7" aria-label={ko ? "8단계 중 일정 범위 선택" : "Select the date range in steps 7 and 8"} />
+      <progress className="guided-progress" max="6" value="3" aria-label={ko ? "6단계 중 3단계" : "Step 3 of 6"} />
 
       <div className="calendar-shell">
         <div className="calendar-month-header">

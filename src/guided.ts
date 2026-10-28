@@ -1,6 +1,11 @@
 import type { MeetingDraft } from "./types";
 
 export type GuidedChoice = { label: string; message: string; patch: Partial<MeetingDraft> };
+export const STAGE_TOTAL = 6;
+export const STAGE_TITLES = ["회의 기본 정보", "참석자와 우선순위", "날짜와 시간 조건", "조건 검토", "추천 시간 비교", "초대와 확정"];
+const STAGE_OF: Record<string, number> = { title: 1, purpose: 1, duration: 1, attendees: 2, availabilityRule: 2, preferredTime: 3, dateStart: 3, dateEnd: 3 };
+export const stageOf = (key: string) => STAGE_OF[key] ?? 4;
+
 export type GuidedStep = {
   key: "title" | "purpose" | "duration" | "attendees" | "availabilityRule" | "preferredTime" | "dateStart" | "dateEnd";
   number: number;

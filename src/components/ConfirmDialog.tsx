@@ -39,9 +39,10 @@ export function ConfirmDialog({
         <p>정하기 전에 한 번 확인해 주세요. 데모에서는 실제 초대나 캘린더에 반영되지 않아요.</p>
         <dl className="confirm-list">
           <div><dt>제목</dt><dd>{meeting.title}</dd></div>
-          <div><dt>일시</dt><dd>{formatDate(candidate.start)}</dd></div>
-          <div><dt>참석자</dt><dd>{meeting.attendees?.join(", ")}</dd></div>
-          <div><dt>꼭 참석</dt><dd className={candidate.requiredAvailable ? "good" : "warn"}><Check /> {candidate.requiredAvailable ? "모두 참석할 수 있어요" : "시간이 맞지 않아요"}</dd></div>
+          <div><dt>일시</dt><dd>{formatDate(candidate.start)} · {meeting.timezone ?? "Asia/Seoul"}</dd></div>
+          <div><dt>꼭 참석</dt><dd>{meeting.requiredAttendees?.length ? meeting.requiredAttendees.join(", ") : "없음"}</dd></div>
+          <div><dt>참여하면 좋은 사람</dt><dd>{(meeting.attendees ?? []).filter((name) => !meeting.requiredAttendees?.includes(name)).join(", ") || "없음"}</dd></div>
+          <div><dt>가능 여부</dt><dd className={candidate.requiredAvailable ? "good" : "warn"}><Check /> {candidate.requiredAvailable ? "꼭 참석할 사람 모두 가능해요" : "꼭 참석할 사람의 시간이 맞지 않아요"}</dd></div>
           {candidate.unknownCount > 0 && <div><dt>미확인</dt><dd className="warn">참여하면 좋은 사람 {candidate.unknownCount}명은 아직 확인되지 않았어요</dd></div>}
           <div><dt>초대 전송</dt><dd><Users /> 데모에서는 전송하지 않아요</dd></div>
           <div><dt>캘린더 반영</dt><dd>시간을 정해도 실제 캘린더에는 반영하지 않아요</dd></div>

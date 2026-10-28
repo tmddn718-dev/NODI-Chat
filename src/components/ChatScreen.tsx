@@ -4,6 +4,7 @@ import { api, ApiError } from "../api";
 import { getGuidedStep, type GuidedChoice } from "../guided";
 import type { AvailabilityResponse, Candidate, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
+import { ReviewCard } from "./ReviewCard";
 import { AttendeePicker } from "./AttendeePicker";
 import { Brand } from "./Brand";
 import { CandidateList } from "./CandidateList";
@@ -87,6 +88,8 @@ export function ChatScreen({
   const [history, setHistory] = useState<Array<{ meeting: MeetingDraft; messages: Message[] }>>(restoreHistory);
   const [roundToken, setRoundToken] = useState(restored?.roundToken ?? "");
   const [invitationRequestId, setInvitationRequestId] = useState(restored?.invitationRequestId ?? crypto.randomUUID());
+  const [undo, setUndo] = useState<{ meeting: MeetingDraft; messages: Message[]; history: Array<{ meeting: MeetingDraft; messages: Message[] }>; reviewed: boolean } | null>(null);
+  const [reviewed, setReviewed] = useState(Boolean(restored?.roundToken || restored?.invitationLinks?.length));
   const [collectMethod, setCollectMethod] = useState<"manual" | "invite">(restored?.invitationLinks?.length ? "invite" : "manual");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
@@ -232,6 +235,24 @@ export function ChatScreen({
     }
   }, [history]);
 
+  useEffect(() => {
+    if (!undo) return;
+    const timer = window.setTimeout(() => setUndo(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [undo]);
+
+  function undoBack() {
+    if (!undo) return;
+    setMeeting({ ...undo.meeting, version: (meeting.version ?? 1) + 1 });
+    setMessages(undo.messages);
+    setHistory(undo.history);
+    setReviewed(undo.reviewed);
+    setCandidates([]);
+    setRecommendationComplete(false);
+    setSelected(null);
+    setUndo(null);
+  }
+
   function goBack() {
     if (recommendationComplete) {
       setRecommendationComplete(false);
@@ -241,7 +262,9 @@ export function ChatScreen({
     }
     const previous = history[history.length - 1];
     if (!previous) return;
+    setUndo({ meeting, messages, history, reviewed });
     setHistory(history.slice(0, -1));
+    setReviewed(false);
     setMeeting({ ...previous.meeting, version: (meeting.version ?? 1) + 1 });
     setMessages(previous.messages);
     setCandidates([]);
@@ -258,6 +281,7 @@ export function ChatScreen({
 
   function restart() {
     setHistory([]);
+    setReviewed(false);
     setMessages([intro]);
     setMeeting(emptyMeeting());
     setCandidates([]);
@@ -337,6 +361,7 @@ export function ChatScreen({
       const nextMeeting = { ...(result.meeting ?? meeting), version: (meeting.version ?? 1) + 1 };
       setHistory((current) => [...current, { meeting, messages }].slice(-30));
       setMeeting(nextMeeting);
+      setReviewed(false);
       setInvitationToken("");
     setRoundToken("");
       setInvitationLinks([]);
@@ -381,6 +406,7 @@ export function ChatScreen({
         : "The meeting details are ready. Add each attendee's availability.";
     setHistory((current) => [...current, { meeting, messages }].slice(-30));
     setMeeting(nextMeeting);
+    setReviewed(false);
     setCandidates([]);
     setRecommendationComplete(false);
     setInvitationToken("");
@@ -550,10 +576,13 @@ export function ChatScreen({
                 onDirectInput={startDirectInput}
               />
             )}
-            {!loading && !guidedStep && hasRound && (
+            {!loading && !guidedStep && !reviewed && !recommendationComplete && (
+              <ReviewCard meeting={meeting} onEdit={() => setSummaryOpen(true)} onProceed={() => setReviewed(true)} />
+            )}
+            {!loading && !guidedStep && reviewed && hasRound && (
               <RoundPanel meeting={meeting} token={roundToken} requestId={invitationRequestId} onTokenChange={setRoundToken} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
             )}
-            {!loading && !guidedStep && !hasRound && !recommendationComplete && !recommendLoading && (
+            {!loading && !guidedStep && reviewed && !hasRound && !recommendationComplete && !recommendLoading && (
               <AvailabilityEditor
                 responses={availability}
                 dateStart={meeting.dateStart!}
@@ -581,9 +610,10 @@ export function ChatScreen({
             {recommendationComplete && (
               <>
                 <div className="recommendation-actions"><button className="ghost-button" onClick={() => setRecommendationComplete(false)}>참석 응답 수정</button></div>
-                <CandidateList candidates={candidates} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
+                <CandidateList candidates={candidates} requiredCount={meeting.requiredAttendees?.length ?? 0} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
               </>
             )}
+            {undo && <div className="undo-bar" role="status"><span>이전 단계로 돌아왔어요</span><button onClick={undoBack}>되돌리기</button></div>}
             <div className="to-top-anchor">
               <button type="button" className={`to-top-button ${showTop ? "visible" : ""}`} aria-label="대화 맨 위로" tabIndex={showTop ? 0 : -1} onClick={() => streamRef.current?.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}><ArrowUpToLine /></button>
             </div>
@@ -609,7 +639,6 @@ export function ChatScreen({
             <button className="send-button" aria-label="메시지 보내기" disabled={!input.trim() || loading}><ArrowUp /></button>
             <div className="composer-meta">
               <label><Globe /> 언어<select value={language} onChange={(event) => setLanguage(event.target.value as "ko" | "en")}><option value="ko">한국어</option><option value="en">English</option></select></label>
-              <label>모델<select value={model} onChange={(event) => setModel(event.target.value)}>{models.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
           </form>
         </main>
@@ -619,6 +648,7 @@ export function ChatScreen({
           <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
           <MeetingSummary meeting={meeting} onChange={(nextMeeting) => {
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
+            setReviewed(false);
             setCandidates([]);
             setRecommendationComplete(false);
             setSelected(null);

@@ -17,7 +17,7 @@ export function SettingsDialog({ onClose, onDisconnect }: { onClose: () => void;
           <span>준비 중</span>
         </div>
         <p className="settings-note">iCal은 읽기 전용, CalDAV는 일정 쓰기용으로 나눠 연결할 예정이에요.</p>
-        <button className="danger-button full-button" onClick={onDisconnect}>API Key 다시 연결하기</button>
+        <button className="secondary-button full-button" onClick={onDisconnect}>API Key 다시 연결하기</button>
       </section>
     </div>
   );

@@ -20,12 +20,12 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
     <section className="required-picker" aria-labelledby="required-picker-title">
       <div className="guided-heading">
         <span><ShieldCheck /></span>
-        <div><p>5 / 8 · {ko ? "꼭 참석할 사람" : "Availability rule"}</p><h2 id="required-picker-title">{ko ? "누가 꼭 참석해야 하나요?" : "Whose availability is required?"}</h2></div>
+        <div><p>2 / 6{ko ? "단계 · 참석자와 우선순위" : " · Availability rule"}</p><h2 id="required-picker-title">{ko ? "누가 꼭 참석해야 하나요?" : "Whose availability is required?"}</h2></div>
       </div>
-      <progress className="guided-progress" max="8" value="5" aria-label={ko ? "8단계 중 5단계" : "Step 5 of 8"} />
+      <progress className="guided-progress" max="6" value="2" aria-label={ko ? "6단계 중 2단계" : "Step 2 of 6"} />
 
       <div className="required-toolbar">
-        <p>{ko ? "선택한 사람이 모두 가능한 시간만 보여드려요." : "Only slots that work for everyone selected here can be confirmed."}</p>
+        <p>{ko ? "꼭 참석할 사람이 가능한 시간만 추천해요. 나머지는 참여하면 좋은 사람으로, 가능한 사람이 많은 순서에 반영해요." : "Only slots that work for everyone selected here can be confirmed."}</p>
         <div><button onClick={() => setSelected(attendees)}>{ko ? "모두 선택" : "Select all"}</button><button onClick={() => setSelected([])}>{ko ? "선택 해제" : "Clear"}</button></div>
       </div>
 
@@ -35,7 +35,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
           return (
             <button key={attendee} className={checked ? "selected" : ""} onClick={() => toggle(attendee)} aria-pressed={checked}>
               <span className="person-avatar" aria-hidden="true">{attendee.includes("@") ? "@" : initials(attendee)}</span>
-              <span><strong>{attendee}</strong><small>{checked ? (ko ? "꼭 참석해요" : "Availability required") : (ko ? "누르면 꼭 참석할 사람으로 정해요" : "Select to make required")}</small></span>
+              <span><strong>{attendee}</strong><small>{checked ? (ko ? "꼭 참석해요 · 이 사람이 가능한 시간만 추천해요" : "Availability required") : (ko ? "참여하면 좋은 사람 · 눌러서 꼭 참석으로 바꿔요" : "Select to make required")}</small></span>
               <i aria-hidden="true">{checked ? <Check /> : <CircleUser />}</i>
             </button>
           );

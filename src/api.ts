@@ -4,14 +4,26 @@ export class ApiError extends Error {
   }
 }
 
+const hasKorean = (value: string) => /[가-힣]/.test(value);
+
+// 서버·모델 제공자의 영어/JSON 오류 문구는 화면에 그대로 보여주지 않는다.
+function friendlyMessage(message: string | undefined, status: number) {
+  if (message && hasKorean(message)) return message;
+  if (status === 429) return "요청이 몰리고 있어요. 잠시 뒤에 다시 해 주세요.";
+  if (status >= 500) return "일시적인 문제가 생겼어요. 잠시 뒤에 다시 해 주세요.";
+  return "요청을 정확히 처리하지 못했어요. 다시 해 주세요.";
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
+  }).catch(() => {
+    throw new ApiError("인터넷 연결을 확인하고 다시 해 주세요.", 0);
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
-    throw new ApiError(body?.error ?? "요청을 처리하지 못했습니다.", response.status, body?.code);
+    throw new ApiError(friendlyMessage(body?.error, response.status), response.status, body?.code);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

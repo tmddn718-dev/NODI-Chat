@@ -63,7 +63,7 @@ export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; o
             <div><dt><Users /></dt><dd>{meeting.requiredAttendees === undefined ? "꼭 참석할 사람을 골라주세요" : meeting.requiredAttendees.length ? `${meeting.requiredAttendees.join(", ")} 꼭 참석` : "꼭 참석할 사람 없음"}</dd></div>
             <div><dt><Calendar /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜를 골라주세요"}</dd></div>
             <div><dt><Globe /></dt><dd>{meeting.timezone ?? "Asia/Seoul"} · 데모 기준</dd></div>
-            <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <Video />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : meeting.meetingType === "online" ? "온라인 회의" : "진행 방식을 알려주세요"}</dd></div>
+            {meeting.meetingType && <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <Video />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : "온라인 회의"}</dd></div>}
           </dl>
           {meeting.preferredTime && <span className="soft-tag">{labels[meeting.preferredTime]}</span>}
         </>

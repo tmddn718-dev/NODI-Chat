@@ -88,5 +88,8 @@ describe("ChatScreen previous step", () => {
     fireEvent.click(screen.getByText("이전 단계로"));
     await waitFor(() => expect(document.querySelector(".guided-card h2")!.textContent).toBe(first));
     expect(screen.queryByText("이전 단계로")).toBeNull();
+    fireEvent.click(screen.getByText("되돌리기"));
+    await waitFor(() => expect(document.querySelector(".guided-card h2")!.textContent).not.toBe(first));
+    expect(screen.getByText("이전 단계로")).toBeTruthy();
   });
 });

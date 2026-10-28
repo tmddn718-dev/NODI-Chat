@@ -54,9 +54,9 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
     <section className="attendee-picker" aria-labelledby="attendee-picker-title">
       <div className="guided-heading">
         <span><Users /></span>
-        <div><p>4 / 8 · {ko ? "참석자" : "Attendees"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
+        <div><p>2 / 6{ko ? "단계 · 참석자와 우선순위" : " · Attendees"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
       </div>
-      <progress className="guided-progress" max="8" value="4" aria-label={ko ? "8단계 중 4단계" : "Step 4 of 8"} />
+      <progress className="guided-progress" max="6" value="2" aria-label={ko ? "6단계 중 2단계" : "Step 2 of 6"} />
 
       <div className="people-search">
         <Search aria-hidden="true" />
