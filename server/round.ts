@@ -16,7 +16,7 @@ export function splitAttendees(meeting: MeetingDraft) {
   return { required: all.filter((name) => required.has(norm(name))), optional: all.filter((name) => !required.has(norm(name))) };
 }
 
-// 필수 참석자 조건만으로 후보를 계산한다. 응답 마감(notBefore) 이후에 시작하는 시간만 후보로 삼는다. 선택 참석자는 이후 후보별 응답으로 순위에만 반영한다.
+// 필수 참석자 조건만으로 후보를 계산한다. 응답 마감(notBefore) 이후에 시작하는 시간만 후보로 삼는다. 참여하면 좋은 사람은 이후 후보별 응답으로 순위에만 반영한다.
 export function requiredFirstCandidates(meeting: MeetingDraft, notBefore = 0): Candidate[] {
   const { required, optional } = splitAttendees(meeting);
   return recommendSlots({ ...meeting, attendees: required, requiredAttendees: required }, undefined, undefined, true, notBefore)
@@ -45,7 +45,7 @@ export function summarize(record: RoundRecord, now = new Date()) {
     const tied = previous && previous.candidate.requiredAvailable === row.candidate.requiredAvailable &&
       previous.accepted === row.accepted && previous.declined === row.declined && unknown(previous) === unknown(row);
     const reason = [
-      `선택 참석 가능 ${row.accepted}명`, `불가 ${row.declined}명`, `미정 ${row.tentative}명`, `미응답 ${row.noResponse}명`,
+      `참여하면 좋은 사람 중 가능 ${row.accepted}명`, `불가 ${row.declined}명`, `미정 ${row.tentative}명`, `미응답 ${row.noResponse}명`,
       tied ? "응답이 같아 선호 시간대·빠른 시간 순으로 정렬했어요" : "",
     ].filter(Boolean).join(" · ");
     return { ...row, rank: index + 1, reason };

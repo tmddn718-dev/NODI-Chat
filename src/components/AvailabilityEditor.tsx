@@ -19,6 +19,7 @@ export function AvailabilityEditor({
   loading,
   onChange,
   onSubmit,
+  onMethodChange,
   inviteLinks,
   inviteLoading = false,
   inviteError,
@@ -32,6 +33,7 @@ export function AvailabilityEditor({
   loading: boolean;
   onChange: (responses: AvailabilityResponse[]) => void;
   onSubmit: () => void;
+  onMethodChange?: (method: "manual" | "invite") => void;
   inviteLinks?: InvitationLink[];
   inviteLoading?: boolean;
   inviteError?: string;
@@ -41,7 +43,8 @@ export function AvailabilityEditor({
 }) {
   const answered = responses.filter((response) => response.status !== "no_response").length;
   const [copied, setCopied] = useState("");
-  const [method, setMethod] = useState<"manual" | "invite">(inviteLinks?.length ? "invite" : "manual");
+  const [method, setMethodState] = useState<"manual" | "invite">(inviteLinks?.length ? "invite" : "manual");
+  const setMethod = (next: "manual" | "invite") => { setMethodState(next); onMethodChange?.(next); };
 
   const invitationUrl = (link: InvitationLink) => `${window.location.origin}/invite/${link.urlToken}`;
 
@@ -90,7 +93,7 @@ export function AvailabilityEditor({
       <p className="availability-help">직접 입력하거나, 초대장을 보내 답을 받을 수 있어요.</p>
 
       <div className="availability-methods" role="group" aria-label="참석 가능 시간 수집 방법">
-        <button className={method === "manual" ? "active" : ""} onClick={() => setMethod("manual")} disabled={Boolean(inviteLinks?.length)} aria-pressed={method === "manual"}><span><strong>내가 입력할게요</strong><small>참석 여부와 시간을 직접 선택해요</small></span></button>
+        <button className={method === "manual" ? "active" : ""} onClick={() => setMethod("manual")} aria-pressed={method === "manual"}><span><strong>내가 입력할게요</strong><small>참석 여부와 시간을 직접 선택해요</small></span></button>
         <button className={method === "invite" ? "active" : ""} onClick={() => setMethod("invite")} aria-pressed={method === "invite"}><span><strong>참석자가 답해요</strong><small>초대장을 보내 답을 받아요</small></span></button>
       </div>
 

@@ -42,7 +42,7 @@ export function ConfirmDialog({
           <div><dt>일시</dt><dd>{formatDate(candidate.start)}</dd></div>
           <div><dt>참석자</dt><dd>{meeting.attendees?.join(", ")}</dd></div>
           <div><dt>꼭 참석</dt><dd className={candidate.requiredAvailable ? "good" : "warn"}><Check /> {candidate.requiredAvailable ? "모두 참석할 수 있어요" : "시간이 맞지 않아요"}</dd></div>
-          {candidate.unknownCount > 0 && <div><dt>미확인</dt><dd className="warn">선택 참석자 {candidate.unknownCount}명은 아직 확인되지 않았어요</dd></div>}
+          {candidate.unknownCount > 0 && <div><dt>미확인</dt><dd className="warn">참여하면 좋은 사람 {candidate.unknownCount}명은 아직 확인되지 않았어요</dd></div>}
           <div><dt>초대 전송</dt><dd><Users /> 데모에서는 전송하지 않아요</dd></div>
           <div><dt>캘린더 반영</dt><dd>시간을 정해도 실제 캘린더에는 반영하지 않아요</dd></div>
         </dl>

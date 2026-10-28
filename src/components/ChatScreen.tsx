@@ -22,6 +22,15 @@ const intro: Message = {
 
 const emptyMeeting = (): MeetingDraft => ({ timezone: "Asia/Seoul", version: 1 });
 const draftStorageKey = "nodi_meeting_draft_v2";
+const historyStorageKey = "nodi_meeting_history_v1";
+const restoreHistory = (): Array<{ meeting: MeetingDraft; messages: Message[] }> => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(historyStorageKey) ?? "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+};
 
 function restoreDraft() {
   try {
@@ -75,9 +84,10 @@ export function ChatScreen({
   const [showTop, setShowTop] = useState(false);
   const streamRef = useRef<HTMLDivElement>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [history, setHistory] = useState<Array<{ meeting: MeetingDraft; messages: Message[] }>>([]);
+  const [history, setHistory] = useState<Array<{ meeting: MeetingDraft; messages: Message[] }>>(restoreHistory);
   const [roundToken, setRoundToken] = useState(restored?.roundToken ?? "");
   const [invitationRequestId, setInvitationRequestId] = useState(restored?.invitationRequestId ?? crypto.randomUUID());
+  const [collectMethod, setCollectMethod] = useState<"manual" | "invite">(restored?.invitationLinks?.length ? "invite" : "manual");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [lastInviteSyncAt, setLastInviteSyncAt] = useState("");
@@ -145,7 +155,7 @@ export function ChatScreen({
   }, [availability]);
 
   useEffect(() => {
-    if (!invitationToken || !online) return;
+    if (!invitationToken || !online || collectMethod !== "invite") return;
     let active = true;
 
     async function syncResponses() {
@@ -180,7 +190,7 @@ export function ChatScreen({
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [invitationToken, online]);
+  }, [invitationToken, online, collectMethod]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -214,7 +224,21 @@ export function ChatScreen({
     }
   }
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(historyStorageKey, JSON.stringify(history));
+    } catch {
+      // 저장 공간이 없으면 이 기기에서만 되돌리기 기록을 잃는다.
+    }
+  }, [history]);
+
   function goBack() {
+    if (recommendationComplete) {
+      setRecommendationComplete(false);
+      setSelected(null);
+      setCandidates([]);
+      return;
+    }
     const previous = history[history.length - 1];
     if (!previous) return;
     setHistory(history.slice(0, -1));
@@ -274,7 +298,7 @@ export function ChatScreen({
     setRecommendLoading(true);
     setError("");
     try {
-      const recommendation = await api.recommendations(nextMeeting, responses, invitationToken || undefined);
+      const recommendation = await api.recommendations(nextMeeting, responses, (collectMethod === "invite" && invitationToken) || undefined);
       setAvailability(recommendation.availability);
       setCandidates(recommendation.candidates);
       setRecommendationComplete(true);
@@ -411,8 +435,9 @@ export function ChatScreen({
     try {
       const result = roundToken
         ? await api.confirmRound(roundToken, selected.id, confirmRequestId)
-        : await api.createEvent(meeting, selected, availability, confirmRequestId, invitationToken || undefined);
+        : await api.createEvent(meeting, selected, availability, confirmRequestId, (collectMethod === "invite" && invitationToken) || undefined);
       localStorage.removeItem(draftStorageKey);
+      localStorage.removeItem(historyStorageKey);
       await api.deleteDraft().catch(() => undefined);
       onConfirmed(result.event);
     } catch (reason) {
@@ -476,7 +501,7 @@ export function ChatScreen({
                 </article>
               )
             ))}
-            {!loading && history.length > 0 && !recommendationComplete && (
+            {!loading && (history.length > 0 || recommendationComplete) && (
               <div className="step-back"><button className="rd-btn m ghost" onClick={goBack}>이전 단계로</button></div>
             )}
             {!loading && !recommendationComplete && guidedStep?.key === "attendees" && (
@@ -536,6 +561,7 @@ export function ChatScreen({
                 loading={recommendLoading}
                 onChange={setAvailability}
                 onSubmit={() => void findRecommendations(meeting, availability)}
+                onMethodChange={setCollectMethod}
                 inviteLinks={invitationLinks}
                 inviteLoading={inviteLoading}
                 inviteError={inviteError}

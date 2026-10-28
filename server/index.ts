@@ -305,7 +305,7 @@ app.post("/api/rounds", requireSession, async (req, res, next) => {
     const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
     if (!requestId) return res.status(400).json({ error: "요청 식별자가 필요해요.", code: "invalid_input" });
     const { required, optional } = splitAttendees(meeting);
-    if (!required.length || !optional.length) return res.status(400).json({ error: "필수 참석자와 선택 참석자를 모두 정해 주세요.", code: "invalid_meeting" });
+    if (!required.length || !optional.length) return res.status(400).json({ error: "필수 참석자와 참여하면 좋은 사람을 모두 정해 주세요.", code: "invalid_meeting" });
     const deadline = Date.parse(String(req.body.deadlineAt));
     if (!Number.isFinite(deadline) || deadline <= Date.now()) return res.status(400).json({ error: "응답 마감은 지금보다 뒤여야 해요.", code: "invalid_input" });
     const candidates = requiredFirstCandidates(meeting, deadline);

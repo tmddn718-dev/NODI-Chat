@@ -171,7 +171,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
 
   slots.sort((a, b) => Number(b.requiredAvailable) - Number(a.requiredAvailable) || b.score - a.score || a.start.localeCompare(b.start));
   if (!spread) return slots.slice(0, 3);
-  // 선택 참석자가 비교할 수 있도록 서로 3시간 이상 떨어진 후보만 고른다.
+  // 참여하면 좋은 사람이 비교할 수 있도록 서로 3시간 이상 떨어진 후보만 고른다.
   const picked: Candidate[] = [];
   for (const slot of slots) {
     if (picked.every((item) => Math.abs(Date.parse(item.start) - Date.parse(slot.start)) >= 3 * 3_600_000)) picked.push(slot);

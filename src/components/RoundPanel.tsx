@@ -62,7 +62,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
           <span className="rd-icon"><Send /></span>
           <div><p className="rd-eyebrow">필수 참석자 먼저</p><h2 className="rd-title" id="rd-start-title">필수 참석자 기준으로 후보를 만들까요?</h2></div>
         </div>
-        <p className="rd-body">필수 참석자의 캘린더로 후보를 먼저 고르고, 선택 참석자에게는 그 후보만 보내 답을 받아요.</p>
+        <p className="rd-body">필수 참석자의 캘린더로 후보를 먼저 고르고, 참여하면 좋은 사람에게는 그 후보만 보내 답을 받아요.</p>
         <fieldset className="rd-field">
           <legend className="rd-label">응답 마감</legend>
           <div className="rd-chips">
@@ -91,14 +91,14 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
     <section className="rd-card" aria-labelledby="rd-title">
       <div className="rd-head">
         <span className="rd-icon"><Send /></span>
-        <div><p className="rd-eyebrow">{round.phase === "final" ? "최종 추천" : round.invitedAt ? "응답 수집 중" : "초대장 발송 전"} · 후보 v{round.version}</p><h2 className="rd-title" id="rd-title">선택 참석자 {round.responded}/{round.total}명 응답</h2></div>
+        <div><p className="rd-eyebrow">{round.phase === "final" ? "최종 추천" : round.invitedAt ? "응답 수집 중" : "초대장 발송 전"} · 후보 v{round.version}</p><h2 className="rd-title" id="rd-title">참여하면 좋은 사람 {round.responded}/{round.total}명 응답</h2></div>
       </div>
       <p className="rd-body">{stamp.format(new Date(round.deadlineAt))} 마감 · {round.phase === "final" ? "확인된 답변 기준이에요. 응답하지 않은 분은 ‘미확인’으로 남겨요." : "답변이 오면 순위가 바로 바뀌어요. 마감해도 자동으로 정해지지 않아요."}</p>
       {!round.invitedAt && (
         <div className="rd-notice">
           <span className="rd-bottom-info">초대장은 아직 보내지 않았어요</span>
-          <p className="rd-body">후보를 확인한 뒤 보내기를 누르면 선택 참석자 {round.total}명에게 응답 링크가 담긴 초대장이 자동으로 나가요.</p>
-          <button className="rd-btn rd-cta" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>{busy ? "보내고 있어요..." : "선택 참석자에게 초대장 보내기"}</button>
+          <p className="rd-body">후보를 확인한 뒤 보내기를 누르면 참여하면 좋은 사람 {round.total}명에게 응답 링크가 담긴 초대장이 자동으로 나가요.</p>
+          <button className="rd-btn rd-cta" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>{busy ? "보내고 있어요..." : "참여하면 좋은 사람에게 초대장 보내기"}</button>
         </div>
       )}
       <ol className="rd-list">
@@ -122,7 +122,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
         ))}
       </ol>
       <div>
-        <div className="rd-section-head"><h3>선택 참석자</h3><span className="rd-caption">{round.responded}/{round.total}명 응답</span></div>
+        <div className="rd-section-head"><h3>참여하면 좋은 사람</h3><span className="rd-caption">{round.responded}/{round.total}명 응답</span></div>
         {round.participants.map((p) => {
           const [tone, label] = badge(p);
           return (

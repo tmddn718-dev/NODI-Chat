@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NODI">
-  <rect width="64" height="64" rx="18" fill="#315fcb"/>
-  <path d="M18 44V20h7l14 15V20h7v24h-7L25 29v15z" fill="#fff"/>
+  <defs>
+    <linearGradient id="l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5FA0FF"/><stop offset="1" stop-color="#1E4FF5"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D4FE8"/></linearGradient>
+    <linearGradient id="d" gradientUnits="userSpaceOnUse" x1="25" y1="22" x2="41" y2="46"><stop offset="0" stop-color="#5E9BFF"/><stop offset="1" stop-color="#4A3FE6"/></linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="#fff"/>
+  <g transform="translate(16 17)">
+    <rect x="0" y="0" width="10.5" height="30" rx="5.25" fill="url(#l)"/>
+    <rect x="21.5" y="0" width="10.5" height="30" rx="5.25" fill="url(#r)"/>
+    <path d="M5.25 5.25 26.75 24.75" stroke="url(#d)" stroke-width="10.5" stroke-linecap="round" opacity=".92"/>
+  </g>
 </svg>

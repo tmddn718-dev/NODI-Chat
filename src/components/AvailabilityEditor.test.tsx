@@ -91,4 +91,26 @@ describe("AvailabilityEditor", () => {
     expect((screen.getByLabelText("김민지 참석 상태") as HTMLSelectElement).disabled).toBe(true);
     expect(screen.getAllByRole("button", { name: "초대 보내기" })).toHaveLength(2);
   });
+  it("lets the organizer switch back to manual entry after creating invitations", () => {
+    const onMethodChange = vi.fn();
+    render(
+      <AvailabilityEditor
+        responses={[{ attendee: "김민지", status: "no_response" }]}
+        dateStart="2026-10-28"
+        dateEnd="2026-10-30"
+        loading={false}
+        onChange={() => undefined}
+        onSubmit={() => undefined}
+        onMethodChange={onMethodChange}
+        inviteLinks={[{ attendee: "김민지", urlToken: "a".repeat(48) }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /내가 입력할게요/ }));
+    expect(onMethodChange).toHaveBeenLastCalledWith("manual");
+    expect((screen.getByLabelText("김민지 참석 상태") as HTMLSelectElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /참석자가 답해요/ }));
+    expect(onMethodChange).toHaveBeenLastCalledWith("invite");
+    expect((screen.getByLabelText("김민지 참석 상태") as HTMLSelectElement).disabled).toBe(true);
+  });
 });
