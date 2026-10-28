@@ -1,9 +1,11 @@
-import { ArrowUp, ArrowUpToLine, Bell, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Sparkles, Users, WifiOff, X } from "lucide-react";
+import { ArrowUp, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { getGuidedStep, type GuidedChoice } from "../guided";
 import type { AvailabilityResponse, Candidate, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
+import { NodiMark } from "./NodiMark";
+import { pendingInvitedCount } from "../invited";
 import { ReviewCard } from "./ReviewCard";
 import { AttendeePicker } from "./AttendeePicker";
 import { Brand } from "./Brand";
@@ -57,14 +59,19 @@ export function ChatScreen({
   models,
   onSettings,
   onShowMeetings,
+  onShowInvited,
+  onShowCalendars,
   onConfirmed,
 }: {
   models: string[];
   onSettings: () => void;
   onShowMeetings: () => void;
+  onShowInvited: () => void;
+  onShowCalendars: () => void;
   onConfirmed: (event: MeetingEvent) => void;
 }) {
   const [restored] = useState(restoreDraft);
+  const [pendingInvited] = useState(pendingInvitedCount);
   const [messages, setMessages] = useState<Message[]>(restored?.messages?.length ? restored.messages : [intro]);
   const [meeting, setMeeting] = useState<MeetingDraft>(restored?.meeting ?? emptyMeeting);
   const [input, setInput] = useState(restored?.input ?? "");
@@ -88,7 +95,7 @@ export function ChatScreen({
   const [history, setHistory] = useState<Array<{ meeting: MeetingDraft; messages: Message[] }>>(restoreHistory);
   const [roundToken, setRoundToken] = useState(restored?.roundToken ?? "");
   const [invitationRequestId, setInvitationRequestId] = useState(restored?.invitationRequestId ?? crypto.randomUUID());
-  const [undo, setUndo] = useState<{ meeting: MeetingDraft; messages: Message[]; history: Array<{ meeting: MeetingDraft; messages: Message[] }>; reviewed: boolean } | null>(null);
+  const [undo, setUndo] = useState<{ meeting: MeetingDraft; messages: Message[]; history: Array<{ meeting: MeetingDraft; messages: Message[] }>; reviewed: boolean; label: string } | null>(null);
   const [reviewed, setReviewed] = useState(Boolean(restored?.roundToken || restored?.invitationLinks?.length));
   const [collectMethod, setCollectMethod] = useState<"manual" | "invite">(restored?.invitationLinks?.length ? "invite" : "manual");
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -241,6 +248,23 @@ export function ChatScreen({
     return () => window.clearTimeout(timer);
   }, [undo]);
 
+  // ⌘Z / Ctrl+Z: 바로 전 단계로, ⇧를 함께 누르면 방금 되돌린 것을 다시 적용 (입력창 안에서는 브라우저 기본 동작 유지)
+  const shortcutRef = useRef({ goBack: () => {}, undoBack: () => {}, canBack: false });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      const { goBack: back, undoBack: redo, canBack } = shortcutRef.current;
+      if (event.shiftKey) redo();
+      else if (canBack) back();
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   function undoBack() {
     if (!undo) return;
     setMeeting({ ...undo.meeting, version: (meeting.version ?? 1) + 1 });
@@ -262,7 +286,7 @@ export function ChatScreen({
     }
     const previous = history[history.length - 1];
     if (!previous) return;
-    setUndo({ meeting, messages, history, reviewed });
+    setUndo({ meeting, messages, history, reviewed, label: "이전 단계로 돌아왔어요" });
     setHistory(history.slice(0, -1));
     setReviewed(false);
     setMeeting({ ...previous.meeting, version: (meeting.version ?? 1) + 1 });
@@ -279,7 +303,10 @@ export function ChatScreen({
     setError("");
   }
 
+  shortcutRef.current = { goBack, undoBack, canBack: !loading && (history.length > 0 || recommendationComplete) };
+
   function restart() {
+    setUndo({ meeting, messages, history, reviewed, label: "처음부터 다시 시작했어요" });
     setHistory([]);
     setReviewed(false);
     setMessages([intro]);
@@ -491,8 +518,8 @@ export function ChatScreen({
             <p>작업 공간</p>
             <a href="#main-content" className="active"><Bot /> 회의 잡기</a>
             <button onClick={onShowMeetings}><Calendar /> 내 회의</button>
-            <button disabled><Users /> 초대받은 회의 <span>준비 중</span></button>
-            <button disabled><Plug /> 캘린더 연결 <span>준비 중</span></button>
+            <button onClick={onShowInvited}><Users /> 초대받은 회의 {pendingInvited > 0 && <span className="nav-count">{pendingInvited}</span>}</button>
+            <button onClick={onShowCalendars}><Plug /> 캘린더 연결</button>
           </nav>
           <div className="connection-box">
             <div><Plug /><span><strong>데모 캘린더</strong><small>가상 일정 5명 연결</small></span></div>
@@ -505,7 +532,7 @@ export function ChatScreen({
               <div><h1>회의 잡기</h1><p>필요한 것만 물어보고, 잘 맞는 시간을 찾아드려요.</p><span className={`draft-sync ${syncStatus}`}>{syncStatus === "saved" ? "저장됐어요" : syncStatus === "saving" || syncStatus === "loading" ? "저장 중" : syncStatus === "conflict" ? "다른 기기에서 바뀌었어요" : "이 기기에 저장했어요"}</span></div>
             <div className="conversation-actions">
               <button className="summary-toggle" onClick={() => setSummaryOpen(true)} aria-haspopup="dialog" aria-expanded={summaryOpen}>회의 조건</button>
-              <button className="mobile-restart" onClick={restart}>처음부터</button>
+              <button className="mobile-restart" onClick={restart}>새 대화</button>
             </div>
           </div>
 
@@ -515,20 +542,20 @@ export function ChatScreen({
             {messages.map((message) => (
               message.id === "intro" ? (
                 <section key={message.id} className="chat-welcome" aria-labelledby="chat-welcome-title">
-                  <div className="nodi-orb" aria-hidden="true"><span /><span /><Sparkles /></div>
+                  <div className="welcome-logo" aria-hidden="true"><NodiMark /></div>
                   <p>{language === "ko" ? "반가워요. NODI예요." : "Hello, I'm your NODI scheduling assistant."}</p>
                   <h2 id="chat-welcome-title">{language === "ko" ? "어떤 회의를 잡을까요?" : "What meeting should we plan?"}</h2>
                   <small>{language === "ko" ? "몇 가지만 알려주시면 모두에게 잘 맞는 시간을 찾아드려요." : "We'll confirm each condition and find a time that works for the group."}</small>
                 </section>
               ) : (
                 <article key={message.id} className={`message ${message.role}`}>
-                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <Bot /> : <CircleUser />}</span>
+                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <NodiMark /> : <CircleUser />}</span>
                   <div><span className="message-author">{message.role === "assistant" ? "NODI" : "나"}</span><p>{message.content}</p></div>
                 </article>
               )
             ))}
             {!loading && (history.length > 0 || recommendationComplete) && (
-              <div className="step-back"><button className="rd-btn m ghost" onClick={goBack}>이전 단계로</button></div>
+              <div className="step-back"><button className="rd-btn m ghost" onClick={goBack} title="이전 단계로 (⌘Z)">이전 단계로</button></div>
             )}
             {!loading && !recommendationComplete && guidedStep?.key === "attendees" && (
               <AttendeePicker
@@ -574,6 +601,7 @@ export function ChatScreen({
                 step={guidedStep}
                 onSelect={selectGuidedChoice}
                 onDirectInput={startDirectInput}
+                language={language}
               />
             )}
             {!loading && !guidedStep && !reviewed && !recommendationComplete && (
@@ -601,7 +629,7 @@ export function ChatScreen({
             )}
             {loading && (
               <article className="message assistant loading-message" aria-label="NODI가 답변 중입니다">
-                <span className="avatar"><Bot /></span>
+                <span className="avatar"><NodiMark /></span>
                 <div><span className="message-author">NODI</span><span className="typing"><i /><i /><i /></span></div>
               </article>
             )}
@@ -613,7 +641,7 @@ export function ChatScreen({
                 <CandidateList candidates={candidates} requiredCount={meeting.requiredAttendees?.length ?? 0} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
               </>
             )}
-            {undo && <div className="undo-bar" role="status"><span>이전 단계로 돌아왔어요</span><button onClick={undoBack}>되돌리기</button></div>}
+            {undo && <div className="undo-bar" role="status"><span>{undo.label}</span><button onClick={undoBack}>되돌리기</button></div>}
             <div className="to-top-anchor">
               <button type="button" className={`to-top-button ${showTop ? "visible" : ""}`} aria-label="대화 맨 위로" tabIndex={showTop ? 0 : -1} onClick={() => streamRef.current?.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}><ArrowUpToLine /></button>
             </div>
@@ -647,6 +675,7 @@ export function ChatScreen({
         <aside className={`context-panel ${summaryOpen ? "open" : ""}`} aria-label="회의 조건과 캘린더">
           <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
           <MeetingSummary meeting={meeting} onChange={(nextMeeting) => {
+            setHistory((current) => [...current, { meeting, messages }].slice(-30));
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
             setReviewed(false);
             setCandidates([]);
@@ -659,7 +688,7 @@ export function ChatScreen({
             setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "바꾼 내용을 반영했어요. 다시 한번 확인해 주세요." }]);
           }} />
           <section className="calendar-status">
-            <div className="section-heading"><h2>연결한 캘린더</h2><span>1개</span></div>
+            <div className="section-heading"><h2>연결한 캘린더</h2><span>1개 · <button className="link-button" onClick={onShowCalendars}>관리</button></span></div>
             <div className="calendar-provider"><span className="provider-icon"><Calendar /></span><div><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터</small></div><CircleCheck className="provider-check" /></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">G</span><div><strong>Google Calendar</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">M</span><div><strong>Microsoft 365</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
@@ -667,14 +696,14 @@ export function ChatScreen({
         </aside>
       </div>
 
-      <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
-        <button className="active" aria-current="page"><span>AI 도우미</span></button>
-        <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>
-        <button disabled><Bell /><span>알림</span></button>
-        <button onClick={onSettings}><CircleUser /><span>내 정보</span></button>
-      </nav>
-
       {selected && <ConfirmDialog meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
+      <nav className="app-tabbar" aria-label="주요 메뉴">
+        <button className="active" aria-current="page"><Bot /><span>회의 잡기</span></button>
+        <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>
+        <button onClick={onShowInvited}><Users /><span>초대{pendingInvited > 0 ? ` ${pendingInvited}` : ""}</span></button>
+        <button onClick={onShowCalendars}><Plug /><span>캘린더</span></button>
+        <button onClick={onSettings}><Settings /><span>설정</span></button>
+      </nav>
     </div>
   );
 }

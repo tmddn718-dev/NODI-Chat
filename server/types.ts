@@ -27,6 +27,8 @@ export type DemoPerson = {
   timezone: string;
   calendarStatus: "connected" | "unavailable";
   recentMeetingAt?: string;
+  title?: string;
+  team?: string;
   blocks: CalendarBlock[];
 };
 

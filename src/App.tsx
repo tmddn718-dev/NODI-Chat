@@ -4,12 +4,14 @@ import { ChatScreen } from "./components/ChatScreen";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
+import { CalendarConnections } from "./components/CalendarConnections";
+import { InvitedMeetings } from "./components/InvitedMeetings";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
 import { SettingsDialog } from "./components/SettingsDialog";
 import type { MeetingEvent } from "./types";
 
-type View = "loading" | "connect" | "chat" | "meetings" | "event";
+type View = "loading" | "connect" | "chat" | "meetings" | "event" | "invited" | "calendars";
 
 export default function App() {
   const inviteToken = window.location.pathname.match(/^\/invite\/([a-f0-9]{48})\/?$/)?.[1];
@@ -67,6 +69,8 @@ export default function App() {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" /></main>;
   }
   if (view === "connect") return <ConnectScreen onConnect={connect} />;
+  if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} />;
+  if (view === "calendars") return <CalendarConnections onBack={() => setView("chat")} />;
   if (view === "meetings") {
     return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} />;
   }
@@ -75,7 +79,7 @@ export default function App() {
   }
   return (
     <>
-      <ChatScreen models={models} onSettings={() => setSettings(true)} onShowMeetings={() => setView("meetings")} onConfirmed={(confirmed) => { setEvent(confirmed); setEvents((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]); setView("event"); }} />
+      <ChatScreen models={models} onSettings={() => setSettings(true)} onShowMeetings={() => setView("meetings")} onShowInvited={() => setView("invited")} onShowCalendars={() => setView("calendars")} onConfirmed={(confirmed) => { setEvent(confirmed); setEvents((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]); setView("event"); }} />
       {settings && <SettingsDialog onClose={() => setSettings(false)} onDisconnect={disconnect} />}
     </>
   );

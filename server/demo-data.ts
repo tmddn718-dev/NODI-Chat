@@ -9,6 +9,8 @@ const block = (date: string, start: string, end: string, title: string) => ({
 export const demoPeople: DemoPerson[] = [
   {
     id: "minji",
+    title: "프로덕트 매니저",
+    team: "프로덕트팀",
     name: "김민지",
     email: "minji@nodi.demo",
     timezone: "Asia/Seoul",
@@ -23,6 +25,8 @@ export const demoPeople: DemoPerson[] = [
   },
   {
     id: "junho",
+    title: "프론트엔드 리드",
+    team: "개발팀",
     name: "박준호",
     email: "junho@nodi.demo",
     timezone: "Asia/Seoul",
@@ -37,6 +41,8 @@ export const demoPeople: DemoPerson[] = [
   },
   {
     id: "sora",
+    title: "시니어 디자이너",
+    team: "디자인팀",
     name: "이소라",
     email: "sora@nodi.demo",
     timezone: "Asia/Seoul",
@@ -50,6 +56,8 @@ export const demoPeople: DemoPerson[] = [
   },
   {
     id: "alex",
+    title: "마케팅 매니저",
+    team: "마케팅팀",
     name: "Alex Morgan",
     email: "alex@nodi.demo",
     timezone: "America/Los_Angeles",
@@ -61,6 +69,8 @@ export const demoPeople: DemoPerson[] = [
   },
   {
     id: "yujin",
+    title: "백엔드 엔지니어",
+    team: "개발팀",
     name: "최유진",
     email: "yujin@nodi.demo",
     timezone: "Asia/Seoul",

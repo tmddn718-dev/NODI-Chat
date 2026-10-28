@@ -1,15 +1,16 @@
-import { Check, History, Plus, Search, UserPlus, Users, X } from "lucide-react";
+import { Check, History, Plus, Search, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import type { PersonSummary } from "../types";
+import { NodiMark } from "./NodiMark";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-export function AttendeePicker({ language, onConfirm, onDirectInput }: {
+export function AttendeePicker({ language, onConfirm }: {
   language: "ko" | "en";
   onConfirm: (attendees: string[]) => void;
-  onDirectInput: () => void;
+  onDirectInput?: () => void;
 }) {
   const ko = language === "ko";
   const [query, setQuery] = useState("");
@@ -17,6 +18,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [manual, setManual] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -30,21 +32,36 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
     return () => { active = false; window.clearTimeout(timer); };
   }, [query]);
 
-  const recent = useMemo(() => people.filter((person) => person.recent).slice(0, 4), [people]);
+  const byName = (a: PersonSummary, b: PersonSummary) => a.name.localeCompare(b.name, "ko");
+  const recent = useMemo(() => people.filter((person) => person.recent).sort(byName), [people]);
+  const teams = useMemo(() => {
+    const groups = new Map<string, PersonSummary[]>();
+    for (const person of people) groups.set(person.team ?? (ko ? "기타" : "Other"), [...(groups.get(person.team ?? (ko ? "기타" : "Other")) ?? []), person]);
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "ko")).map(([team, members]) => [team, [...members].sort(byName)] as const);
+  }, [people, ko]);
+  const unlisted = selected.filter((name) => !emailPattern.test(name) && !people.some((person) => person.name === name));
   const exactEmail = people.some((person) => person.email.toLocaleLowerCase() === query.trim().toLocaleLowerCase());
   const externalEmail = emailPattern.test(query.trim()) && !exactEmail ? query.trim().toLocaleLowerCase() : "";
+
+  // 쉼표·줄바꿈으로 구분한 이름/이메일을 선택 목록에 바로 추가해요 (중복은 무시).
+  function addManual() {
+    const names = (manual ?? "").split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
+    if (!names.length) return;
+    setSelected((current) => [...current, ...names.filter((name, index) => !current.includes(name) && names.indexOf(name) === index)].slice(0, 30));
+    setManual(null);
+  }
 
   function toggle(value: string) {
     setSelected((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   }
 
-  function PersonRow({ person, compact = false }: { person: PersonSummary; compact?: boolean }) {
+  function PersonRow({ person, compact = false, dual = false }: { person: PersonSummary; compact?: boolean; dual?: boolean }) {
     const added = selected.includes(person.name);
     return (
       <button className={`person-row ${compact ? "compact" : ""} ${added ? "selected" : ""}`} onClick={() => toggle(person.name)} aria-pressed={added}>
         <span className="person-avatar" aria-hidden="true">{initials(person.name)}</span>
-        <span className="person-copy"><strong>{person.name}</strong><small>{person.email}</small></span>
-        {!compact && <span className={`calendar-dot ${person.calendarStatus}`}><i />{person.calendarStatus === "connected" ? (ko ? "캘린더 연결" : "Calendar connected") : (ko ? "직접 응답" : "Manual response")}</span>}
+        <span className="person-copy"><strong>{person.name}</strong><small>{person.title ? `${person.title}${person.team ? ` · ${person.team}` : ""}` : person.email}</small></span>
+        {!compact && !dual && <span className={`calendar-dot ${person.calendarStatus}`}><i />{person.calendarStatus === "connected" ? (ko ? "캘린더 연결" : "Calendar connected") : (ko ? "직접 응답" : "Manual response")}</span>}
         <span className="person-add-icon" aria-hidden="true">{added ? <Check /> : <Plus />}</span>
       </button>
     );
@@ -53,7 +70,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
   return (
     <section className="attendee-picker" aria-labelledby="attendee-picker-title">
       <div className="guided-heading">
-        <span><Users /></span>
+        <span className="heading-logo"><NodiMark /></span>
         <div><p>2 / 6{ko ? "단계 · 참석자와 우선순위" : " · Attendees"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
       </div>
       <progress className="guided-progress" max="6" value="2" aria-label={ko ? "6단계 중 2단계" : "Step 2 of 6"} />
@@ -67,18 +84,44 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
 
       {selected.length > 0 && <div className="selected-people" aria-label={ko ? "선택한 참석자" : "Selected attendees"}>{selected.map((name) => <button key={name} onClick={() => toggle(name)}>{name}<X aria-hidden="true" /></button>)}</div>}
 
-      {!query && recent.length > 0 && <div className="people-section"><div className="people-section-title"><span><History /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{ko ? "최근 회의 기준" : "Demo activity"}</small></div><div className="recent-people">{recent.map((person) => <PersonRow person={person} compact key={person.id} />)}</div></div>}
-
-      <div className="people-section directory-section">
-        <div className="people-section-title"><span><UserPlus /> {query ? (ko ? "검색 결과" : "Search results") : (ko ? "조직 구성원" : "Workspace people")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : `${people.length}${ko ? "명" : " people"}`}</small></div>
-        {loading ? <div className="people-skeleton" role="status"><span /><span /><span /></div> : people.length ? <div className="people-list">{people.map((person) => <PersonRow person={person} key={person.id} />)}</div> : !externalEmail && <div className="people-empty"><strong>{ko ? "일치하는 구성원이 없어요" : "No matching person"}</strong><span>{ko ? "이메일 주소를 입력하면 외부 참석자로 추가할 수 있어요." : "Enter an email to add an external attendee."}</span></div>}
-        {externalEmail && <button className={`external-person ${selected.includes(externalEmail) ? "selected" : ""}`} onClick={() => toggle(externalEmail)}><span className="person-avatar">@</span><span className="person-copy"><strong>{externalEmail}</strong><small>{ko ? "외부 참석자로 초대" : "Invite as an external attendee"}</small></span><span className="person-add-icon">{selected.includes(externalEmail) ? <Check /> : <Plus />}</span></button>}
+      <div className="people-stack">
+        <div className="people-section">
+          <div className="people-section-title"><span><History /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{loading ? (ko ? "검색 중" : "Searching") : `${recent.length}${ko ? "명" : ""}`}</small></div>
+          {loading ? <div className="people-skeleton" role="status"><span /><span /><span /></div> : recent.length ? (
+            <div className="recent-chips">{recent.map((person) => {
+              const added = selected.includes(person.name);
+              return (
+                <button className={`pick-chip ${added ? "on" : ""}`} key={person.id} onClick={() => toggle(person.name)} aria-pressed={added} aria-label={`${person.name}${person.title ? ` ${person.title}` : ""}`}>
+                  <span className="pick-chip-avatar" aria-hidden="true">{initials(person.name)}</span>
+                  <span>{person.name}</span>
+                  {added && <Check aria-hidden="true" />}
+                </button>
+              );
+            })}</div>
+          ) : <div className="people-empty"><span>{ko ? "최근 회의에 함께한 사람이 없어요." : "No recent meeting partners."}</span></div>}
+        </div>
+        <div className="people-section directory-section">
+          <div className="people-section-title"><span><UserPlus /> {ko ? "팀원 · 직급" : "Team members"}</span><small>{loading ? (ko ? "검색 중" : "Searching") : `${people.length}${ko ? "명" : ""}`}</small></div>
+          {loading ? <div className="people-skeleton" role="status"><span /><span /><span /></div> : people.length ? <div className="people-list">{teams.map(([team, members]) => <div className="team-group" key={team}><p className="team-name">{team} <span>{members.length}</span></p>{members.map((person) => <PersonRow person={person} dual key={person.id} />)}</div>)}</div> : !externalEmail && <div className="people-empty"><strong>{ko ? "일치하는 구성원이 없어요" : "No matching person"}</strong><span>{ko ? "이메일 주소를 입력하면 외부 참석자로 추가할 수 있어요." : "Enter an email to add an external attendee."}</span></div>}
+        </div>
       </div>
+      {externalEmail && <button className={`external-person ${selected.includes(externalEmail) ? "selected" : ""}`} onClick={() => toggle(externalEmail)}><span className="person-avatar">@</span><span className="person-copy"><strong>{externalEmail}</strong><small>{ko ? "외부 참석자로 초대" : "Invite as an external attendee"}</small></span><span className="person-add-icon">{selected.includes(externalEmail) ? <Check /> : <Plus />}</span></button>}
 
+      {unlisted.length > 0 && <p className="rd-caption attendee-unlisted" role="note">{ko ? `${unlisted.join(", ")}은(는) 조직 구성원에서 찾을 수 없어요. 이메일 주소로 추가하면 응답 링크를 메일로 보낼 수 있고, 이름만 있으면 링크를 복사해서 직접 전달해야 해요.` : `${unlisted.join(", ")} not found in the directory. Add an email to send the link by mail, or copy the link and share it yourself.`}</p>}
       {error && <p className="dialog-error" role="alert">{error}</p>}
       <p className="attendee-request-note">{ko ? "선택이 끝나면 각자에게 응답 링크를 보낼 수 있어요." : "After confirming the meeting details, you can send each attendee a private response link."}</p>
       <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이 사람들과 계속" : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees")}</button>
-      <button className="direct-input-button" onClick={onDirectInput}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
+      {manual === null ? (
+        <button className="direct-input-button" onClick={() => setManual("")}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
+      ) : (
+        <form className="direct-form" onSubmit={(event) => { event.preventDefault(); addManual(); }}>
+          <input className="rd-input" autoFocus aria-label={ko ? "참석자 직접 입력" : "Enter attendees"} placeholder={ko ? "이름이나 이메일을 쉼표로 구분해 입력해 주세요" : "Names or emails, separated by commas"} value={manual} onChange={(event) => setManual(event.target.value)} />
+          <div className="direct-actions">
+            <button type="button" className="secondary-button" onClick={() => setManual(null)}>{ko ? "취소" : "Cancel"}</button>
+            <button type="submit" className="primary-button" disabled={!manual.trim()}>{ko ? "추가" : "Add"}</button>
+          </div>
+        </form>
+      )}
     </section>
   );
 }

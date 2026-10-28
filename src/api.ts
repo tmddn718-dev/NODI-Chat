@@ -75,6 +75,8 @@ export const api = {
   sendRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/send`, { method: "POST" }),
   refreshRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/refresh`, { method: "POST" }),
   remindRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/remind`, { method: "POST" }),
+  extendRound: (token: string, deadlineAt: string) =>
+    request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/deadline`, { method: "POST", body: JSON.stringify({ deadlineAt }) }),
   confirmRound: (token: string, candidateId: string, requestId: string) =>
     request<{ event: import("./types").MeetingEvent }>(`/api/rounds/${token}/confirm`, { method: "POST", body: JSON.stringify({ candidateId, requestId }) }),
   roundInvitation: (token: string) => request<{ invitation: import("./types").RoundInvitation }>(`/api/rounds/respond/${token}`),

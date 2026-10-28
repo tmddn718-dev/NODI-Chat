@@ -192,6 +192,20 @@ export class RoundStore {
     });
   }
 
+  // 응답 마감 연장: 현재 마감보다 늦은 시간으로만 바꿀 수 있고, 줄이거나 지난 시간으로는 바꾸지 않는다.
+  extend(token: string, deadlineAt: string) {
+    return this.mutate((records) => {
+      const record = this.alive(records.find((item) => item.token === token));
+      if (!record) throw new Error("조율을 찾을 수 없습니다.");
+      const next = Date.parse(deadlineAt);
+      if (!Number.isFinite(next) || next <= Math.max(this.now().getTime(), Date.parse(record.deadlineAt))) throw new Error("지금 마감보다 뒤의 시간을 골라 주세요.");
+      record.deadlineAt = new Date(next).toISOString();
+      record.expiresAt = new Date(next + EXTRA_TTL_MS).toISOString();
+      record.updatedAt = this.now().toISOString();
+      return record;
+    });
+  }
+
   remind(token: string) {
     return this.mutate((records) => {
       const record = this.alive(records.find((item) => item.token === token));

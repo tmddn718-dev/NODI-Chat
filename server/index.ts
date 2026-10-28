@@ -358,6 +358,17 @@ app.post("/api/rounds/:token/remind", requireSession, async (req, res, next) => 
   }
 });
 
+app.post("/api/rounds/:token/deadline", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (!record) return;
+    res.json({ round: organizerView(await roundStore.extend(record.token, String(req.body.deadlineAt))) });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("마감")) return res.status(400).json({ error: error.message, code: "invalid_input" });
+    next(error);
+  }
+});
+
 app.post("/api/rounds/:token/confirm", requireSession, async (req, res, next) => {
   try {
     const record = await requireRound(req, res);

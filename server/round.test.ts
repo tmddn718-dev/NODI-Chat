@@ -38,6 +38,10 @@ describe("candidate round", () => {
     await expect(store.respond(sora.token, 1, {})).rejects.toBeInstanceOf(RoundStaleError);
     await store.remind(round.token);
     await expect(store.remind(round.token)).rejects.toThrow("한 번만");
+
+    const later = new Date(Date.parse(round.deadlineAt) + 3_600_000).toISOString();
+    expect((await store.extend(round.token, later)).deadlineAt).toBe(later);
+    await expect(store.extend(round.token, round.deadlineAt)).rejects.toThrow("뒤의 시간");
   });
 });
 

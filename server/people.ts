@@ -1,6 +1,6 @@
 import type { DemoPerson, MeetingEvent } from "./types.ts";
 
-export type PersonSummary = Pick<DemoPerson, "id" | "name" | "email" | "timezone" | "calendarStatus"> & {
+export type PersonSummary = Pick<DemoPerson, "id" | "name" | "email" | "timezone" | "calendarStatus" | "title" | "team"> & {
   recent: boolean;
   lastMetAt?: string;
 };
@@ -20,7 +20,7 @@ export function searchPeople(people: DemoPerson[], events: MeetingEvent[], query
   return people
     .map((person) => {
       const lastMetAt = recentByName.get(normalize(person.name)) ?? person.recentMeetingAt;
-      return { id: person.id, name: person.name, email: person.email, timezone: person.timezone, calendarStatus: person.calendarStatus, recent: Boolean(lastMetAt), lastMetAt };
+      return { id: person.id, name: person.name, email: person.email, timezone: person.timezone, calendarStatus: person.calendarStatus, recent: Boolean(lastMetAt), lastMetAt, title: person.title, team: person.team };
     })
     .filter((person) => !target || normalize(person.name).includes(target) || normalize(person.email).includes(target))
     .sort((a, b) => Number(b.recent) - Number(a.recent) || (b.lastMetAt ?? "").localeCompare(a.lastMetAt ?? "") || a.name.localeCompare(b.name, "ko"));

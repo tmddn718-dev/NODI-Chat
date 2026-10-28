@@ -78,6 +78,8 @@ export type PersonSummary = {
   calendarStatus: "connected" | "unavailable";
   recent: boolean;
   lastMetAt?: string;
+  title?: string;
+  team?: string;
 };
 
 export type DraftPayload = {

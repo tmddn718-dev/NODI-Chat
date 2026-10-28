@@ -68,7 +68,7 @@ describe("ChatScreen invitation responses", () => {
       savedAt: "2026-10-27T00:00:00.000Z",
     }));
 
-    render(<ChatScreen models={["llama-3.3-70b-versatile"]} onSettings={() => undefined} onShowMeetings={() => undefined} onConfirmed={() => undefined} />);
+    render(<ChatScreen models={["llama-3.3-70b-versatile"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
 
     await waitFor(() => expect(screen.getByText("1/1명 응답")).toBeTruthy());
     expect(mocks.invitationAvailability).toHaveBeenCalledWith("c".repeat(48));
@@ -79,7 +79,7 @@ describe("ChatScreen invitation responses", () => {
 
 describe("ChatScreen previous step", () => {
   it("returns to the earlier question after a guided choice", async () => {
-    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onConfirmed={() => undefined} />);
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
     await waitFor(() => expect(mocks.draft).toHaveBeenCalled());
     expect(screen.queryByText("이전 단계로")).toBeNull();
     const first = document.querySelector(".guided-card h2")!.textContent;
