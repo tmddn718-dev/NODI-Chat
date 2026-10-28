@@ -88,6 +88,35 @@ export type InvitationRecord = {
   updatedAt: string;
 };
 
+export type CandidateResponseStatus = "accepted" | "declined" | "tentative";
+
+export type RoundParticipant = {
+  attendee: string;
+  token: string;
+  responses: Record<string, CandidateResponseStatus>;
+  respondedAt?: string;
+  delivery?: "not_sent" | "sent" | "failed";
+  deliveryError?: string;
+  sentAt?: string;
+};
+
+export type RoundRecord = {
+  id: string;
+  token: string;
+  requestId: string;
+  meeting: MeetingDraft;
+  candidates: Candidate[];
+  version: number;
+  deadlineAt: string;
+  reminderCount: number;
+  invitedAt?: string;
+  baseUrl?: string;
+  participants: RoundParticipant[];
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DraftPayload = {
   meeting: MeetingDraft;
   availability: AvailabilityResponse[];
@@ -95,6 +124,7 @@ export type DraftPayload = {
   invitationToken?: string;
   invitationLinks?: Array<{ attendee: string; urlToken: string }>;
   invitationRequestId?: string;
+  roundToken?: string;
   input?: string;
   language?: "ko" | "en";
   model?: string;

@@ -1,4 +1,4 @@
-import { CalendarBlank, CaretLeft, CaretRight, CheckCircle, PencilSimple } from "@phosphor-icons/react";
+import { Calendar, ChevronLeft, ChevronRight, CircleCheck } from "lucide-react";
 import { useState } from "react";
 
 const parseDate = (value: string) => new Date(`${value}T00:00:00Z`);
@@ -94,7 +94,7 @@ export function DateRangePicker({
   return (
     <section className="date-range-picker" aria-labelledby="date-range-title">
       <div className="guided-heading">
-        <span><CalendarBlank weight="duotone" /></span>
+        <span><Calendar /></span>
         <div>
           <p>7–8 / 8 · {ko ? "일정 범위" : "Date range"}</p>
           <h2 id="date-range-title">{ko ? "언제부터 언제까지 찾아볼까요?" : "What date range should NODI search?"}</h2>
@@ -110,11 +110,11 @@ export function DateRangePicker({
             disabled={visibleMonthKey <= currentMonth}
             aria-label={ko ? "이전 달" : "Previous month"}
           >
-            <CaretLeft weight="bold" />
+            <ChevronLeft />
           </button>
           <strong aria-live="polite">{monthLabel}</strong>
           <button type="button" onClick={() => setVisibleMonth((month) => moveMonth(month, 1))} aria-label={ko ? "다음 달" : "Next month"}>
-            <CaretRight weight="bold" />
+            <ChevronRight />
           </button>
         </div>
 
@@ -161,7 +161,7 @@ export function DateRangePicker({
         <div><span>{ko ? "종료" : "End"}</span><strong>{displayDate(end, language)}</strong></div>
       </div>
       <p className="range-help">
-        <CheckCircle weight="fill" />
+        <CircleCheck />
         {start && !end
           ? (ko ? "종료일을 선택해 주세요. 시작일과 같은 날도 선택할 수 있어요." : "Choose an end date. It can be the same as the start date.")
           : (ko ? "오늘부터 최대 31일까지 찾을 수 있어요." : "Choose a range of up to 31 days, starting today or later.")}
@@ -170,7 +170,7 @@ export function DateRangePicker({
       <button className="primary-button date-range-confirm" type="button" disabled={!start || !end} onClick={() => start && end && onConfirm(start, end)}>
         {ko ? "이 날짜로 찾기" : "Continue with this date range"}
       </button>
-      <button className="direct-input-button" type="button" onClick={onDirectInput}><PencilSimple /> {ko ? "직접 입력할게요" : "Enter dates in a sentence"}</button>
+      <button className="direct-input-button" type="button" onClick={onDirectInput}>{ko ? "직접 입력할게요" : "Enter dates in a sentence"}</button>
     </section>
   );
 }

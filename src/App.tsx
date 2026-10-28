@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { ChatScreen } from "./components/ChatScreen";
 import { ConnectScreen } from "./components/ConnectScreen";
+import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
@@ -12,6 +13,7 @@ type View = "loading" | "connect" | "chat" | "meetings" | "event";
 
 export default function App() {
   const inviteToken = window.location.pathname.match(/^\/invite\/([a-f0-9]{48})\/?$/)?.[1];
+  const roundToken = window.location.pathname.match(/^\/respond\/([a-f0-9]{48})\/?$/)?.[1];
   const [view, setView] = useState<View>("loading");
   const [models, setModels] = useState<string[]>([]);
   const [settings, setSettings] = useState(false);
@@ -19,7 +21,7 @@ export default function App() {
   const [events, setEvents] = useState<MeetingEvent[]>([]);
 
   useEffect(() => {
-    if (inviteToken) return;
+    if (inviteToken || roundToken) return;
     api.session()
       .then(async (session) => {
         setModels(session.models);
@@ -27,7 +29,7 @@ export default function App() {
         setView(session.connected ? "chat" : "connect");
       })
       .catch(() => setView("connect"));
-  }, [inviteToken]);
+  }, [inviteToken, roundToken]);
 
   async function connect(key: string) {
     const session = await api.connect(key);
@@ -59,6 +61,7 @@ export default function App() {
     setEvents((current) => current.map((item) => item.id === cancelled.id ? cancelled : item));
   }
 
+  if (roundToken) return <CandidateInviteScreen token={roundToken} />;
   if (inviteToken) return <InviteResponseScreen token={inviteToken} />;
   if (view === "loading") {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" /></main>;

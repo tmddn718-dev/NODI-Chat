@@ -9,6 +9,8 @@ import { DraftConflictError, DraftStore } from "./draft-store.ts";
 import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
 import { InvitationStore } from "./invitation-store.ts";
 import { searchPeople } from "./people.ts";
+import { dispatch, OutboxMailer } from "./mailer.ts";
+import { RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
 import { validateMeeting } from "./recommendation.ts";
 import type { AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
 
@@ -20,6 +22,9 @@ const sessions = new Map<string, { apiKey: string; models: string[]; touchedAt: 
 const provider = new DemoCalendarProvider();
 const invitationStore = new InvitationStore();
 const draftStore = new DraftStore();
+const roundStore = new RoundStore();
+const mailer = new OutboxMailer();
+const baseUrlOf = (req: Request) => process.env.NODI_PUBLIC_URL ?? (req.get("origin") ?? `${req.protocol}://${req.get("host")}`);
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "100kb" }));
@@ -89,6 +94,7 @@ function parseDraftPayload(value: unknown): DraftPayload {
     messages,
     invitationToken: readInvitationToken(input.invitationToken) || undefined,
     invitationLinks: links,
+    roundToken: readInvitationToken(input.roundToken) || undefined,
     invitationRequestId: typeof input.invitationRequestId === "string" ? input.invitationRequestId.slice(0, 100) : undefined,
     input: typeof input.input === "string" ? input.input.slice(0, 4000) : undefined,
     language: input.language === "en" ? "en" : "ko",
@@ -271,6 +277,157 @@ app.get("/api/invitations/:token", async (req, res, next) => {
   }
 });
 
+function organizerView(record: NonNullable<Awaited<ReturnType<RoundStore["get"]>>>) {
+  return {
+    token: record.token,
+    version: record.version,
+    deadlineAt: record.deadlineAt,
+    reminderCount: record.reminderCount,
+    updatedAt: record.updatedAt,
+    ...summarize(record),
+    invitedAt: record.invitedAt,
+    participants: record.participants.map((p) => ({ attendee: p.attendee, urlToken: p.token, responded: Boolean(p.respondedAt), delivery: p.delivery ?? "not_sent", deliveryError: p.deliveryError })),
+  };
+}
+
+async function requireRound(req: Request, res: Response) {
+  const token = readInvitationToken(req.params.token);
+  const record = token ? await roundStore.get(token) : undefined;
+  if (!record) res.status(404).json({ error: "조율을 찾을 수 없어요.", code: "not_found" });
+  return record;
+}
+
+app.post("/api/rounds", requireSession, async (req, res, next) => {
+  try {
+    const meeting = (req.body.meeting ?? {}) as MeetingDraft;
+    const missing = validateMeeting(meeting);
+    if (missing.length) return res.status(400).json({ error: `먼저 필요한 정보가 있어요: ${missing.join(", ")}`, code: "invalid_meeting" });
+    const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
+    if (!requestId) return res.status(400).json({ error: "요청 식별자가 필요해요.", code: "invalid_input" });
+    const { required, optional } = splitAttendees(meeting);
+    if (!required.length || !optional.length) return res.status(400).json({ error: "필수 참석자와 선택 참석자를 모두 정해 주세요.", code: "invalid_meeting" });
+    const deadline = Date.parse(String(req.body.deadlineAt));
+    if (!Number.isFinite(deadline) || deadline <= Date.now()) return res.status(400).json({ error: "응답 마감은 지금보다 뒤여야 해요.", code: "invalid_input" });
+    const candidates = requiredFirstCandidates(meeting, deadline);
+    if (!candidates.length) return res.status(400).json({ error: "응답 마감 이후에 필수 참석자가 모두 가능한 시간이 없어요. 마감을 앞당기거나 기간을 넓혀 보세요.", code: "no_candidates" });
+    const record = await roundStore.create(meeting, candidates, new Date(deadline).toISOString(), requestId);
+    res.status(201).json({ round: organizerView(record) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/rounds/:token", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (record) res.json({ round: organizerView(record) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/:token/send", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (record) res.json({ round: organizerView(await dispatch(roundStore, mailer, record, "invite", baseUrlOf(req))) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/:token/refresh", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (!record) return;
+    const candidates = requiredFirstCandidates(record.meeting, Date.parse(record.deadlineAt));
+    if (!candidates.length) return res.status(400).json({ error: "지금은 필수 참석자가 모두 가능한 시간이 없어요.", code: "no_candidates" });
+    res.json({ round: organizerView(await roundStore.refresh(record.token, candidates)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/:token/remind", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (!record) return;
+    const reminded = await roundStore.remind(record.token);
+    res.json({ round: organizerView(await dispatch(roundStore, mailer, reminded, "reminder", baseUrlOf(req))) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/:token/confirm", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (!record) return;
+    const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
+    if (!requestId) return res.status(400).json({ error: "확정 요청 식별자가 필요해요.", code: "invalid_input" });
+    const row = summarize(record).rows.find((item) => item.candidate.id === req.body.candidateId);
+    const fresh = requiredFirstCandidates(record.meeting, Date.parse(record.deadlineAt)).find((item) => item.id === row?.candidate.id);
+    if (!row || !fresh || fresh.start !== row.candidate.start || !fresh.requiredAvailable || Date.parse(fresh.start) <= Date.now()) {
+      return res.status(409).json({ error: "확정 직전 필수 참석자의 일정이 바뀌었어요. 후보를 다시 찾아 주세요.", code: "stale_candidate" });
+    }
+    const { optional } = splitAttendees(record.meeting);
+    const candidate: Candidate = {
+      ...fresh,
+      acceptedCount: row.accepted,
+      available: fresh.available + row.accepted,
+      unknownCount: row.tentative + row.noResponse,
+      unknown: record.participants.filter((p) => p.responses[fresh.id] !== "accepted" && p.responses[fresh.id] !== "declined").map((p) => p.attendee),
+      unavailable: record.participants.filter((p) => p.responses[fresh.id] === "declined").map((p) => p.attendee),
+    };
+    const statusMap = { accepted: "available", declined: "unavailable", tentative: "tentative" } as const;
+    const availability: AvailabilityResponse[] = optional.map((attendee) => {
+      const status = record.participants.find((p) => p.attendee === attendee)?.responses[fresh.id];
+      return status === "accepted"
+        ? { attendee, status: "available", start: fresh.start, end: fresh.end }
+        : { attendee, status: status ? statusMap[status] : "no_response" };
+    });
+    const event = await provider.createRoundEvent(record.meeting, candidate, availability, requestId);
+    res.status(201).json({ event, mode: "demo", invitationSent: false });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/rounds/respond/:token", async (req, res, next) => {
+  try {
+    const token = readInvitationToken(req.params.token);
+    const access = token ? await roundStore.getByAccess(token) : undefined;
+    if (!access) return res.status(404).json({ error: "유효하지 않거나 만료된 초대 링크입니다.", code: "not_found" });
+    const { record, participant } = access;
+    res.json({
+      invitation: {
+        meeting: { title: record.meeting.title, purpose: record.meeting.purpose, durationMinutes: record.meeting.durationMinutes },
+        attendee: participant.attendee,
+        candidates: record.candidates.map(({ id, start, end }) => ({ id, start, end })),
+        responses: participant.responses,
+        version: record.version,
+        deadlineAt: record.deadlineAt,
+        pastDeadline: Date.now() >= Date.parse(record.deadlineAt),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/respond/:token", async (req, res, next) => {
+  try {
+    const token = readInvitationToken(req.params.token);
+    const version = Number(req.body.version);
+    if (!token || !Number.isInteger(version) || !req.body.responses || typeof req.body.responses !== "object") {
+      return res.status(400).json({ error: "응답 정보를 확인해 주세요.", code: "invalid_input" });
+    }
+    const record = await roundStore.respond(token, version, req.body.responses as Record<string, unknown>);
+    res.json({ saved: true, updatedAt: record.updatedAt });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/invitations/:token/availability", requireSession, async (req, res, next) => {
   try {
     const token = readInvitationToken(req.params.token);
@@ -367,7 +524,8 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const known = error instanceof UpstreamError;
   const message = error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
   const conflict = error instanceof DraftConflictError;
-  res.status(known ? error.status : conflict ? 409 : 400).json({ error: message, code: known ? error.code : conflict ? "draft_conflict" : "request_failed" });
+  const stale = error instanceof RoundStaleError;
+  res.status(known ? error.status : conflict || stale ? 409 : 400).json({ error: message, code: known ? error.code : conflict ? "draft_conflict" : stale ? "stale_invitation" : "request_failed" });
 });
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -377,6 +535,22 @@ app.get("/{*path}", (_req, res, next) => {
   if (process.env.NODE_ENV !== "production") return next();
   res.sendFile(path.join(distDir, "index.html"));
 });
+
+// 응답 수집 기간의 절반이 지나도 답이 없으면 미응답자에게 재알림을 한 번만 자동 발송한다.
+const autoRemind = setInterval(async () => {
+  try {
+    const now = Date.now();
+    for (const record of await roundStore.all()) {
+      if (!record.invitedAt || !record.baseUrl || record.reminderCount >= 1 || now >= Date.parse(record.deadlineAt)) continue;
+      const halfway = Date.parse(record.invitedAt) + (Date.parse(record.deadlineAt) - Date.parse(record.invitedAt)) / 2;
+      if (now < halfway || record.participants.every((p) => p.respondedAt || p.delivery !== "sent")) continue;
+      await dispatch(roundStore, mailer, await roundStore.remind(record.token), "reminder", record.baseUrl);
+    }
+  } catch (error) {
+    console.error("auto reminder failed", error);
+  }
+}, 60 * 1000);
+autoRemind.unref();
 
 const cleanup = setInterval(() => {
   const cutoff = Date.now() - sessionTtl;

@@ -1,4 +1,4 @@
-import { CalendarCheck, PencilSimple, Trash, Warning } from "@phosphor-icons/react";
+import { CalendarCheck, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { MeetingEvent } from "../types";
 
@@ -56,7 +56,7 @@ export function MeetingManager({
     return (
       <main id="main-content" className="result-view">
         <section className="result-card cancelled">
-          <span className="result-icon"><Warning weight="duotone" /></span>
+          <span className="result-icon"><TriangleAlert /></span>
           <p className="overline">데모 캘린더</p>
           <h1>회의를 취소했어요</h1>
           <p>실제 캘린더와 참석자 초대에는 영향을 주지 않았어요.</p>
@@ -70,7 +70,7 @@ export function MeetingManager({
   return (
     <main id="main-content" className="result-view">
       <section className="result-card">
-        <span className="result-icon"><CalendarCheck weight="duotone" /></span>
+        <span className="result-icon"><CalendarCheck /></span>
         <span className="demo-badge">시간을 정했어요 · 데모</span>
         <h1>회의 시간이 정해졌어요</h1>
         <p>데모 안에서만 정했어요. 실제 캘린더와 초대에는 아직 반영하지 않았어요.</p>
@@ -86,7 +86,7 @@ export function MeetingManager({
           )}
         </div>
         <div className="result-statuses" aria-label="회의 처리 상태">
-          <span className="status-badge status-success"><CalendarCheck weight="fill" /> 시간 정함</span>
+          <span className="status-badge status-success"><CalendarCheck /> 시간 정함</span>
           <span className={`status-badge ${event.calendarSyncStatus === "synced" ? "status-success" : event.calendarSyncStatus === "failed" ? "status-error" : "status-neutral"}`}>{event.calendarSyncStatus === "synced" ? "캘린더 반영" : event.calendarSyncStatus === "failed" ? "동기화 실패" : "캘린더 미반영"}</span>
           <span className="status-badge status-neutral">{event.invitationSent ? "초대 전송" : "초대 미전송"}</span>
           <span className="status-badge status-neutral">준비 사항 없음</span>
@@ -94,8 +94,8 @@ export function MeetingManager({
         {error && <p className="dialog-error" role="alert">{error}</p>}
         {!editing && (
           <div className="manage-actions">
-            <button className="secondary-button" onClick={() => setEditing(true)}><PencilSimple /> 제목 바꾸기</button>
-            <button className="danger-button" onClick={cancel} disabled={loading}><Trash /> {loading ? "취소 중..." : "회의 취소"}</button>
+            <button className="secondary-button" onClick={() => setEditing(true)}>제목 바꾸기</button>
+            <button className="danger-button" onClick={cancel} disabled={loading}>{loading ? "취소 중..." : "회의 취소"}</button>
           </div>
         )}
         <button className="text-link standalone-link" onClick={onNew}>새 회의 만들기</button>

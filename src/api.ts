@@ -57,6 +57,17 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ status: response.status, start: response.start, end: response.end }),
     }),
+  createRound: (meeting: import("./types").MeetingDraft, requestId: string, deadlineAt: string) =>
+    request<{ round: import("./types").RoundSummary }>("/api/rounds", { method: "POST", body: JSON.stringify({ meeting, requestId, deadlineAt }) }),
+  round: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}`),
+  sendRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/send`, { method: "POST" }),
+  refreshRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/refresh`, { method: "POST" }),
+  remindRound: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/remind`, { method: "POST" }),
+  confirmRound: (token: string, candidateId: string, requestId: string) =>
+    request<{ event: import("./types").MeetingEvent }>(`/api/rounds/${token}/confirm`, { method: "POST", body: JSON.stringify({ candidateId, requestId }) }),
+  roundInvitation: (token: string) => request<{ invitation: import("./types").RoundInvitation }>(`/api/rounds/respond/${token}`),
+  respondToRound: (token: string, version: number, responses: Record<string, import("./types").CandidateResponseStatus>) =>
+    request<{ saved: boolean }>(`/api/rounds/respond/${token}`, { method: "POST", body: JSON.stringify({ version, responses }) }),
   events: () => request<{ events: import("./types").MeetingEvent[] }>("/api/events"),
   createEvent: (
     meeting: import("./types").MeetingDraft,

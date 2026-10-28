@@ -1,4 +1,4 @@
-import { Key, Plug, X } from "@phosphor-icons/react";
+import { KeyRound, Plug, X } from "lucide-react";
 
 export function SettingsDialog({ onClose, onDisconnect }: { onClose: () => void; onDisconnect: () => Promise<void> }) {
   return (
@@ -7,7 +7,7 @@ export function SettingsDialog({ onClose, onDisconnect }: { onClose: () => void;
         <button className="dialog-close icon-button" onClick={onClose} aria-label="설정 닫기"><X /></button>
         <h2 id="settings-title">설정</h2>
         <div className="setting-row">
-          <span><Key /></span>
+          <span><KeyRound /></span>
           <div><strong>Groq API</strong><p>서버가 열려 있는 동안에만 Key를 기억해요</p></div>
           <span className="connected-label">연결했어요</span>
         </div>

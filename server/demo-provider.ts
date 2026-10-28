@@ -21,6 +21,17 @@ export class DemoCalendarProvider implements CalendarProvider {
     if (!latest || latest.basisKey !== candidate.basisKey || latest.basedOnMeetingVersion !== candidate.basedOnMeetingVersion || !latest.requiredAvailable) {
       throw new Error("확정 직전 일정이 변경되었습니다. 후보 시간을 다시 확인해 주세요.");
     }
+    return this.persist(meeting, latest, responses, requestId);
+  }
+
+  // 후보 라운드는 필수 참석자 기준으로 이미 서버가 재검증한 후보를 받는다.
+  async createRoundEvent(meeting: MeetingDraft, candidate: Candidate, responses: AvailabilityResponse[], requestId: string) {
+    const existing = await this.store.findByRequestId(requestId);
+    if (existing) return existing;
+    return this.persist(meeting, candidate, responses, requestId);
+  }
+
+  private persist(meeting: MeetingDraft, latest: Candidate, responses: AvailabilityResponse[], requestId: string) {
     const now = new Date().toISOString();
     const event = {
       id: randomUUID(),

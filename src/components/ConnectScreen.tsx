@@ -1,4 +1,4 @@
-import { Eye, EyeSlash, Key, LockKey, ShieldCheck } from "@phosphor-icons/react";
+import { Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Brand } from "./Brand";
 
@@ -37,20 +37,20 @@ export function ConnectScreen({ onConnect }: Props) {
           <p>참석자 일정과 원하는 조건을 확인해 잘 맞는 시간을 찾아드려요.</p>
         </div>
         <div className="trust-note">
-          <ShieldCheck size={24} weight="duotone" />
+          <ShieldCheck size={24} />
           <span>API Key는 브라우저나 데이터베이스에 저장하지 않아요.</span>
         </div>
       </section>
 
       <section className="connect-panel" aria-labelledby="connect-title">
         <div className="connect-card">
-          <span className="key-icon"><Key size={26} weight="duotone" /></span>
+          <span className="key-icon"><KeyRound size={26} /></span>
           <h2 id="connect-title">Groq를 연결해 주세요</h2>
           <p className="muted">AI로 회의 시간을 찾으려면 API Key가 필요해요.</p>
           <form onSubmit={submit}>
             <label htmlFor="api-key">Groq API Key</label>
             <div className={`input-with-action ${status === "error" ? "field-error" : ""}`}>
-              <LockKey size={19} aria-hidden="true" />
+              <LockKeyhole size={19} aria-hidden="true" />
               <input
                 id="api-key"
                 type={showKey ? "text" : "password"}
@@ -62,7 +62,7 @@ export function ConnectScreen({ onConnect }: Props) {
                 disabled={status === "loading"}
               />
               <button type="button" className="icon-button" onClick={() => setShowKey((value) => !value)} aria-label={showKey ? "API Key 숨기기" : "API Key 보기"}>
-                {showKey ? <EyeSlash /> : <Eye />}
+                {showKey ? <EyeOff /> : <Eye />}
               </button>
             </div>
             <p id="key-help" className={status === "error" ? "error-text" : "helper-text"} role={status === "error" ? "alert" : undefined}>

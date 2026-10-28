@@ -1,17 +1,4 @@
-import {
-  ArrowUp,
-  Bell,
-  CalendarBlank,
-  CheckCircle,
-  GearSix,
-  Globe,
-  PlugsConnected,
-  Robot,
-  Sparkle,
-  UserCircle,
-  UsersThree,
-  WifiSlash,
-} from "@phosphor-icons/react";
+import { ArrowUp, ArrowUpToLine, Bell, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Sparkles, Users, WifiOff, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { getGuidedStep, type GuidedChoice } from "../guided";
@@ -25,6 +12,7 @@ import { DateRangePicker } from "./DateRangePicker";
 import { GuidedChoices } from "./GuidedChoices";
 import { MeetingSummary } from "./MeetingSummary";
 import { RequiredAttendeePicker } from "./RequiredAttendeePicker";
+import { RoundPanel } from "./RoundPanel";
 
 const intro: Message = {
   id: "intro",
@@ -44,6 +32,7 @@ function restoreDraft() {
       invitationToken?: string;
       invitationLinks?: InvitationLink[];
       invitationRequestId?: string;
+      roundToken?: string;
       input?: string;
       language?: "ko" | "en";
       model?: string;
@@ -83,6 +72,11 @@ export function ChatScreen({
   const [confirmRequestId, setConfirmRequestId] = useState("");
   const [invitationToken, setInvitationToken] = useState(restored?.invitationToken ?? "");
   const [invitationLinks, setInvitationLinks] = useState<InvitationLink[]>(restored?.invitationLinks ?? []);
+  const [showTop, setShowTop] = useState(false);
+  const streamRef = useRef<HTMLDivElement>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [history, setHistory] = useState<Array<{ meeting: MeetingDraft; messages: Message[] }>>([]);
+  const [roundToken, setRoundToken] = useState(restored?.roundToken ?? "");
   const [invitationRequestId, setInvitationRequestId] = useState(restored?.invitationRequestId ?? crypto.randomUUID());
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
@@ -96,6 +90,8 @@ export function ChatScreen({
   const availabilityRef = useRef(availability);
   const endRef = useRef<HTMLDivElement>(null);
   const guidedStep = getGuidedStep(meeting, language);
+  const requiredCount = meeting.requiredAttendees?.length ?? 0;
+  const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
 
   useEffect(() => {
     const attendees = meeting.attendees ?? [];
@@ -119,7 +115,7 @@ export function ChatScreen({
   }, []);
 
   useEffect(() => {
-    const payload: DraftPayload = { meeting, availability, messages, invitationToken: invitationToken || undefined, invitationLinks, invitationRequestId, input, language, model };
+    const payload: DraftPayload = { meeting, availability, messages, invitationToken: invitationToken || undefined, invitationLinks, invitationRequestId, roundToken: roundToken || undefined, input, language, model };
     localStorage.setItem(draftStorageKey, JSON.stringify({ ...payload, savedAt: new Date().toISOString() }));
     if (!serverReady || syncStatus === "conflict" || !online) return;
     setSyncStatus("saving");
@@ -132,7 +128,7 @@ export function ChatScreen({
         .catch((reason) => setSyncStatus(reason instanceof ApiError && reason.status === 409 ? "conflict" : "error"));
     }, 700);
     return () => window.clearTimeout(timeout);
-  }, [meeting, availability, messages, invitationToken, invitationLinks, invitationRequestId, input, language, model, serverReady, online]);
+  }, [meeting, availability, messages, invitationToken, invitationLinks, invitationRequestId, roundToken, input, language, model, serverReady, online]);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -195,6 +191,7 @@ export function ChatScreen({
     setAvailability(payload.availability ?? []);
     setMessages(payload.messages?.length ? payload.messages : [intro]);
     setInvitationToken(payload.invitationToken ?? "");
+    setRoundToken(payload.roundToken ?? "");
     setInvitationLinks(payload.invitationLinks ?? []);
     setInvitationRequestId(payload.invitationRequestId ?? crypto.randomUUID());
     setInput(payload.input ?? "");
@@ -217,7 +214,26 @@ export function ChatScreen({
     }
   }
 
+  function goBack() {
+    const previous = history[history.length - 1];
+    if (!previous) return;
+    setHistory(history.slice(0, -1));
+    setMeeting({ ...previous.meeting, version: (meeting.version ?? 1) + 1 });
+    setMessages(previous.messages);
+    setCandidates([]);
+    setRecommendationComplete(false);
+    setSelected(null);
+    setInvitationToken("");
+    setRoundToken("");
+    setInvitationLinks([]);
+    setInvitationRequestId(crypto.randomUUID());
+    setCustomPlaceholder("");
+    setInput("");
+    setError("");
+  }
+
   function restart() {
+    setHistory([]);
     setMessages([intro]);
     setMeeting(emptyMeeting());
     setCandidates([]);
@@ -229,6 +245,7 @@ export function ChatScreen({
     setAvailability([]);
     setConfirmRequestId("");
     setInvitationToken("");
+    setRoundToken("");
     setInvitationLinks([]);
     setInvitationRequestId(crypto.randomUUID());
     setInviteError("");
@@ -294,8 +311,10 @@ export function ChatScreen({
         language,
       });
       const nextMeeting = { ...(result.meeting ?? meeting), version: (meeting.version ?? 1) + 1 };
+      setHistory((current) => [...current, { meeting, messages }].slice(-30));
       setMeeting(nextMeeting);
       setInvitationToken("");
+    setRoundToken("");
       setInvitationLinks([]);
       setInvitationRequestId(crypto.randomUUID());
       setModel(result.model);
@@ -336,10 +355,12 @@ export function ChatScreen({
       : language === "ko"
         ? "필요한 정보가 다 모였어요. 이제 참석 가능한 시간을 확인할게요."
         : "The meeting details are ready. Add each attendee's availability.";
+    setHistory((current) => [...current, { meeting, messages }].slice(-30));
     setMeeting(nextMeeting);
     setCandidates([]);
     setRecommendationComplete(false);
     setInvitationToken("");
+    setRoundToken("");
     setInvitationLinks([]);
     setInvitationRequestId(crypto.randomUUID());
     setError("");
@@ -388,7 +409,9 @@ export function ChatScreen({
     setConfirmLoading(true);
     setConfirmError("");
     try {
-      const result = await api.createEvent(meeting, selected, availability, confirmRequestId, invitationToken || undefined);
+      const result = roundToken
+        ? await api.confirmRound(roundToken, selected.id, confirmRequestId)
+        : await api.createEvent(meeting, selected, availability, confirmRequestId, invitationToken || undefined);
       localStorage.removeItem(draftStorageKey);
       await api.deleteDraft().catch(() => undefined);
       onConfirmed(result.event);
@@ -405,23 +428,23 @@ export function ChatScreen({
         <Brand />
         <div className="topbar-actions">
           <span className="mode-chip"><span /> 데모 캘린더</span>
-          <button className="icon-button mobile-meetings-button" onClick={onShowMeetings} aria-label="내 회의 열기"><CalendarBlank /></button>
-          <button className="icon-button" onClick={onSettings} aria-label="설정 열기"><GearSix /></button>
+          <button className="icon-button mobile-meetings-button" onClick={onShowMeetings} aria-label="내 회의 열기"><Calendar /></button>
+          <button className="icon-button" onClick={onSettings} aria-label="설정 열기"><Settings /></button>
         </div>
       </header>
 
       <div className="workspace">
         <aside className="sidebar">
-          <button className="new-chat-button" onClick={restart}><Sparkle /> 새 회의</button>
+          <button className="new-chat-button" onClick={restart}>새 회의</button>
           <nav aria-label="서비스 상태">
             <p>작업 공간</p>
-            <a href="#main-content" className="active"><Robot /> 회의 잡기</a>
-            <button onClick={onShowMeetings}><CalendarBlank /> 내 회의</button>
-            <button disabled><UsersThree /> 초대받은 회의 <span>준비 중</span></button>
-            <button disabled><PlugsConnected /> 캘린더 연결 <span>준비 중</span></button>
+            <a href="#main-content" className="active"><Bot /> 회의 잡기</a>
+            <button onClick={onShowMeetings}><Calendar /> 내 회의</button>
+            <button disabled><Users /> 초대받은 회의 <span>준비 중</span></button>
+            <button disabled><Plug /> 캘린더 연결 <span>준비 중</span></button>
           </nav>
           <div className="connection-box">
-            <div><PlugsConnected weight="duotone" /><span><strong>데모 캘린더</strong><small>가상 일정 5명 연결</small></span></div>
+            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 일정 5명 연결</small></span></div>
             <p>실제 캘린더에는 반영되지 않아요.</p>
           </div>
         </aside>
@@ -429,27 +452,33 @@ export function ChatScreen({
         <main id="main-content" className="conversation">
           <div className="conversation-bar">
               <div><h1>회의 잡기</h1><p>필요한 것만 물어보고, 잘 맞는 시간을 찾아드려요.</p><span className={`draft-sync ${syncStatus}`}>{syncStatus === "saved" ? "저장됐어요" : syncStatus === "saving" || syncStatus === "loading" ? "저장 중" : syncStatus === "conflict" ? "다른 기기에서 바뀌었어요" : "이 기기에 저장했어요"}</span></div>
-            <button className="mobile-restart" onClick={restart}>처음부터</button>
+            <div className="conversation-actions">
+              <button className="summary-toggle" onClick={() => setSummaryOpen(true)} aria-haspopup="dialog" aria-expanded={summaryOpen}>회의 조건</button>
+              <button className="mobile-restart" onClick={restart}>처음부터</button>
+            </div>
           </div>
 
-          <div className="message-stream" aria-live="polite">
-            {!online && <div className="offline-banner" role="status"><WifiSlash /><span><strong>인터넷에 연결되지 않았어요</strong> 입력한 내용은 이 기기에 보관하고 있어요.</span></div>}
+          <div className="message-stream" aria-live="polite" ref={streamRef} onScroll={(event) => setShowTop(event.currentTarget.scrollTop > 240)}>
+            {!online && <div className="offline-banner" role="status"><WifiOff /><span><strong>인터넷에 연결되지 않았어요</strong> 입력한 내용은 이 기기에 보관하고 있어요.</span></div>}
             {syncStatus === "conflict" && <div className="sync-conflict" role="alert"><span><strong>다른 기기에서 내용이 바뀌었어요</strong> 불러오면 이 화면에서 아직 저장하지 않은 내용은 사라져요.</span><button className="secondary-button" onClick={() => void loadServerDraft()}>새 내용 불러오기</button></div>}
             {messages.map((message) => (
               message.id === "intro" ? (
                 <section key={message.id} className="chat-welcome" aria-labelledby="chat-welcome-title">
-                  <div className="nodi-orb" aria-hidden="true"><span /><span /><Sparkle weight="fill" /></div>
+                  <div className="nodi-orb" aria-hidden="true"><span /><span /><Sparkles /></div>
                   <p>{language === "ko" ? "반가워요. NODI예요." : "Hello, I'm your NODI scheduling assistant."}</p>
                   <h2 id="chat-welcome-title">{language === "ko" ? "어떤 회의를 잡을까요?" : "What meeting should we plan?"}</h2>
                   <small>{language === "ko" ? "몇 가지만 알려주시면 모두에게 잘 맞는 시간을 찾아드려요." : "We'll confirm each condition and find a time that works for the group."}</small>
                 </section>
               ) : (
                 <article key={message.id} className={`message ${message.role}`}>
-                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <Robot weight="duotone" /> : <UserCircle weight="duotone" />}</span>
+                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <Bot /> : <CircleUser />}</span>
                   <div><span className="message-author">{message.role === "assistant" ? "NODI" : "나"}</span><p>{message.content}</p></div>
                 </article>
               )
             ))}
+            {!loading && history.length > 0 && !recommendationComplete && (
+              <div className="step-back"><button className="rd-btn m ghost" onClick={goBack}>이전 단계로</button></div>
+            )}
             {!loading && !recommendationComplete && guidedStep?.key === "attendees" && (
               <AttendeePicker
                 language={language}
@@ -496,7 +525,10 @@ export function ChatScreen({
                 onDirectInput={startDirectInput}
               />
             )}
-            {!loading && !guidedStep && !recommendationComplete && !recommendLoading && (
+            {!loading && !guidedStep && hasRound && (
+              <RoundPanel meeting={meeting} token={roundToken} requestId={invitationRequestId} onTokenChange={setRoundToken} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
+            )}
+            {!loading && !guidedStep && !hasRound && !recommendationComplete && !recommendLoading && (
               <AvailabilityEditor
                 responses={availability}
                 dateStart={meeting.dateStart!}
@@ -514,7 +546,7 @@ export function ChatScreen({
             )}
             {loading && (
               <article className="message assistant loading-message" aria-label="NODI가 답변 중입니다">
-                <span className="avatar"><Robot weight="duotone" /></span>
+                <span className="avatar"><Bot /></span>
                 <div><span className="message-author">NODI</span><span className="typing"><i /><i /><i /></span></div>
               </article>
             )}
@@ -526,6 +558,9 @@ export function ChatScreen({
                 <CandidateList candidates={candidates} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
               </>
             )}
+            <div className="to-top-anchor">
+              <button type="button" className={`to-top-button ${showTop ? "visible" : ""}`} aria-label="대화 맨 위로" tabIndex={showTop ? 0 : -1} onClick={() => streamRef.current?.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}><ArrowUpToLine /></button>
+            </div>
             <div ref={endRef} />
           </div>
 
@@ -545,7 +580,7 @@ export function ChatScreen({
               placeholder={customPlaceholder || guidedStep?.inputPlaceholder || "편하게 입력해 주세요"}
               disabled={loading}
             />
-            <button className="send-button" aria-label="메시지 보내기" disabled={!input.trim() || loading}><ArrowUp weight="bold" /></button>
+            <button className="send-button" aria-label="메시지 보내기" disabled={!input.trim() || loading}><ArrowUp /></button>
             <div className="composer-meta">
               <label><Globe /> 언어<select value={language} onChange={(event) => setLanguage(event.target.value as "ko" | "en")}><option value="ko">한국어</option><option value="en">English</option></select></label>
               <label>모델<select value={model} onChange={(event) => setModel(event.target.value)}>{models.map((item) => <option key={item}>{item}</option>)}</select></label>
@@ -553,20 +588,23 @@ export function ChatScreen({
           </form>
         </main>
 
-        <aside className="context-panel">
+        {summaryOpen && <div className="sheet-scrim" onClick={() => setSummaryOpen(false)} aria-hidden="true" />}
+        <aside className={`context-panel ${summaryOpen ? "open" : ""}`} aria-label="회의 조건과 캘린더">
+          <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
           <MeetingSummary meeting={meeting} onChange={(nextMeeting) => {
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
             setCandidates([]);
             setRecommendationComplete(false);
             setSelected(null);
             setInvitationToken("");
+    setRoundToken("");
             setInvitationLinks([]);
             setInvitationRequestId(crypto.randomUUID());
             setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "바꾼 내용을 반영했어요. 다시 한번 확인해 주세요." }]);
           }} />
           <section className="calendar-status">
             <div className="section-heading"><h2>연결한 캘린더</h2><span>1개</span></div>
-            <div className="calendar-provider"><span className="provider-icon"><CalendarBlank /></span><div><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터</small></div><CheckCircle className="provider-check" weight="fill" /></div>
+            <div className="calendar-provider"><span className="provider-icon"><Calendar /></span><div><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터</small></div><CircleCheck className="provider-check" /></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">G</span><div><strong>Google Calendar</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">M</span><div><strong>Microsoft 365</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
           </section>
@@ -574,13 +612,13 @@ export function ChatScreen({
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
-        <button className="active" aria-current="page"><Robot weight="fill" /><span>AI 도우미</span></button>
-        <button onClick={onShowMeetings}><CalendarBlank /><span>내 회의</span></button>
+        <button className="active" aria-current="page"><span>AI 도우미</span></button>
+        <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>
         <button disabled><Bell /><span>알림</span></button>
-        <button onClick={onSettings}><UserCircle /><span>내 정보</span></button>
+        <button onClick={onSettings}><CircleUser /><span>내 정보</span></button>
       </nav>
 
-      {selected && <ConfirmDialog meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); void findRecommendations(meeting, availability); }} />}
+      {selected && <ConfirmDialog meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { CalendarBlank, Check, Clock, GlobeHemisphereEast, MapPin, PencilSimple, UsersThree, VideoCamera, X } from "@phosphor-icons/react";
+import { Calendar, Clock, Globe, MapPin, Users, Video } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import type { MeetingDraft } from "../types";
 
@@ -38,7 +38,7 @@ export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; o
     <section className="summary-card" aria-labelledby="summary-title">
       <div className="section-heading">
         <h2 id="summary-title">지금까지 정한 내용</h2>
-        {onChange ? <div className="summary-heading-actions"><span>{confirmedFields}/8 입력</span><button className="summary-edit-button" onClick={() => setEditing((value) => !value)}>{editing ? <X /> : <PencilSimple />}{editing ? "닫기" : "바꾸기"}</button></div> : <span>{meeting.title ? "작성 중" : "시작 전"}</span>}
+        {onChange ? <div className="summary-heading-actions"><span>{confirmedFields}/8 입력</span><button className="summary-edit-button" onClick={() => setEditing((value) => !value)}>{editing ? "닫기" : "바꾸기"}</button></div> : <span>{meeting.title ? "작성 중" : "시작 전"}</span>}
       </div>
       {editing ? (
         <form className="summary-edit-form" onSubmit={save}>
@@ -49,7 +49,7 @@ export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; o
           <label>꼭 참석할 사람<input value={requiredText} onChange={(event) => setRequiredText(event.target.value)} /></label>
           <div className="summary-date-fields"><label>시작일<input type="date" value={draft.dateStart ?? ""} onChange={(event) => setDraft({ ...draft, dateStart: event.target.value })} /></label><label>종료일<input type="date" value={draft.dateEnd ?? ""} min={draft.dateStart} onChange={(event) => setDraft({ ...draft, dateEnd: event.target.value })} /></label></div>
           <label>선호 시간<select value={draft.preferredTime ?? ""} onChange={(event) => setDraft({ ...draft, preferredTime: event.target.value as MeetingDraft["preferredTime"] })}><option value="">선택</option><option value="morning">오전</option><option value="afternoon">오후</option><option value="any">상관없음</option></select></label>
-          <button className="primary-button"><Check /> 저장하기</button>
+          <button className="primary-button">저장하기</button>
         </form>
       ) : (
         <>
@@ -59,11 +59,11 @@ export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; o
           </div>
           <dl className="summary-list">
             <div><dt><Clock /></dt><dd>{meeting.durationMinutes ? `${meeting.durationMinutes}분` : "시간을 알려주세요"}</dd></div>
-            <div><dt><UsersThree /></dt><dd>{attendees.length ? attendees.join(", ") : "함께할 사람을 골라주세요"}</dd></div>
-            <div><dt><UsersThree /></dt><dd>{meeting.requiredAttendees === undefined ? "꼭 참석할 사람을 골라주세요" : meeting.requiredAttendees.length ? `${meeting.requiredAttendees.join(", ")} 꼭 참석` : "꼭 참석할 사람 없음"}</dd></div>
-            <div><dt><CalendarBlank /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜를 골라주세요"}</dd></div>
-            <div><dt><GlobeHemisphereEast /></dt><dd>{meeting.timezone ?? "Asia/Seoul"} · 데모 기준</dd></div>
-            <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <VideoCamera />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : meeting.meetingType === "online" ? "온라인 회의" : "진행 방식을 알려주세요"}</dd></div>
+            <div><dt><Users /></dt><dd>{attendees.length ? attendees.join(", ") : "함께할 사람을 골라주세요"}</dd></div>
+            <div><dt><Users /></dt><dd>{meeting.requiredAttendees === undefined ? "꼭 참석할 사람을 골라주세요" : meeting.requiredAttendees.length ? `${meeting.requiredAttendees.join(", ")} 꼭 참석` : "꼭 참석할 사람 없음"}</dd></div>
+            <div><dt><Calendar /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜를 골라주세요"}</dd></div>
+            <div><dt><Globe /></dt><dd>{meeting.timezone ?? "Asia/Seoul"} · 데모 기준</dd></div>
+            <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <Video />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : meeting.meetingType === "online" ? "온라인 회의" : "진행 방식을 알려주세요"}</dd></div>
           </dl>
           {meeting.preferredTime && <span className="soft-tag">{labels[meeting.preferredTime]}</span>}
         </>

@@ -50,7 +50,7 @@ export function validateMeeting(meeting: MeetingDraft) {
   return missing;
 }
 
-export function recommendSlots(meeting: MeetingDraft, people = demoPeople, responses?: AvailabilityResponse[]): Candidate[] {
+export function recommendSlots(meeting: MeetingDraft, people = demoPeople, responses?: AvailabilityResponse[], spread = false, notBefore = 0): Candidate[] {
   const missing = validateMeeting(meeting);
   if (missing.length) throw new Error(`필수 정보가 필요합니다: ${missing.join(", ")}`);
 
@@ -72,6 +72,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
 
     for (let minutes = 9 * 60; minutes + duration <= 18 * 60; minutes += 30) {
       const start = kstDateAt(date, Math.floor(minutes / 60), minutes % 60);
+      if (start.getTime() < notBefore) continue;
       const end = new Date(start.getTime() + duration * 60_000);
       const unavailable: string[] = [];
       const unknown: string[] = [];
@@ -168,7 +169,13 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
     }
   }
 
-  return slots
-    .sort((a, b) => Number(b.requiredAvailable) - Number(a.requiredAvailable) || b.score - a.score || a.start.localeCompare(b.start))
-    .slice(0, 3);
+  slots.sort((a, b) => Number(b.requiredAvailable) - Number(a.requiredAvailable) || b.score - a.score || a.start.localeCompare(b.start));
+  if (!spread) return slots.slice(0, 3);
+  // 선택 참석자가 비교할 수 있도록 서로 3시간 이상 떨어진 후보만 고른다.
+  const picked: Candidate[] = [];
+  for (const slot of slots) {
+    if (picked.every((item) => Math.abs(Date.parse(item.start) - Date.parse(slot.start)) >= 3 * 3_600_000)) picked.push(slot);
+    if (picked.length === 3) break;
+  }
+  return picked;
 }

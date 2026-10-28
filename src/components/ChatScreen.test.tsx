@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -74,5 +74,19 @@ describe("ChatScreen invitation responses", () => {
     expect(mocks.invitationAvailability).toHaveBeenCalledWith("c".repeat(48));
     expect((screen.getByLabelText("김민지 참석 상태") as HTMLSelectElement).value).toBe("available");
     expect(screen.getByText("새 답변을 자동으로 확인해요")).toBeTruthy();
+  });
+});
+
+describe("ChatScreen previous step", () => {
+  it("returns to the earlier question after a guided choice", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(mocks.draft).toHaveBeenCalled());
+    expect(screen.queryByText("이전 단계로")).toBeNull();
+    const first = document.querySelector(".guided-card h2")!.textContent;
+    fireEvent.click(document.querySelector(".guided-options button")!);
+    await waitFor(() => expect(document.querySelector(".guided-card h2")!.textContent).not.toBe(first));
+    fireEvent.click(screen.getByText("이전 단계로"));
+    await waitFor(() => expect(document.querySelector(".guided-card h2")!.textContent).toBe(first));
+    expect(screen.queryByText("이전 단계로")).toBeNull();
   });
 });

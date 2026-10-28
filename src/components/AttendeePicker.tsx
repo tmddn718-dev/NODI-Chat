@@ -1,4 +1,4 @@
-import { Check, ClockCounterClockwise, MagnifyingGlass, Plus, UserPlus, UsersThree, X } from "@phosphor-icons/react";
+import { Check, History, Plus, Search, UserPlus, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import type { PersonSummary } from "../types";
@@ -45,7 +45,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
         <span className="person-avatar" aria-hidden="true">{initials(person.name)}</span>
         <span className="person-copy"><strong>{person.name}</strong><small>{person.email}</small></span>
         {!compact && <span className={`calendar-dot ${person.calendarStatus}`}><i />{person.calendarStatus === "connected" ? (ko ? "캘린더 연결" : "Calendar connected") : (ko ? "직접 응답" : "Manual response")}</span>}
-        <span className="person-add-icon" aria-hidden="true">{added ? <Check weight="bold" /> : <Plus weight="bold" />}</span>
+        <span className="person-add-icon" aria-hidden="true">{added ? <Check /> : <Plus />}</span>
       </button>
     );
   }
@@ -53,13 +53,13 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
   return (
     <section className="attendee-picker" aria-labelledby="attendee-picker-title">
       <div className="guided-heading">
-        <span><UsersThree weight="duotone" /></span>
+        <span><Users /></span>
         <div><p>4 / 8 · {ko ? "참석자" : "Attendees"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
       </div>
       <progress className="guided-progress" max="8" value="4" aria-label={ko ? "8단계 중 4단계" : "Step 4 of 8"} />
 
       <div className="people-search">
-        <MagnifyingGlass aria-hidden="true" />
+        <Search aria-hidden="true" />
         <label className="sr-only" htmlFor="attendee-search">{ko ? "참석자 검색" : "Search attendees"}</label>
         <input id="attendee-search" value={query} onChange={(event) => { setQuery(event.target.value); setError(""); }} placeholder={ko ? "이름 또는 이메일로 검색" : "Search by name or email"} autoComplete="off" />
         {query && <button onClick={() => setQuery("")} aria-label={ko ? "검색어 지우기" : "Clear search"}><X /></button>}
@@ -67,7 +67,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
 
       {selected.length > 0 && <div className="selected-people" aria-label={ko ? "선택한 참석자" : "Selected attendees"}>{selected.map((name) => <button key={name} onClick={() => toggle(name)}>{name}<X aria-hidden="true" /></button>)}</div>}
 
-      {!query && recent.length > 0 && <div className="people-section"><div className="people-section-title"><span><ClockCounterClockwise /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{ko ? "최근 회의 기준" : "Demo activity"}</small></div><div className="recent-people">{recent.map((person) => <PersonRow person={person} compact key={person.id} />)}</div></div>}
+      {!query && recent.length > 0 && <div className="people-section"><div className="people-section-title"><span><History /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{ko ? "최근 회의 기준" : "Demo activity"}</small></div><div className="recent-people">{recent.map((person) => <PersonRow person={person} compact key={person.id} />)}</div></div>}
 
       <div className="people-section directory-section">
         <div className="people-section-title"><span><UserPlus /> {query ? (ko ? "검색 결과" : "Search results") : (ko ? "조직 구성원" : "Workspace people")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : `${people.length}${ko ? "명" : " people"}`}</small></div>
@@ -77,7 +77,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput }: {
 
       {error && <p className="dialog-error" role="alert">{error}</p>}
       <p className="attendee-request-note">{ko ? "선택이 끝나면 각자에게 응답 링크를 보낼 수 있어요." : "After confirming the meeting details, you can send each attendee a private response link."}</p>
-      <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}><UserPlus /> {selected.length ? (ko ? "이 사람들과 계속" : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees")}</button>
+      <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이 사람들과 계속" : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees")}</button>
       <button className="direct-input-button" onClick={onDirectInput}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
     </section>
   );
