@@ -142,4 +142,5 @@ export type RoundInvitation = {
   version: number;
   deadlineAt: string;
   pastDeadline: boolean;
+  confirmed?: { start: string; end: string };
 };

@@ -54,9 +54,28 @@ export function CandidateInviteScreen({ token }: { token: string }) {
   }
 
   if (loading && !invitation) return <main id="main-content" className="boot-screen" aria-label="초대를 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" /></main>;
-  if (!invitation) return <main id="main-content" className="invite-view"><section className="invite-card error-state"><TriangleAlert /><h1>초대장을 열 수 없어요</h1><p>{error}</p></section></main>;
+  if (!invitation) return <main id="main-content" className="invite-view"><section className="invite-card error-state"><TriangleAlert /><h1>초대장을 열 수 없어요</h1><p>{error}</p><p className="invite-error-help">링크가 만료됐거나 주최자가 새로 만들었을 수 있어요. 주최자에게 새 링크를 요청해 주세요.</p><button className="rd-btn m secondary" onClick={() => void load()}>다시 불러오기</button></section></main>;
 
   const ready = mode !== "pick" || picked.length > 0;
+  if (invitation.confirmed) {
+    const { start, end } = invitation.confirmed;
+    return (
+      <main id="main-content" className="invite-view">
+        <header className="invite-topbar"><Brand /><span className="rd-badge success">회의 확정</span></header>
+        <section className="rd-page-card" aria-labelledby="round-title">
+          <div>
+            <h1 className="rd-h1" id="round-title">회의가 확정됐어요</h1>
+            <p className="rd-body">{invitation.meeting.title} · {invitation.meeting.durationMinutes}분</p>
+          </div>
+          <dl className="cd-grid">
+            <div><dt>일시</dt><dd>{slot.format(new Date(start))}</dd></div>
+            <div><dt>시간</dt><dd>{time.format(new Date(start))} - {time.format(new Date(end))}</dd></div>
+          </dl>
+          <p className="rd-body">{invitation.attendee}님, 답변해 주셔서 고마워요. 시간이 정해져서 더 이상 답변을 바꿀 수 없어요. 한국 표준시(KST) 기준이에요.</p>
+        </section>
+      </main>
+    );
+  }
   return (
     <main id="main-content" className="invite-view">
       <header className="invite-topbar"><Brand /><span className="rd-badge warning">시간 미확정</span></header>

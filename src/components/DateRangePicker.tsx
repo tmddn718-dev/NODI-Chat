@@ -29,7 +29,9 @@ function calendarDays(month: Date) {
   const monthIndex = month.getUTCMonth();
   const mondayOffset = (month.getUTCDay() + 6) % 7;
 
-  return Array.from({ length: 42 }, (_, index) => {
+  // 마지막 줄이 비는 달은 5줄(또는 4줄)만 그려서 아래 빈 공간을 없애요.
+  const weeks = Math.ceil((mondayOffset + new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()) / 7);
+  return Array.from({ length: weeks * 7 }, (_, index) => {
     const date = new Date(Date.UTC(year, monthIndex, index - mondayOffset + 1));
     return {
       date: formatIsoDate(date),

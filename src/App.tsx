@@ -21,6 +21,26 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   const [event, setEvent] = useState<MeetingEvent | null>(null);
   const [events, setEvents] = useState<MeetingEvent[]>([]);
+  const [notice, setNotice] = useState("");
+  const [slowBoot, setSlowBoot] = useState(false);
+
+  // 서버가 다시 켜졌거나 세션이 끝나면 연결 화면으로 돌아가고, 이유와 보관 상태를 알려줘요.
+  useEffect(() => {
+    const onExpired = () => {
+      setSettings(false);
+      setNotice("연결이 끊겼어요. 서버가 다시 시작됐거나 오래 쉬었을 수 있어요. 입력하던 회의는 이 기기에 보관돼 있으니, 같은 키로 다시 연결하면 이어서 할 수 있어요.");
+      setView("connect");
+    };
+    window.addEventListener("nodi:session-expired", onExpired);
+    return () => window.removeEventListener("nodi:session-expired", onExpired);
+  }, []);
+
+  // 무료 서버는 잠들어 있다가 첫 접속에 오래 걸릴 수 있어요.
+  useEffect(() => {
+    if (view !== "loading") return;
+    const timer = window.setTimeout(() => setSlowBoot(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [view]);
 
   useEffect(() => {
     if (inviteToken || roundToken) return;
@@ -37,6 +57,7 @@ export default function App() {
     const session = await api.connect(key);
     setModels(session.models);
     setEvents((await api.events()).events);
+    setNotice("");
     setView("chat");
   }
 
@@ -66,9 +87,9 @@ export default function App() {
   if (roundToken) return <CandidateInviteScreen token={roundToken} />;
   if (inviteToken) return <InviteResponseScreen token={inviteToken} />;
   if (view === "loading") {
-    return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" /></main>;
+    return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" />{slowBoot && <p className="boot-hint" role="status">서버를 깨우고 있어요. 처음에는 최대 1분 정도 걸릴 수 있어요.</p>}</main>;
   }
-  if (view === "connect") return <ConnectScreen onConnect={connect} />;
+  if (view === "connect") return <ConnectScreen onConnect={connect} notice={notice} />;
   if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} />;
   if (view === "calendars") return <CalendarConnections onBack={() => setView("chat")} />;
   if (view === "meetings") {

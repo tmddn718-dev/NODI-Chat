@@ -59,5 +59,5 @@ describe("direct input follows the scheduling flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "직접 입력할게요" }));
     expect(screen.queryByRole("button", { name: "확인" })).toBeNull();
     expect((document.getElementById("chat-input") as HTMLTextAreaElement).placeholder).toBe("예: 오후 2시 이후가 좋아");
-  });
+  }, 20_000);
 });

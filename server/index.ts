@@ -10,7 +10,7 @@ import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
 import { InvitationStore } from "./invitation-store.ts";
 import { searchPeople } from "./people.ts";
 import { dispatch, OutboxMailer } from "./mailer.ts";
-import { RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
+import { RoundClosedError, RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
 import { validateMeeting } from "./recommendation.ts";
 import type { AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
 
@@ -397,6 +397,7 @@ app.post("/api/rounds/:token/confirm", requireSession, async (req, res, next) =>
         : { attendee, status: status ? statusMap[status] : "no_response" };
     });
     const event = await provider.createRoundEvent(record.meeting, candidate, availability, requestId);
+    await roundStore.markConfirmed(record.token, { start: fresh.start, end: fresh.end });
     res.status(201).json({ event, mode: "demo", invitationSent: false });
   } catch (error) {
     next(error);
@@ -418,6 +419,7 @@ app.get("/api/rounds/respond/:token", async (req, res, next) => {
         version: record.version,
         deadlineAt: record.deadlineAt,
         pastDeadline: Date.now() >= Date.parse(record.deadlineAt),
+        confirmed: record.confirmed ? { start: record.confirmed.start, end: record.confirmed.end } : undefined,
       },
     });
   } catch (error) {
@@ -435,6 +437,7 @@ app.post("/api/rounds/respond/:token", async (req, res, next) => {
     const record = await roundStore.respond(token, version, req.body.responses as Record<string, unknown>);
     res.json({ saved: true, updatedAt: record.updatedAt });
   } catch (error) {
+    if (error instanceof RoundClosedError) return res.status(409).json({ error: error.message, code: "round_closed" });
     next(error);
   }
 });

@@ -39,6 +39,9 @@ describe("candidate round", () => {
     await store.remind(round.token);
     await expect(store.remind(round.token)).rejects.toThrow("한 번만");
 
+    expect((await store.markConfirmed(round.token, { start: "2026-10-29T00:00:00.000Z", end: "2026-10-29T01:00:00.000Z" })).confirmed?.start).toBe("2026-10-29T00:00:00.000Z");
+    await expect(store.markConfirmed(round.token, { start: "x", end: "y" }).then((r) => r.confirmed?.start)).resolves.toBe("2026-10-29T00:00:00.000Z"); // 처음 값 유지
+    await expect(store.respond(sora.token, 2, {})).rejects.toThrow("확정");
     const later = new Date(Date.parse(round.deadlineAt) + 3_600_000).toISOString();
     expect((await store.extend(round.token, later)).deadlineAt).toBe(later);
     await expect(store.extend(round.token, round.deadlineAt)).rejects.toThrow("뒤의 시간");

@@ -1784,3 +1784,34 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 .direct-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .direct-dates label { display: grid; gap: 4px; color: var(--nodi-text-secondary); font-size: var(--fs-13); font-weight: 600; line-height: 1.25; }
 .direct-dates .rd-input { font-variant-numeric: tabular-nums; }
+
+/* ───── 모바일 UI QA 수정 ───── */
+/* Tailwind의 .overline 유틸리티(글자 위 선)와 이름이 겹쳐 라벨 위에 줄이 그어지던 문제 */
+.overline { text-decoration: none; }
+.meetings-heading h1 { margin: 4px 0 8px; font-size: var(--fs-24); font-weight: 700; line-height: 1.3; letter-spacing: -.02em; }
+.cal-row .meeting-list-copy small, .sub-row .meeting-list-copy small { word-break: keep-all; }
+
+@media (max-width: 640px) {
+  /* 서브 화면(내 회의·초대·캘린더)의 돌아가기 버튼이 글자 크기 0이라 안 보이던 문제 */
+  .meetings-topbar .ghost-button { width: auto; padding: 0 12px; font-size: var(--fs-15); font-weight: 600; }
+  /* 선택지가 한 줄 가로 스크롤로 잘려 보이던 것을 2열(긴 글은 1열) 격자로 */
+  .guided-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-right: 0; padding-right: 0; overflow: visible; scroll-snap-type: none; }
+  .guided-options button { flex: none; width: auto; min-height: 48px; padding: 8px 12px; line-height: 1.3; text-align: center; white-space: normal; word-break: keep-all; scroll-snap-align: none; }
+  /* 맨 위로 버튼이 아래 CTA 버튼과 겹침 */
+  .to-top-anchor { display: none; }
+  /* 긴 목록에서도 계속 버튼이 보이도록 하단 고정 */
+  .attendee-confirm { position: sticky; bottom: 8px; z-index: 2; box-shadow: var(--nodi-shadow-2); }
+  /* 꼭 참석할 사람 줄 설명이 말줄임으로 잘리던 문제 */
+  .required-people small { overflow: visible; white-space: normal; text-overflow: clip; word-break: keep-all; }
+  /* 입력창: 한 줄 + 언어 줄로 줄여 화면 아래 차지하는 높이를 줄임 */
+  .composer { padding: 10px 56px 36px 16px; margin-bottom: 8px; }
+  .composer textarea { min-height: 24px; }
+  .message p, .guided-heading h2, .cd-sub { word-break: keep-all; }
+}
+
+/* 운영 시 안내: 연결 끊김 · 서버 깨우는 중 · 데모 데이터 · 링크 오류 도움말 */
+.connect-notice { margin: 16px 0 0; padding: 12px 16px; color: var(--nodi-status-warning-fg); background: var(--nodi-status-warning-bg); border-radius: 12px; font-size: var(--fs-13); font-weight: 600; line-height: 1.5; word-break: keep-all; }
+.demo-note { margin: 16px 0 0; color: var(--nodi-text-secondary); font-size: var(--fs-13); line-height: 1.5; text-align: center; word-break: keep-all; }
+.boot-hint { margin: 16px 0 0; color: var(--nodi-text-secondary); font-size: var(--fs-15); line-height: 1.5; text-align: center; }
+.invite-error-help { margin-top: 8px; font-size: var(--fs-15); }
+.invite-card.error-state .rd-btn { margin: 16px auto 0; }

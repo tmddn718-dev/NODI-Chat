@@ -23,6 +23,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
+    // 서버가 다시 켜졌거나 세션이 만료되면 화면 어디서든 "연결이 끊겼어요" 안내로 이어지게 알려요.
+    if (response.status === 401 && body?.code === "session_required" && path !== "/api/session") window.dispatchEvent(new Event("nodi:session-expired"));
     throw new ApiError(friendlyMessage(body?.error, response.status), response.status, body?.code);
   }
   if (response.status === 204) return undefined as T;

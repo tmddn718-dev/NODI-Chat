@@ -113,6 +113,7 @@ export type RoundRecord = {
   reminderCount: number;
   invitedAt?: string;
   baseUrl?: string;
+  confirmed?: { start: string; end: string; at: string };
   participants: RoundParticipant[];
   expiresAt: string;
   createdAt: string;

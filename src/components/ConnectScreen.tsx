@@ -4,9 +4,10 @@ import { Brand } from "./Brand";
 
 type Props = {
   onConnect: (key: string) => Promise<void>;
+  notice?: string;
 };
 
-export function ConnectScreen({ onConnect }: Props) {
+export function ConnectScreen({ onConnect, notice }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -47,6 +48,7 @@ export function ConnectScreen({ onConnect }: Props) {
           <span className="key-icon"><KeyRound size={26} /></span>
           <h2 id="connect-title">Groq를 연결해 주세요</h2>
           <p className="muted">AI로 회의 시간을 찾으려면 API Key가 필요해요.</p>
+          {notice && <p className="connect-notice" role="status">{notice}</p>}
           <form onSubmit={submit}>
             <label htmlFor="api-key">Groq API Key</label>
             <div className={`input-with-action ${status === "error" ? "field-error" : ""}`}>
@@ -73,6 +75,7 @@ export function ConnectScreen({ onConnect }: Props) {
             </button>
           </form>
           <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-link">API Key가 없어요</a>
+          <p className="demo-note">데모 서비스예요. 서버가 다시 켜지면 저장된 회의와 응답이 지워질 수 있어요.</p>
         </div>
       </section>
     </main>

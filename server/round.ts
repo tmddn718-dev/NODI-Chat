@@ -9,6 +9,7 @@ const EXTRA_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const STATUSES: CandidateResponseStatus[] = ["accepted", "declined", "tentative"];
 
 export class RoundStaleError extends Error {}
+export class RoundClosedError extends Error {}
 
 export function splitAttendees(meeting: MeetingDraft) {
   const required = new Set((meeting.requiredAttendees ?? []).map(norm));
@@ -160,6 +161,7 @@ export class RoundStore {
     return this.mutate((records) => {
       const record = this.alive(records.find((item) => item.participants.some((p) => p.token === accessToken)));
       if (!record) throw new Error("유효하지 않거나 만료된 초대 링크입니다.");
+      if (record.confirmed) throw new RoundClosedError("이미 회의 시간이 확정되어서 답변을 바꿀 수 없어요.");
       if (version !== record.version) throw new RoundStaleError("후보가 새로 바뀌었어요. 최신 초대장을 다시 열어 주세요.");
       const ids = new Set(record.candidates.map((candidate) => candidate.id));
       const clean: Record<string, CandidateResponseStatus> = {};
@@ -188,6 +190,19 @@ export class RoundStore {
         if (!Object.keys(participant.responses).length) participant.respondedAt = undefined;
       }
       record.updatedAt = this.now().toISOString();
+      return record;
+    });
+  }
+
+  // 확정되면 참석자가 링크를 다시 열었을 때 확정된 시간을 보여주고 더 이상 답변을 받지 않는다 (여러 번 호출해도 처음 값 유지).
+  markConfirmed(token: string, slot: { start: string; end: string }) {
+    return this.mutate((records) => {
+      const record = this.alive(records.find((item) => item.token === token));
+      if (!record) throw new Error("조율을 찾을 수 없습니다.");
+      if (!record.confirmed) {
+        record.confirmed = { ...slot, at: this.now().toISOString() };
+        record.updatedAt = record.confirmed.at;
+      }
       return record;
     });
   }
