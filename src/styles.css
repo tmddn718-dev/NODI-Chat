@@ -1722,10 +1722,10 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 .pick-chip.on svg, .attendee-picker .selected-people svg { color: var(--nodi-action-primary); stroke-width: 2.5; }
 
 
-/* ───── 반응형 글자 크기 (웹은 DS type ramp 한 단계 크게, 앱은 큰 제목만 한 단계 작게) ─────
-   태블릿(641~1023px)은 기준 크기. 본문·캡션은 앱에서도 13px 아래로 내려가지 않아요. */
+/* ───── 반응형 글자 크기 (웹·태블릿 ≥641px은 DS type ramp 한 단계 크게, 앱 ≤640px은 큰 제목만 한 단계 작게) ─────
+   창 폭이 좁은 웹(641~1023px)도 웹 기준으로 읽히게. 본문·캡션은 앱에서도 13px 아래로 내려가지 않아요. */
 :root { --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-15: 15px; --fs-17: 17px; --fs-18: 18px; --fs-20: 20px; --fs-24: 24px; --fs-28: 28px; }
-@media (min-width: 1024px) {
+@media (min-width: 641px) {
   :root { --fs-11: 13px; --fs-12: 15px; --fs-13: 15px; --fs-15: 17px; --fs-17: 18px; --fs-18: 20px; --fs-20: 22px; --fs-24: 28px; --fs-28: 28px; }
 }
 @media (max-width: 640px) {
@@ -1815,3 +1815,90 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 .boot-hint { margin: 16px 0 0; color: var(--nodi-text-secondary); font-size: var(--fs-15); line-height: 1.5; text-align: center; }
 .invite-error-help { margin-top: 8px; font-size: var(--fs-15); }
 .invite-card.error-state .rd-btn { margin: 16px auto 0; }
+
+/* 추천 후보 카드: 선택할 수 없는 후보도 회색으로 눌리지 않고 흰 배경 + 얇은 테두리로 읽히게 */
+.slot, .slot.unconfirmable { background: var(--nodi-bg-surface); border: 1px solid var(--nodi-border-default); box-shadow: var(--nodi-shadow-1); }
+.slot.picked { border-color: var(--nodi-action-primary); }
+.slot.unconfirmable { cursor: default; }
+.slot-why { padding: 16px 0 0; background: transparent; border-top: 1px solid var(--nodi-border-default); border-radius: 0; }
+.slot-main > button:disabled { opacity: 1; color: var(--nodi-text-placeholder); background: var(--nodi-bg-subtle); cursor: not-allowed; }
+.slot.unconfirmable .slot-rank { color: var(--nodi-text-secondary); background: var(--nodi-bg-subtle); }
+
+/* 모바일 뒤로가기: 상단 GNB 왼쪽 화살표 (네이버플러스 스토어·헬로톡·신한 SOL 상단 네비게이션 레퍼런스) → 로고 순서 */
+.topbar-left { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.topbar-back { display: none; place-items: center; flex: none; width: 44px; height: 44px; margin-left: -8px; color: var(--nodi-text-primary); background: transparent; border: 0; border-radius: 12px; }
+.topbar-back svg { width: 24px; height: 24px; stroke-width: 2.25; }
+.topbar-back:active { background: var(--nodi-bg-subtle); }
+@media (max-width: 640px) {
+  .topbar-back { display: grid; }
+  .step-back { display: none; } /* 본문 안의 "이전 단계로" 버튼은 상단 화살표로 대체 */
+}
+
+/* 회의 추천 후보 카드 = 응답 수집 화면의 후보 카드와 같은 스타일 (배지 · 순위 · 시간 · 요약 · 수치 · 확인 시각 · 파란 CTA) */
+.candidate-rd-list { gap: 12px; }
+.rd-slot.pickable { cursor: pointer; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms, border-color 200ms; }
+.rd-slot.pickable:hover:not(.unconfirmable) { transform: translateY(-2px); border-color: var(--nodi-action-primary); box-shadow: 0 12px 28px rgb(49 91 231 / .12); }
+.rd-slot.picked { background: var(--nodi-bg-surface); border: 2px solid var(--nodi-action-primary); padding: 19px; }
+.rd-slot.picked .rd-badge.recommend { color: var(--nodi-action-primary); background: var(--nodi-action-subtle); }
+.rd-slot.unconfirmable { cursor: default; }
+.rd-slot .rd-btn:disabled { opacity: 1; color: var(--nodi-text-placeholder); background: var(--nodi-bg-subtle); border-color: transparent; cursor: not-allowed; }
+.rd-slot.pickable:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 2px; }
+
+/* ───── 모바일 UX/UI · 토스 앱 레이아웃·인터랙션 참고 (색은 NODI 토큰) ─────
+   1) 회색 캔버스 위 흰 카드(모서리 24px) + 16px 여백   2) 선택지는 화살표가 붙은 한 줄 리스트
+   3) 주요 버튼은 하단 고정 CTA                         4) 후보 카드는 오른쪽에 작은 알약 버튼(송금·내역처럼)
+   5) 서브 화면은 왼쪽 위 화살표로 돌아가기 */
+.back-link svg { display: none; }
+@media (max-width: 640px) {
+  /* 서브 화면: 글자 대신 왼쪽 화살표 (로고 앞) */
+  .meetings-topbar { flex-direction: row-reverse; justify-content: flex-end; gap: 4px; padding-left: 8px; }
+  .meetings-topbar .back-link { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; }
+  .meetings-topbar .back-link span { display: none; }
+  .meetings-topbar .back-link svg { display: block; width: 24px; height: 24px; stroke-width: 2.25; color: var(--nodi-text-primary); }
+
+  /* 캔버스 + 흰 카드 */
+  .conversation, .message-stream { background: var(--nodi-bg-canvas); }
+  .message-stream { padding: 16px 16px 24px; }
+  .guided-card, .attendee-picker, .required-picker, .date-range-picker, .review-card.guided-card, .rd-card { margin-left: 0; margin-right: 0; padding: 24px 20px; border: 0; border-radius: 24px; box-shadow: none; }
+  .guided-heading h2 { font-size: var(--fs-24); font-weight: 700; line-height: 1.3; letter-spacing: -.02em; }
+  .guided-heading { grid-template-columns: 1fr; gap: 8px; }
+  .guided-heading > span.heading-logo { display: none; }
+  .guided-heading p { margin: 0; color: var(--nodi-action-primary); }
+
+  /* 선택지: 한 줄 리스트 + 오른쪽 화살표 */
+  .guided-options { grid-template-columns: 1fr; gap: 0; margin: 16px -20px 0; }
+  .guided-options button { justify-content: space-between; min-height: 56px; padding: 0 20px; text-align: left; background: transparent; border: 0; border-radius: 0; border-top: 1px solid var(--nodi-border-default); font-size: var(--fs-17); font-weight: 600; }
+  .guided-options button:first-child { border-top: 0; }
+  .guided-options button::after { content: "›"; color: var(--nodi-text-placeholder); font-size: 24px; font-weight: 400; line-height: 1; }
+  .guided-options button:active { background: var(--nodi-bg-canvas); }
+
+  /* 하단 고정 CTA */
+  .attendee-confirm, .required-confirm, .date-range-confirm, .review-card .review-actions .primary-button { position: sticky; bottom: 8px; z-index: 2; min-height: 56px; border-radius: 16px; font-size: var(--fs-17); font-weight: 700; box-shadow: 0 8px 20px rgb(54 84 212 / .24); }
+
+  /* 후보 카드: 시간 오른쪽에 작은 알약 버튼 */
+  .rd-slot { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 12px; padding: 20px; border-radius: 24px; border: 0; box-shadow: none; }
+  .rd-slot > * { grid-column: 1 / -1; }
+  .rd-slot .rd-slot-time { grid-column: 1; grid-row: 2; }
+  .rd-slot > .rd-btn { grid-column: 2; grid-row: 2; width: auto; height: 36px; min-height: 36px; padding: 0 16px; border-radius: 999px; font-size: var(--fs-15); font-weight: 600; white-space: nowrap; }
+  .rd-slot > .rd-btn.secondary, .rd-slot > .rd-btn:disabled { color: var(--nodi-text-secondary); background: var(--nodi-bg-subtle); }
+  .rd-slot.picked { border: 2px solid var(--nodi-action-primary); padding: 18px; }
+}
+.btn-short { display: none; }
+@media (max-width: 640px) { .btn-long { display: none; } .btn-short { display: inline; } }
+.btn-short { display: none; }
+@media (max-width: 640px) { .btn-long { display: none; } .btn-short { display: inline; } }
+@media (max-width: 640px) {
+  /* 첫 화면: 카드 제목과 같은 질문이 위에 한 번 더 나와서 중복 → 큰 제목은 카드 하나만 */
+  .chat-welcome h2 { display: none; }
+  .chat-welcome { margin-bottom: 16px; }
+  .welcome-logo { width: 72px; height: 72px; border-radius: 22px; }
+  .welcome-logo svg { width: 40px; height: 38px; }
+  .meetings-empty { border: 0; border-radius: 24px; }
+}
+@media (max-width: 640px) {
+  /* 회의 추천: 바깥 흰 카드를 없애고 후보 카드가 회색 캔버스 위에 바로 놓이게 (카드 안의 카드 방지) */
+  .rd-card-reco { padding: 0; background: transparent; border-radius: 0; gap: 16px; }
+  .rd-card-reco .rd-reco-head { padding: 8px 4px 0; }
+  .rd-card-reco .rd-slot { background: var(--nodi-bg-surface); }
+  .rd-slot .rd-slot-time { text-wrap: balance; word-break: keep-all; }
+}

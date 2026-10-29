@@ -173,7 +173,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
             </dl>
             {row.reason.includes("정렬") && <p className="rd-caption">응답이 같아 선호 시간대·빠른 시간 순으로 정렬했어요</p>}
             <p className="rd-caption">{stamp.format(new Date(row.candidate.checkedAt))} 확인 · 캘린더상 빈 시간과 참석 응답은 따로 세요</p>
-            <button className={`rd-btn m ${row.rank === 1 ? "" : "secondary"}`} disabled={!row.candidate.requiredAvailable} onClick={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}>이 시간으로 정하기</button>
+            <button className={`rd-btn m ${row.rank === 1 ? "" : "secondary"}`} disabled={!row.candidate.requiredAvailable} onClick={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}><span className="btn-long">이 시간으로 정하기</span><span className="btn-short">정하기</span></button>
           </li>
         ))}
       </ol>

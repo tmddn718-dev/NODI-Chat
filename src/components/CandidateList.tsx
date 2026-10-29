@@ -1,4 +1,4 @@
-import { CircleCheck, CircleHelp, Clock, TriangleAlert } from "lucide-react";
+import { CircleCheck, Clock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { Candidate } from "../types";
 
@@ -42,44 +42,41 @@ export function CandidateList({ candidates, onSelect, requiredCount = 1 }: { can
         <div><h2 id="candidate-title">가장 잘 맞는 시간을 찾았어요</h2><p>캘린더와 직접 받은 답변을 함께 확인했어요.</p></div>
         <span className="demo-badge">데모 데이터</span>
       </div>
-      <ol className="slot-list">
+      <ol className="rd-list candidate-rd-list">
         {visible.map((candidate, index) => {
-          const best = index === 0 && candidate.requiredAvailable;
+          const picked = pickedId === candidate.id;
+          const names = [
+            candidate.unavailable.length ? `불가: ${candidate.unavailable.join(", ")}` : "",
+            candidate.tentative.length ? `아직 몰라요: ${candidate.tentative.join(", ")}` : "",
+            candidate.noResponse.length ? `미응답: ${candidate.noResponse.join(", ")}` : "",
+          ].filter(Boolean);
           return (
             <li
-              className={`slot ${best ? "best" : ""} ${pickedId === candidate.id ? "picked" : ""} ${!candidate.requiredAvailable ? "unconfirmable" : ""}`}
+              className={`rd-slot pickable ${picked ? "picked" : ""} ${!candidate.requiredAvailable ? "unconfirmable" : ""}`}
               key={candidate.id}
               tabIndex={candidate.requiredAvailable ? 0 : undefined}
-              aria-current={pickedId === candidate.id || undefined}
+              aria-current={picked || undefined}
               onClick={() => candidate.requiredAvailable && setPickedId(candidate.id)}
               onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); if (candidate.requiredAvailable) setPickedId(candidate.id); } }}
             >
-              <div className="slot-main">
-                <span className="slot-rank">{index + 1}</span>
-                <div className="slot-text">
-                  {best && <span className="slot-flag">가장 추천해요</span>}
-                  <strong className="slot-when">{formatSlot(candidate.start)}</strong>
-                  <span className="slot-range">{formatTime(candidate.start)} - {formatTime(candidate.end)}{!sameScore && ` · 추천 점수 ${candidate.score}`}</span>
-                </div>
-                <button className={pickedId === candidate.id ? "primary-button" : "secondary-button"} onClick={() => onSelect(candidate)} disabled={!candidate.requiredAvailable}>선택</button>
+              <div className="rd-slot-top">
+                <span className={`rd-badge ${candidate.requiredAvailable ? "success" : "warning"}`}>
+                  {candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}
+                  {requiredCount > 0 ? (candidate.requiredAvailable ? "필수 참석자 확인됨" : "필수 참석자 시간이 맞지 않아요") : (candidate.requiredAvailable ? "선택 가능" : "선택 불가")}
+                </span>
+                <span className={`rd-badge ${index === 0 ? "recommend" : "neutral"}`}>{index + 1}순위{!sameScore ? ` · ${candidate.score}점` : ""}</span>
               </div>
-              <p className="slot-reason">{candidate.reason}</p>
-              <ul className="slot-why">
-                {requiredCount > 0 && (
-                  <li className={candidate.requiredAvailable ? "good" : "warn"}>
-                    {candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}
-                    <span>꼭 참석할 사람</span><b>{candidate.requiredAvailable ? "모두 가능" : "시간이 맞지 않아요"}</b>
-                  </li>
-                )}
-                <li><CalendarBlankIcon /><span>캘린더상 빈 시간</span><b>{candidate.calendarFreeCount}명</b></li>
-                <li><CircleCheck /><span>직접 가능하다고 답했어요</span><b>{candidate.manualAvailableCount}명</b></li>
-                <li><CircleCheck /><span>참석을 수락했어요</span><b>{candidate.acceptedCount}명</b></li>
-                <li className={candidate.conflictCount ? "warn" : ""}><TriangleAlert /><span>일정이 겹쳐요</span><b>{candidate.conflictCount}명</b>{candidate.unavailable.length > 0 && <em>{candidate.unavailable.join(", ")}</em>}</li>
-                {(candidate.tentative.length > 0 || candidate.noResponse.length > 0 || candidate.unknownCount > 0) && (
-                  <li><CircleHelp /><span>아직 확인 중이에요</span><b>{candidate.tentative.length + candidate.noResponse.length || candidate.unknownCount}명</b>{[...candidate.tentative, ...candidate.noResponse].length > 0 && <em>{[...candidate.tentative, ...candidate.noResponse].join(", ")}</em>}</li>
-                )}
-              </ul>
-              <span className="candidate-version">회의 조건 v{candidate.basedOnMeetingVersion} · {formatCheckedAt(candidate.checkedAt)} 최종 확인</span>
+              <p className="rd-slot-time">{formatSlot(candidate.start)}</p>
+              <p className="rd-reason">{candidate.reason}</p>
+              <dl className="rd-stats">
+                <div><dt>캘린더 빈 시간</dt><dd>{candidate.calendarFreeCount}</dd></div>
+                <div><dt>직접 가능</dt><dd>{candidate.manualAvailableCount}</dd></div>
+                <div><dt>일정 충돌</dt><dd>{candidate.conflictCount}</dd></div>
+                <div><dt>미확인</dt><dd>{candidate.unknownCount}</dd></div>
+              </dl>
+              {names.length > 0 && <p className="rd-caption">{names.join(" · ")}</p>}
+              <p className="rd-caption">{formatTime(candidate.start)} - {formatTime(candidate.end)} · {formatCheckedAt(candidate.checkedAt)} 확인 · 회의 조건 v{candidate.basedOnMeetingVersion}</p>
+              <button className={`rd-btn m ${picked ? "" : "secondary"}`} onClick={(event) => { event.stopPropagation(); onSelect(candidate); }} disabled={!candidate.requiredAvailable}>{candidate.requiredAvailable ? <><span className="btn-long">이 시간으로 정하기</span><span className="btn-short">정하기</span></> : "선택 불가"}</button>
             </li>
           );
         })}

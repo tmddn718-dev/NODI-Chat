@@ -1,4 +1,4 @@
-import { Calendar, CircleCheck, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Calendar, CircleCheck, TriangleAlert } from "lucide-react";
 import type { MeetingEvent } from "../types";
 import { Brand } from "./Brand";
 
@@ -28,7 +28,7 @@ export function MeetingsList({
     <main id="main-content" className="meetings-view">
       <header className="meetings-topbar">
         <Brand />
-        <button className="ghost-button" onClick={onBack}>회의 잡기로 돌아가기</button>
+        <button className="ghost-button back-link" onClick={onBack} aria-label="회의 잡기로 돌아가기"><ArrowLeft aria-hidden="true" /><span>회의 잡기로 돌아가기</span></button>
       </header>
       <section className="meetings-content" aria-labelledby="meetings-title">
         <div className="meetings-heading">

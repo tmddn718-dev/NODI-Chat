@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { getGuidedStep, type GuidedChoice } from "../guided";
@@ -503,7 +503,12 @@ export function ChatScreen({
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Brand />
+        <div className="topbar-left">
+          {!loading && (history.length > 0 || recommendationComplete) && (
+            <button className="topbar-back" onClick={goBack} aria-label="이전 단계로"><ArrowLeft /></button>
+          )}
+          <Brand />
+        </div>
         <div className="topbar-actions">
           <span className="mode-chip"><span /> 데모 캘린더</span>
           <button className="icon-button mobile-meetings-button" onClick={onShowMeetings} aria-label="내 회의 열기"><Calendar /></button>
