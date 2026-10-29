@@ -23,6 +23,8 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
   const names = pending.map((p) => p.attendee).join(", ");
   const deadline = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(round.deadlineAt));
 
+  const left = Math.max(0, Date.parse(round.deadlineAt) - Date.now());
+  const leftText = `${Math.floor(left / 3_600_000) ? `${Math.floor(left / 3_600_000)}시간 ` : ""}${Math.floor((left % 3_600_000) / 60_000)}분`;
   return (
     <section className="rd-status" aria-label="응답 현황">
       <div className="rd-summary">
@@ -34,7 +36,7 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
           <strong>참여하면 좋은 사람</strong>
           <span className="rd-summary-value">{pending.length ? `${names} · ${pending.length}명 미응답` : "모두 응답했어요"}</span>
         </div>
-        <p className="rd-summary-foot">{pastDeadline ? "응답 마감 시간이 지났어요" : `${deadline} 응답 마감 예정`}</p>
+        <p className="rd-summary-foot">{pastDeadline ? "응답 마감 시간이 지났어요" : `${deadline} 응답 마감 예정 · 마감까지 ${leftText}`}</p>
       </div>
 
       {!top && (

@@ -1,8 +1,9 @@
 import { ArrowLeft, ArrowUp, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
-import { getGuidedStep, type GuidedChoice } from "../guided";
-import type { AvailabilityResponse, Candidate, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
+import { matchNames } from "../typedNames";
+import { getGuidedStep, matchChoice, type GuidedChoice } from "../guided";
+import type { AvailabilityResponse, Candidate, NextAction, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
 import { NodiMark } from "./NodiMark";
 import { pendingInvitedCount } from "../invited";
@@ -10,12 +11,13 @@ import { ReviewCard } from "./ReviewCard";
 import { AttendeePicker } from "./AttendeePicker";
 import { Brand } from "./Brand";
 import { CandidateList } from "./CandidateList";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { ConfirmDialog, type VerifyState } from "./ConfirmDialog";
 import { DateRangePicker } from "./DateRangePicker";
 import { GuidedChoices } from "./GuidedChoices";
 import { MeetingSummary } from "./MeetingSummary";
 import { RequiredAttendeePicker } from "./RequiredAttendeePicker";
 import { RoundPanel } from "./RoundPanel";
+import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
 
 const intro: Message = {
   id: "intro",
@@ -83,6 +85,7 @@ export function ChatScreen({
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate | null>(null);
+  const [verify, setVerify] = useState<VerifyState>({ state: "checking", message: "" });
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState("");
   const [availability, setAvailability] = useState<AvailabilityResponse[]>(restored?.availability ?? []);
@@ -104,12 +107,22 @@ export function ChatScreen({
   const [online, setOnline] = useState(navigator.onLine);
   const [lastAction, setLastAction] = useState<"chat" | "recommendations" | null>(null);
   const [customPlaceholder, setCustomPlaceholder] = useState("");
+  const [recommended, setRecommended] = useState("");
+  const [suggestion, setSuggestion] = useState<GuidedChoice | null>(null);
+  const [understood, setUnderstood] = useState<Understood | null>(null);
+  const [proposal, setProposal] = useState<{ field: FieldKey; value: MeetingDraft[FieldKey]; reason?: string; alternatives?: number[] } | null>(null);
+  const [preselect, setPreselect] = useState<{ names: string[]; nonce: number }>({ names: [], nonce: 0 });
+  const directoryRef = useRef<Array<{ name: string; email?: string }> | null>(null);
+  const [pickPerson, setPickPerson] = useState<Array<{ id: string; label: string }> | null>(null);
+  const [meaning, setMeaning] = useState<Extract<NextAction, { type: "resolve_ambiguity" }>["ambiguity"] | null>(null);
   const [serverReady, setServerReady] = useState(false);
+  const epochRef = useRef(0); // 새 대화를 누르면 올라가요. 그 전에 보낸 요청의 늦은 응답은 버려요.
   const [syncStatus, setSyncStatus] = useState<"loading" | "saving" | "saved" | "conflict" | "error">("loading");
   const draftVersionRef = useRef(0);
   const availabilityRef = useRef(availability);
   const endRef = useRef<HTMLDivElement>(null);
   const guidedStep = getGuidedStep(meeting, language);
+  const pendingDecision = !!proposal || !!pickPerson || !!meaning;
   const requiredCount = meeting.requiredAttendees?.length ?? 0;
   const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
 
@@ -326,7 +339,21 @@ export function ChatScreen({
     setInviteError("");
     setLastInviteSyncAt("");
     setLastAction(null);
+    // 이해 카드·추천·제안·해석 선택 등 대화 중 임시 상태와 진행 중이던 요청도 함께 비워요.
+    epochRef.current += 1;
+    setLoading(false);
+    setRecommendLoading(false);
+    setRecommended("");
+    setSuggestion(null);
+    setUnderstood(null);
+    setProposal(null);
+    setPickPerson(null);
+    setMeaning(null);
+    setCollectMethod("manual");
+    setConfirmError("");
+    setSummaryOpen(false);
     localStorage.removeItem(draftStorageKey);
+    localStorage.removeItem(historyStorageKey);
     setServerReady(false);
     setSyncStatus("saving");
     void api.deleteDraft()
@@ -348,8 +375,10 @@ export function ChatScreen({
     }
     setRecommendLoading(true);
     setError("");
+    const epoch = epochRef.current;
     try {
       const recommendation = await api.recommendations(nextMeeting, responses, (collectMethod === "invite" && invitationToken) || undefined);
+      if (epoch !== epochRef.current) return;
       setAvailability(recommendation.availability);
       setCandidates(recommendation.candidates);
       setRecommendationComplete(true);
@@ -378,14 +407,31 @@ export function ChatScreen({
     setError("");
     setCandidates([]);
     setRecommendationComplete(false);
+    const epoch = epochRef.current;
     try {
       const result = await api.chat({
         messages: nextMessages.map(({ role, content: value }) => ({ role, content: value })),
         meeting,
         model,
         language,
+        currentField: guidedStep?.key,
       });
+      if (epoch !== epochRef.current) return;
       const nextMeeting = { ...(result.meeting ?? meeting), version: (meeting.version ?? 1) + 1 };
+      const changed = (result.changedFields ?? []) as FieldKey[];
+      const proposedField = (Object.keys(result.proposedFields ?? {})[0] ?? null) as FieldKey | null;
+      const options = result.nextAction?.type === "resolve_person" ? result.nextAction.options : null;
+      setUnderstood({ changed: changed.map((field) => ({ field, before: meeting[field] === undefined ? undefined : fieldText(field, meeting[field]), beforeValue: meeting[field], after: fieldText(field, nextMeeting[field]) || "삭제" })), issues: result.issues ?? [] });
+      setProposal(proposedField ? { field: proposedField, value: result.proposedFields[proposedField] } : null);
+      setPickPerson(options);
+      const ambiguity = result.nextAction?.type === "resolve_ambiguity" ? result.nextAction.ambiguity : null;
+      setMeaning(ambiguity);
+      setRecommended("");
+      setSuggestion(null);
+      // 아무것도 이해하지 못했으면 입력은 그대로 두고, 제시한 목록에서 가장 가까운 항목을 추천해요.
+      const nothing = !changed.length && !proposedField && !options && !ambiguity;
+      const nearest = nothing && guidedStep ? matchChoice(guidedStep, content).choice : undefined;
+      if (nothing && nearest) setRecommended(nearest.label);
       setHistory((current) => [...current, { meeting, messages }].slice(-30));
       setMeeting(nextMeeting);
       setReviewed(false);
@@ -396,7 +442,12 @@ export function ChatScreen({
       setModel(result.model);
       setMessages((current) => [
         ...current,
-        { id: crypto.randomUUID(), role: "assistant", content: result.assistantMessage },
+        { id: crypto.randomUUID(), role: "assistant", content: [result.assistantMessage, nothing
+          ? (nearest ? `“${nearest.label}”이 가장 가까워요. 아래 목록에서 골라 주세요.` : "아래 목록에서 골라 주세요.")
+          : options ? "한 분을 골라 주세요."
+          : ambiguity ? "어떤 뜻인지 아래에서 골라 주세요."
+          : proposedField ? "이 값으로 할까요?"
+          : getGuidedStep(nextMeeting, language)?.question ?? ""].filter(Boolean).join(" ") },
       ]);
       if (result.complete) setMessages((current) => [
         ...current,
@@ -404,6 +455,11 @@ export function ChatScreen({
       ]);
       setLastAction(null);
     } catch (reason) {
+      if (epoch !== epochRef.current) return;
+      // 입력은 대화에 남아 있어요. 기술 오류보다 먼저, 현재 질문에 맞는 목록에서 고르게 안내해요.
+      const nearest = guidedStep ? matchChoice(guidedStep, content).choice : undefined;
+      if (nearest) setRecommended(nearest.label);
+      if (guidedStep) setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: `입력한 내용은 보관했어요. 지금은 의미를 정확히 구분하지 못했어요. ${nearest ? `“${nearest.label}”이 가장 가까워요. ` : ""}아래에서 골라 주세요.` }]);
       setError(reason instanceof Error ? reason.message : "메시지를 보내지 못했어요.");
       setLastAction("chat");
     } finally {
@@ -411,9 +467,40 @@ export function ChatScreen({
     }
   }
 
-  function submit(event: FormEvent) {
+  function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
+    const typed = input.trim();
+    // 목록 항목과 똑같이 짧게 입력했으면 AI를 거치지 않고 바로 선택해요. 그 밖의 말은 서버가 해석하고 검증해요.
+    if (typed && typed.length <= 12 && !loading && !recommendationComplete && guidedStep && !["attendees", "availabilityRule", "dateStart", "dateEnd"].includes(guidedStep.key)) {
+      const { choice, exact } = matchChoice(guidedStep, typed);
+      if (choice && exact) { setInput(""); setCustomPlaceholder(""); return selectGuidedChoice(choice); }
+    }
+    // 참석자·꼭 참석 단계에서 이름을 쓰면 AI를 거치지 않고, 목록에서 찾아 카드에 바로 체크해요.
+    if (typed && !loading && !recommendationComplete && (guidedStep?.key === "attendees" || guidedStep?.key === "availabilityRule")) {
+      void selectTypedNames(typed, guidedStep.key);
+      return;
+    }
     void send(input);
+  }
+
+  async function selectTypedNames(typed: string, key: "attendees" | "availabilityRule") {
+    let pool: Array<{ name: string; email?: string }>;
+    if (key === "availabilityRule") pool = (meeting.attendees ?? []).map((name) => ({ name }));
+    else {
+      if (!directoryRef.current) directoryRef.current = await api.people("").then((result) => result.people.map((person) => ({ name: person.name, email: person.email }))).catch(() => []);
+      pool = directoryRef.current;
+    }
+    const { matched, ambiguous, emails } = matchNames(typed, pool);
+    const names = key === "attendees" ? [...matched, ...emails] : matched;
+    if (!names.length && !ambiguous.length) { void send(typed); return; } // 목록에서 못 찾으면 서버(AI)가 해석해요.
+    setInput("");
+    setCustomPlaceholder("");
+    setPreselect((current) => ({ names, nonce: current.nonce + 1 }));
+    const note = [
+      names.length ? `${names.join(", ")}님을 ${key === "attendees" ? "참석자로" : "꼭 참석으로"} 체크했어요. 맞으면 아래 버튼으로 계속해 주세요.` : "",
+      ambiguous.length ? `“${ambiguous.join(", ")}”은 여러 명이라 직접 골라 주세요.` : "",
+    ].filter(Boolean).join(" ");
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: typed }, { id: crypto.randomUUID(), role: "assistant", content: note }]);
   }
 
   function startDirectInput(placeholder: string) {
@@ -431,6 +518,13 @@ export function ChatScreen({
       : language === "ko"
         ? "필요한 정보가 다 모였어요. 이제 참석 가능한 시간을 확인할게요."
         : "The meeting details are ready. Add each attendee's availability.";
+    setRecommended("");
+    setSuggestion(null);
+    setUnderstood(null);
+    setProposal(null);
+    setPickPerson(null);
+    setMeaning(null);
+    setPreselect({ names: [], nonce: 0 });
     setHistory((current) => [...current, { meeting, messages }].slice(-30));
     setMeeting(nextMeeting);
     setReviewed(false);
@@ -446,6 +540,19 @@ export function ChatScreen({
       { id: crypto.randomUUID(), role: "user", content: choice.message },
       { id: crypto.randomUUID(), role: "assistant", content: assistantMessage },
     ]);
+  }
+
+  // "이렇게 이해했어요"에서 한 조건만 이전 값으로 되돌려요. 나머지 조건은 그대로예요.
+  function revertField(field: FieldKey) {
+    const item = understood?.changed.find((entry) => entry.field === field);
+    if (!item) return;
+    const nextMeeting = { ...meeting, version: (meeting.version ?? 1) + 1 } as Record<string, unknown>;
+    if (item.beforeValue === undefined) delete nextMeeting[field]; else nextMeeting[field] = item.beforeValue;
+    setHistory((current) => [...current, { meeting, messages }].slice(-30));
+    setMeeting(nextMeeting as MeetingDraft);
+    setCandidates([]);
+    setRecommendationComplete(false);
+    setUnderstood({ ...understood!, changed: understood!.changed.filter((entry) => entry.field !== field) });
   }
 
   async function createInvitation() {
@@ -478,6 +585,28 @@ export function ChatScreen({
       setInviteError(reason instanceof Error ? reason.message : "새 응답을 확인하지 못했어요.");
     } finally {
       setInviteLoading(false);
+    }
+  }
+
+  // 시간을 고르면 바로 확정하지 않고, 서버가 최신 일정을 자동으로 다시 확인한 뒤에만 최종 승인 카드가 열려요.
+  async function chooseCandidate(candidate: Candidate) {
+    setSelected(candidate);
+    setConfirmRequestId(crypto.randomUUID());
+    setConfirmError("");
+    setVerify({ state: "checking", message: "" });
+    const epoch = epochRef.current;
+    try {
+      const result = await api.verifyCandidate(meeting, candidate, availability, { invitationToken: (collectMethod === "invite" && invitationToken) || undefined, roundToken: roundToken || undefined });
+      if (epoch !== epochRef.current) return;
+      if (result.status === "ok") {
+        setSelected((current) => current && { ...current, checkedAt: result.checkedAt });
+        setVerify({ state: "ok", message: result.message });
+      } else {
+        setVerify({ state: "failed", message: result.message });
+      }
+    } catch {
+      if (epoch !== epochRef.current) return;
+      setVerify({ state: "failed", retryable: true, message: "최신 일정을 확인하지 못했어요. 선택한 시간은 그대로 두었어요. 연결을 확인하고 다시 확인해 주세요." });
     }
   }
 
@@ -559,12 +688,28 @@ export function ChatScreen({
                 </article>
               )
             ))}
+            {!loading && !recommendationComplete && understood && <UnderstoodConditionsCard understood={understood} onRevert={revertField} />}
+            {!loading && !recommendationComplete && pickPerson && (
+              <AmbiguityResolver options={pickPerson} onPick={(name) => selectGuidedChoice({ label: name, message: `${name}으로 할게.`, patch: { attendees: [...(meeting.attendees ?? []), name] } })} />
+            )}
+            {!loading && !recommendationComplete && meaning && (
+              <AmbiguityResolver title="어떤 뜻으로 말씀하셨는지 확인할게요" options={meaning.options}
+                onPick={(id) => { const option = meaning.options.find((item) => item.id === id)!; selectGuidedChoice({ label: option.label, message: option.label, patch: option.patch }); }}
+                onDirect={() => { setMeaning(null); startDirectInput(guidedStep?.inputPlaceholder ?? ""); }} />
+            )}
+            {!loading && !recommendationComplete && proposal && (
+              <ProposalConfirmCard field={proposal.field} value={proposal.value} reason={proposal.reason} alternatives={proposal.alternatives}
+                onAlternative={(minutes) => selectGuidedChoice({ label: `${minutes}분`, message: `${minutes}분으로 할게.`, patch: { durationMinutes: minutes } })}
+                onAccept={() => selectGuidedChoice({ label: fieldText(proposal.field, proposal.value), message: "좋아, 그렇게 할게.", patch: { [proposal.field]: proposal.value } })}
+                onDecline={() => { setProposal(null); setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: `알겠어요. 직접 정해 주세요. ${guidedStep?.question ?? ""}`.trim() }]); }} />
+            )}
             {!loading && (history.length > 0 || recommendationComplete) && (
               <div className="step-back"><button className="rd-btn m ghost" onClick={goBack} title="이전 단계로 (⌘Z)">이전 단계로</button></div>
             )}
-            {!loading && !recommendationComplete && guidedStep?.key === "attendees" && (
+            {!loading && !recommendationComplete && !pendingDecision && guidedStep?.key === "attendees" && (
               <AttendeePicker
                 language={language}
+                preselect={preselect}
                 onConfirm={(attendees) => selectGuidedChoice({
                   label: attendees.join(", "),
                   message: language === "ko" ? `참석 요청 대상은 ${attendees.join(", ")}이야.` : `Invite ${attendees.join(", ")}.`,
@@ -573,8 +718,9 @@ export function ChatScreen({
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}
-            {!loading && !recommendationComplete && guidedStep?.key === "availabilityRule" && (
+            {!loading && !recommendationComplete && !pendingDecision && guidedStep?.key === "availabilityRule" && (
               <RequiredAttendeePicker
+                preselect={preselect}
                 attendees={meeting.attendees ?? []}
                 language={language}
                 onConfirm={(requiredAttendees) => selectGuidedChoice({
@@ -587,7 +733,7 @@ export function ChatScreen({
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}
-            {!loading && !recommendationComplete && (guidedStep?.key === "dateStart" || guidedStep?.key === "dateEnd") && (
+            {!loading && !recommendationComplete && !pendingDecision && (guidedStep?.key === "dateStart" || guidedStep?.key === "dateEnd") && (
               <DateRangePicker
                 language={language}
                 initialStart={meeting.dateStart}
@@ -601,19 +747,25 @@ export function ChatScreen({
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}
-            {!loading && !recommendationComplete && guidedStep && guidedStep.key !== "attendees" && guidedStep.key !== "availabilityRule" && guidedStep.key !== "dateStart" && guidedStep.key !== "dateEnd" && (
+            {!loading && !recommendationComplete && suggestion && (
+              <div className="reco-bar" role="note">
+                <span>이 항목은 어때요?</span>
+                <button type="button" onClick={() => selectGuidedChoice(suggestion)}>{suggestion.label}</button>
+              </div>
+            )}
+            {!loading && !recommendationComplete && !pendingDecision && guidedStep && guidedStep.key !== "attendees" && guidedStep.key !== "availabilityRule" && guidedStep.key !== "dateStart" && guidedStep.key !== "dateEnd" && (
               <GuidedChoices
                 step={guidedStep}
                 onSelect={selectGuidedChoice}
                 onDirectInput={startDirectInput}
-                language={language}
+                recommended={recommended}
               />
             )}
             {!loading && !guidedStep && !reviewed && !recommendationComplete && (
               <ReviewCard meeting={meeting} onEdit={() => setSummaryOpen(true)} onProceed={() => setReviewed(true)} />
             )}
             {!loading && !guidedStep && reviewed && hasRound && (
-              <RoundPanel meeting={meeting} token={roundToken} requestId={invitationRequestId} onTokenChange={setRoundToken} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
+              <RoundPanel meeting={meeting} token={roundToken} requestId={invitationRequestId} onTokenChange={setRoundToken} onSelect={(candidate) => void chooseCandidate(candidate)} />
             )}
             {!loading && !guidedStep && reviewed && !hasRound && !recommendationComplete && !recommendLoading && (
               <AvailabilityEditor
@@ -643,7 +795,7 @@ export function ChatScreen({
             {recommendationComplete && (
               <>
                 <div className="recommendation-actions"><button className="ghost-button" onClick={() => setRecommendationComplete(false)}>참석 응답 수정</button></div>
-                <CandidateList candidates={candidates} requiredCount={meeting.requiredAttendees?.length ?? 0} onSelect={(candidate) => { setSelected(candidate); setConfirmRequestId(crypto.randomUUID()); }} />
+                <CandidateList candidates={candidates} requiredNames={meeting.requiredAttendees ?? []} onSelect={(candidate) => void chooseCandidate(candidate)} />
               </>
             )}
             {undo && <div className="undo-bar" role="status"><span>{undo.label}</span><button onClick={undoBack}>되돌리기</button></div>}
@@ -658,12 +810,12 @@ export function ChatScreen({
             <textarea
               id="chat-input"
               rows={1}
+              maxLength={2000}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void send(input);
+                  submit(event);
                 }
               }}
               placeholder={customPlaceholder || guidedStep?.inputPlaceholder || "편하게 입력해 주세요"}
@@ -679,7 +831,7 @@ export function ChatScreen({
         {summaryOpen && <div className="sheet-scrim" onClick={() => setSummaryOpen(false)} aria-hidden="true" />}
         <aside className={`context-panel ${summaryOpen ? "open" : ""}`} aria-label="회의 조건과 캘린더">
           <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
-          <MeetingSummary meeting={meeting} onChange={(nextMeeting) => {
+          <MeetingSummary meeting={meeting} proposal={proposal} onChange={(nextMeeting) => {
             setHistory((current) => [...current, { meeting, messages }].slice(-30));
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
             setReviewed(false);
@@ -701,7 +853,7 @@ export function ChatScreen({
         </aside>
       </div>
 
-      {selected && <ConfirmDialog meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
+      {selected && <ConfirmDialog verify={verify} onRecheck={() => void chooseCandidate(selected)} meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
       <nav className="app-tabbar" aria-label="주요 메뉴">
         <button className="active" aria-current="page"><Bot /><span>회의 잡기</span></button>
         <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>

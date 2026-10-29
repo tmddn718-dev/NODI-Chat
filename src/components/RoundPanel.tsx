@@ -161,10 +161,10 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
           <li className={`rd-slot ${row.rank === 1 && row.candidate.requiredAvailable ? "top" : ""}`} key={row.candidate.id}>
             <div className="rd-slot-top">
               <span className={`rd-badge ${row.candidate.requiredAvailable ? "success" : "warning"}`}>{row.candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}{row.candidate.requiredAvailable ? "필수 참석자 확인됨" : "잠정 · 필수 확인 필요"}</span>
-              <span className={`rd-badge ${row.rank === 1 ? "recommend" : "neutral"}`}>{row.rank}순위</span>
+              <span className={`rd-badge ${row.rank === 1 ? "recommend" : "neutral"}`}>{row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}</span>
             </div>
             <p className="rd-slot-time">{slot.format(new Date(row.candidate.start))}</p>
-            {round.invitedAt && <p className="rd-reason">응답한 {round.responded}명 중 가능 {row.accepted}명 · 미응답 {row.noResponse}명{row.tentative ? ` · 확인 필요 ${row.tentative}명` : ""}</p>}
+            <p className="rd-reason">{row.summary}</p>
             <dl className="rd-stats">
               <div><dt>가능</dt><dd>{row.accepted}</dd></div>
               <div><dt>불가</dt><dd>{row.declined}</dd></div>

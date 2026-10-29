@@ -100,3 +100,17 @@ describe("recommendSlots", () => {
     expect(next[0].basisKey).not.toBe(first[0].basisKey);
   });
 });
+
+describe("candidate evidence", () => {
+  it("separates calendar-free from direct responses and unknown calendars", () => {
+    const [top] = recommendSlots(
+      { title: "t", purpose: "p", durationMinutes: 30, attendees: ["김민지", "박준호", "Guest"], requiredAttendees: ["김민지"], preferredTime: "any", dateStart: "2026-11-03", dateEnd: "2026-11-03", version: 1 },
+      undefined,
+      [{ attendee: "박준호", status: "available", start: "2026-11-03T00:00:00.000Z", end: "2026-11-03T09:00:00.000Z" }],
+    );
+    const by = Object.fromEntries((top.evidence ?? []).map((item) => [item.attendee, item.evidence]));
+    expect(by["김민지"]).toBe("calendar_free");
+    expect(by["박준호"]).toBe("direct_available");
+    expect(by["Guest"]).toBe("no_response");
+  });
+});

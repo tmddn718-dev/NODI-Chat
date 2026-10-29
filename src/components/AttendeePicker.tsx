@@ -7,18 +7,22 @@ import { NodiMark } from "./NodiMark";
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-export function AttendeePicker({ language, onConfirm }: {
+export function AttendeePicker({ language, onConfirm, onDirectInput, preselect }: {
   language: "ko" | "en";
   onConfirm: (attendees: string[]) => void;
   onDirectInput?: () => void;
+  preselect?: { names: string[]; nonce: number };
 }) {
   const ko = language === "ko";
   const [query, setQuery] = useState("");
   const [people, setPeople] = useState<PersonSummary[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  // 채팅에 쓴 이름은 여기서 자동으로 체크돼요.
+  useEffect(() => {
+    if (preselect?.names.length) setSelected((current) => [...new Set([...current, ...preselect.names])]);
+  }, [preselect?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [manual, setManual] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -42,14 +46,6 @@ export function AttendeePicker({ language, onConfirm }: {
   const unlisted = selected.filter((name) => !emailPattern.test(name) && !people.some((person) => person.name === name));
   const exactEmail = people.some((person) => person.email.toLocaleLowerCase() === query.trim().toLocaleLowerCase());
   const externalEmail = emailPattern.test(query.trim()) && !exactEmail ? query.trim().toLocaleLowerCase() : "";
-
-  // 쉼표·줄바꿈으로 구분한 이름/이메일을 선택 목록에 바로 추가해요 (중복은 무시).
-  function addManual() {
-    const names = (manual ?? "").split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
-    if (!names.length) return;
-    setSelected((current) => [...current, ...names.filter((name, index) => !current.includes(name) && names.indexOf(name) === index)].slice(0, 30));
-    setManual(null);
-  }
 
   function toggle(value: string) {
     setSelected((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -111,17 +107,7 @@ export function AttendeePicker({ language, onConfirm }: {
       {error && <p className="dialog-error" role="alert">{error}</p>}
       <p className="attendee-request-note">{ko ? "선택이 끝나면 각자에게 응답 링크를 보낼 수 있어요." : "After confirming the meeting details, you can send each attendee a private response link."}</p>
       <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이 사람들과 계속" : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees")}</button>
-      {manual === null ? (
-        <button className="direct-input-button" onClick={() => setManual("")}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
-      ) : (
-        <form className="direct-form" onSubmit={(event) => { event.preventDefault(); addManual(); }}>
-          <input className="rd-input" autoFocus aria-label={ko ? "참석자 직접 입력" : "Enter attendees"} placeholder={ko ? "이름이나 이메일을 쉼표로 구분해 입력해 주세요" : "Names or emails, separated by commas"} value={manual} onChange={(event) => setManual(event.target.value)} />
-          <div className="direct-actions">
-            <button type="button" className="secondary-button" onClick={() => setManual(null)}>{ko ? "취소" : "Cancel"}</button>
-            <button type="submit" className="primary-button" disabled={!manual.trim()}>{ko ? "추가" : "Add"}</button>
-          </div>
-        </form>
-      )}
+      <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
     </section>
   );
 }

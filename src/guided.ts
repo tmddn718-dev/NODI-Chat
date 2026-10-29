@@ -166,3 +166,37 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
   };
   return null;
 }
+
+// 직접 입력한 말을 새 값으로 만들지 않고, 챗봇이 제시한 목록 안에서 가장 가까운 선택지를 찾아요.
+// exact면 바로 선택하고, 아니면 "추천"으로만 보여줘요. 비슷한 게 없으면 choice 없이 돌려줘요.
+export function matchChoice(step: GuidedStep, text: string): { choice?: GuidedChoice; exact: boolean } {
+  const norm = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+  const typed = norm(text);
+  if (!typed) return { exact: false };
+  if (step.key === "duration") {
+    const minutes = Number(text.match(/\d+/)?.[0]);
+    if (!minutes) return { exact: false };
+    const best = step.choices.reduce((a, b) => (Math.abs(b.patch.durationMinutes! - minutes) < Math.abs(a.patch.durationMinutes! - minutes) ? b : a));
+    return { choice: best, exact: best.patch.durationMinutes === minutes };
+  }
+  // 말투가 달라도 같은 뜻이면 해당 선택지(순서)로 연결해요.
+  const synonyms: Partial<Record<GuidedStep["key"], [RegExp, number][]>> = {
+    preferredTime: [[/오전|아침|morning|\bam\b/i, 0], [/오후|저녁|점심|afternoon|\bpm\b/i, 1], [/무관|상관|아무|any/i, 2]],
+    availabilityRule: [[/모두|전부|다들|everyone|all/i, 0], [/없|none|\bno\b/i, 2]],
+    dateStart: [[/내일|tomorrow/i, 0], [/모레|two days/i, 1], [/다음\s*주|월요일|next/i, 2]],
+    dateEnd: [[/같은\s*날|당일|하루|same/i, 0], [/3\s*일|사흘|three/i, 1], [/일주일|1\s*주|주일|week/i, 2]],
+  };
+  const hit = synonyms[step.key]?.find(([pattern]) => pattern.test(text));
+  if (hit && step.choices[hit[1]]) return { choice: step.choices[hit[1]], exact: true };
+  const grams = (value: string) => new Set(Array.from({ length: Math.max(value.length - 1, 0) }, (_, i) => value.slice(i, i + 2)));
+  let best: GuidedChoice | undefined, bestScore = 0;
+  for (const choice of step.choices) {
+    const label = norm(choice.label);
+    if (label === typed || label.includes(typed) || typed.includes(label)) return { choice, exact: true };
+    const have = grams(label);
+    const score = [...grams(typed)].filter((gram) => have.has(gram)).length;
+    if (score > bestScore) { best = choice; bestScore = score; }
+  }
+  return { choice: best, exact: false };
+}
+

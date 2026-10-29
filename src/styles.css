@@ -1902,3 +1902,113 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
   .rd-card-reco .rd-slot { background: var(--nodi-bg-surface); }
   .rd-slot .rd-slot-time { text-wrap: balance; word-break: keep-all; }
 }
+
+/* 직접 입력과 가장 가까운 선택지 추천 */
+.guided-options button.recommended { border-color: #3654D4; background: #E9EEFF; color: #3654D4; font-weight: 700; }
+/* 토스식 추천 표시: 글자 옆이 아니라 카드 위에 걸린 작은 말풍선 */
+.guided-options button.recommended { position: relative; margin-top: 12px; }
+.reco-tip { position: absolute; top: -11px; left: 14px; padding: 2px 8px; border-radius: 6px; background: #3654D4; color: #fff; font-size: var(--fs-11); font-weight: 700; line-height: 18px; pointer-events: none; }
+.reco-tip::after { content: ""; position: absolute; left: 10px; bottom: -4px; width: 8px; height: 8px; background: #3654D4; transform: rotate(45deg); border-radius: 1px; }
+.reco-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; font-size:var(--fs-13); color:#47566D; }
+.reco-bar button { min-height:36px; padding:0 14px; border:1px solid #3654D4; border-radius:999px; background:#E9EEFF; color:#3654D4; font-weight:700; cursor:pointer; }
+
+/* 자연어 이해 결과 카드 — 토스 앱/토스 비즈니스 참고: 흰 카드 + 왼쪽 라벨/오른쪽 굵은 값 + 작은 소프트 필 버튼 + 큰 값·이유 문장 + 전폭 CTA (색은 NODI 토큰) */
+.understood-card, .proposal-card { margin: 12px 0; padding: 20px; border: 1px solid #DDE4EF; border-radius: 20px; background: #fff; }
+.understood-title { display: flex; align-items: center; gap: 6px; margin: 0 0 14px; font-size: var(--fs-13); font-weight: 700; color: #47566D; }
+.understood-title svg { width: 16px; height: 16px; color: #3654D4; }
+.understood-card ul { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.understood-card li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.understood-label { flex: none; font-size: var(--fs-13); color: #65748B; }
+.understood-value { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; text-align: right; }
+.understood-card strong { font-size: var(--fs-15); font-weight: 700; color: #18243A; word-break: keep-all; }
+.understood-card s { color: #65748B; font-weight: 400; }
+.soft-pill { min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: #E9EEFF; color: #3654D4; font-size: var(--fs-12); font-weight: 700; cursor: pointer; }
+.soft-pill:hover { background: #D1DCFF; }
+.understood-issue { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid #EEF0F4; font-size: var(--fs-12); color: #47566D; }
+.proposal-value { display: block; margin: 4px 0 6px; font-size: 28px; line-height: 1.25; font-weight: 800; color: #18243A; }
+.proposal-reason { margin: 0 0 14px; font-size: var(--fs-13); color: #65748B; }
+.proposal-alts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.proposal-actions { display: grid; gap: 8px; justify-items: center; }
+.proposal-actions .primary-button { width: 100%; min-height: 52px; border-radius: 14px; font-size: var(--fs-15); }
+.proposal-actions .text-link { min-height: 40px; color: #65748B; font-weight: 600; }
+@media (max-width: 640px) {
+  .understood-card, .proposal-card { border-color: transparent; border-radius: 24px; }
+  .proposal-value { font-size: 32px; }
+  .proposal-actions .primary-button { min-height: 56px; }
+}
+.unconfirmed { font-style: normal; font-weight: 700; color: #47566D; }
+.proposal-card .direct-input-button { margin-top: 10px; }
+
+/* 확정 후 변경 검토·알림 상태·이력 */
+.change-review h2 { margin: 0 0 12px; font-size: var(--fs-18); }
+.change-list { display: grid; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
+.change-list li, .notify-status li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.change-list span, .notify-status li > span:first-child { font-size: var(--fs-13); color: #65748B; }
+.change-list s { color: #65748B; font-weight: 400; }
+.change-review .edit-actions { display: flex; gap: 8px; margin-top: 16px; }
+.change-review .edit-actions button { flex: 1; min-height: 48px; }
+.notify-status { margin-top: 20px; padding: 16px; border: 1px solid #DDE4EF; border-radius: 16px; background: #fff; text-align: left; }
+.notify-status h3 { margin: 0 0 12px; font-size: var(--fs-15); }
+.notify-status ul { display: grid; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
+@media (max-width: 640px) { .notify-status { border-color: transparent; border-radius: 24px; } }
+
+/* 회의 확정 완료 화면 — 토스 결제완료 구조 참고(성공 아이콘 → 핵심 결과 → 라벨·값 섹션 → 하단 버튼 2개), NODI 토큰 사용 */
+.result-card.done { width: min(100%, 560px); padding: 0; overflow: hidden; text-align: left; }
+.done-hero { padding: 40px 24px 28px; text-align: center; }
+.done-check { display: inline-grid; place-items: center; width: 64px; height: 64px; margin-bottom: 16px; border-radius: 50%; background: #3654D4; color: #fff; }
+.done-check svg { width: 34px; height: 34px; stroke-width: 3; }
+.done-eyebrow { margin: 0 0 6px; font-size: var(--fs-15); font-weight: 600; color: #3654D4; }
+.done-hero h1 { margin: 0; font-size: var(--fs-28); font-weight: 800; letter-spacing: -.02em; color: #18243A; }
+.done-time { margin: 6px 0 0; font-size: var(--fs-18); font-weight: 700; color: #18243A; }
+.done-time span { font-weight: 500; color: #65748B; }
+.done-section { padding: 20px 24px; border-top: 8px solid #F5F7FB; }
+.done-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.done-section-head h2 { margin: 0; font-size: var(--fs-17); font-weight: 700; color: #18243A; }
+.done-count { font-size: var(--fs-12); color: #65748B; }
+.done-rows { display: grid; gap: 14px; margin: 0; }
+.done-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.done-rows dt { flex: none; font-size: var(--fs-13); color: #65748B; }
+.done-rows dd { margin: 0; min-width: 0; text-align: right; font-size: var(--fs-15); font-weight: 600; color: #18243A; word-break: keep-all; overflow-wrap: anywhere; }
+.done-note { margin: 14px 0 0; font-size: var(--fs-12); color: #65748B; }
+.done-list { display: grid; gap: 12px; margin: 0 0 12px; padding: 0; list-style: none; }
+.done-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: var(--fs-13); color: #47566D; }
+.done-actions { display: flex; gap: 8px; padding: 20px 24px 8px; border-top: 8px solid #F5F7FB; }
+.done-actions button { flex: 1; min-height: 52px; border-radius: 14px; font-size: var(--fs-15); }
+.done-cancel-link { display: block; margin: 0 auto; padding: 12px 24px 24px; color: #65748B; font-size: var(--fs-13); }
+.done-cancel { margin: 8px 24px 24px; padding: 16px; border-radius: 16px; background: #F5F7FB; }
+.done-cancel p { margin: 0 0 12px; font-size: var(--fs-13); color: #47566D; }
+.done-cancel > div { display: flex; gap: 8px; }
+.done-cancel button { flex: 1; min-height: 44px; }
+.result-card.done .edit-form { margin: 0; }
+@media (max-width: 640px) {
+  .result-view:has(.result-card.done) { padding: 0; background: #F5F7FB; align-items: start; }
+  .result-card.done { width: 100%; min-height: 100dvh; border: 0; border-radius: 0; }
+}
+
+/* 추천 카드: 점수 대신 근거(필수 참석자 → 가능 인원 → 출처 → 미응답) 우선 */
+.rd-slot-range { margin: 2px 0 0; font-size: var(--fs-13); color: #65748B; }
+.rd-evidence { display: grid; gap: 8px; margin: 14px 0 12px; padding: 0; list-style: none; }
+.rd-evidence li { display: flex; align-items: flex-start; gap: 8px; font-size: var(--fs-13); color: #18243A; }
+.rd-evidence li svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.rd-evidence li.ok { font-weight: 700; } .rd-evidence li.ok svg { color: #1F8A5B; }
+.rd-evidence li.warn { color: #8A5A00; font-weight: 600; } .rd-evidence li.warn svg { color: #B26B00; }
+.rd-evidence li.plain { padding-left: 24px; } .rd-evidence li.sub { color: #65748B; }
+.rd-more { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 12px; padding: 4px 0; border: 0; background: none; color: #3654D4; font-size: var(--fs-13); font-weight: 700; cursor: pointer; }
+.rd-more svg { width: 16px; height: 16px; transition: transform .15s; } .rd-more svg.up { transform: rotate(180deg); }
+.rd-detail { margin: 0 0 12px; padding: 14px; border-radius: 12px; background: #F5F7FB; }
+.rd-detail h4 { margin: 12px 0 8px; font-size: var(--fs-12); color: #65748B; } .rd-detail h4:first-child { margin-top: 0; }
+.rd-detail ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rd-detail li { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-13); color: #18243A; }
+.rd-detail li span:last-child { text-align: right; color: #47566D; }
+/* 최종 승인 카드의 자동 재확인 상태 */
+.cd-verify { margin: 12px 0 4px; padding: 14px 16px; border-radius: 14px; background: #F5F7FB; }
+.cd-verify p { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-13); font-weight: 700; color: #18243A; }
+.cd-verify svg { flex: none; width: 18px; height: 18px; }
+.cd-verify.ok { background: #E9EEFF; } .cd-verify.ok svg { color: #3654D4; }
+.cd-verify.failed { background: #FFF4E5; } .cd-verify.failed svg { color: #B26B00; }
+.cd-verify ul { display: grid; gap: 4px; margin: 10px 0 0 26px; padding: 0; list-style: none; font-size: var(--fs-12); color: #65748B; font-weight: 400; }
+.spin { animation: nodi-spin 1s linear infinite; } @keyframes nodi-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+/* 칩 목록·입력칸과 그 아래 캡션 사이는 8pt 간격 기준으로 한 단계(8px) 더 띄워요 */
+.rd-field .rd-chips + .rd-caption, .rd-field .rd-input + .rd-caption, .rd-field .rd-chips + .rd-input + .rd-caption { margin-top: 8px; }

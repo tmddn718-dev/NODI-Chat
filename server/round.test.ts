@@ -30,6 +30,7 @@ describe("candidate round", () => {
     const summary = summarize(after, new Date("2026-10-30T00:00:00Z"));
     expect(summary.rows[0].candidate.id).toBe(b.id);
     expect(summary.rows[0]).toMatchObject({ accepted: 1, tentative: 1, noResponse: 0 });
+    expect(summary.rows[0].summary).toBe("필수 참석자 2명 모두 가능 · 전체 4명 중 3명 가능 · 미정 1명"); // 추천 이유 숫자가 실제 계산값과 같아요
     expect(summary.phase).toBe("final"); // 전원 응답
     expect(summarize({ ...after, participants: [sora, { ...alex, respondedAt: undefined }] } as typeof after, new Date("2026-10-30T00:00:00Z")).phase).toBe("collecting");
     expect(summarize(after, new Date("2026-11-02T00:00:00Z")).pastDeadline).toBe(true);

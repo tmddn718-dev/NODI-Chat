@@ -10,7 +10,7 @@ const labels = {
 
 const splitNames = (value: string) => [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 
-export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; onChange?: (meeting: MeetingDraft) => void }) {
+export function MeetingSummary({ meeting, onChange, proposal }: { meeting: MeetingDraft; onChange?: (meeting: MeetingDraft) => void; proposal?: { field: string; value: unknown } | null }) {
   const attendees = meeting.attendees ?? [];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(meeting);
@@ -58,7 +58,7 @@ export function MeetingSummary({ meeting, onChange }: { meeting: MeetingDraft; o
             {meeting.purpose && <small>{meeting.purpose}</small>}
           </div>
           <dl className="summary-list">
-            <div><dt><Clock /></dt><dd>{meeting.durationMinutes ? `${meeting.durationMinutes}분` : "시간을 알려주세요"}</dd></div>
+            <div><dt><Clock /></dt><dd>{meeting.durationMinutes ? `${meeting.durationMinutes}분` : proposal?.field === "durationMinutes" ? <>추천 {String(proposal.value)}분 · <em className="unconfirmed">확인 전</em></> : "시간을 알려주세요"}</dd></div>
             <div><dt><Users /></dt><dd>{attendees.length ? attendees.join(", ") : "함께할 사람을 골라주세요"}</dd></div>
             <div><dt><Users /></dt><dd>{meeting.requiredAttendees === undefined ? "꼭 참석할 사람을 골라주세요" : meeting.requiredAttendees.length ? `${meeting.requiredAttendees.join(", ")} 꼭 참석` : "꼭 참석할 사람 없음"}</dd></div>
             <div><dt><Calendar /></dt><dd>{meeting.dateStart ? `${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}` : "날짜를 골라주세요"}</dd></div>

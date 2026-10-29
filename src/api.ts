@@ -48,7 +48,7 @@ export const api = {
   deleteDraft: () => request<void>("/api/draft", { method: "DELETE" }),
   people: (query = "") => request<{ people: import("./types").PersonSummary[]; mode: "demo" }>(`/api/people?query=${encodeURIComponent(query)}`),
   chat: (body: object) =>
-    request<{ assistantMessage: string; meeting: import("./types").MeetingDraft; complete: boolean; model: string }>(
+    request<import("./types").ChatResult>(
       "/api/chat",
       { method: "POST", body: JSON.stringify(body) },
     ),
@@ -56,6 +56,11 @@ export const api = {
     request<{ candidates: import("./types").Candidate[]; availability: import("./types").AvailabilityResponse[] }>("/api/recommendations", {
       method: "POST",
       body: JSON.stringify({ meeting, availability, invitationToken }),
+    }),
+  verifyCandidate: (meeting: import("./types").MeetingDraft, candidate: import("./types").Candidate, availability: import("./types").AvailabilityResponse[], opts: { invitationToken?: string; roundToken?: string }) =>
+    request<import("./types").VerifyResult>(opts.roundToken ? `/api/rounds/${opts.roundToken}/verify` : "/api/recommendations/verify", {
+      method: "POST",
+      body: JSON.stringify(opts.roundToken ? { candidateId: candidate.id } : { meeting, candidate, availability, invitationToken: opts.invitationToken }),
     }),
   createInvitation: (meeting: import("./types").MeetingDraft, requestId: string) =>
     request<{ token: string; links: import("./types").InvitationLink[]; expiresAt: string; updatedAt: string }>("/api/invitations", {
@@ -96,10 +101,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ meeting, candidate, availability, requestId, invitationToken }),
     }),
-  updateEvent: (id: string, meeting: import("./types").MeetingDraft) =>
+  updateEvent: (id: string, meeting: import("./types").MeetingDraft, notify: "now" | "none" = "none") =>
     request<{ event: import("./types").MeetingEvent }>(`/api/events/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ meeting }),
+      body: JSON.stringify({ meeting, notify }),
     }),
+  retryNotifications: (id: string) => request<{ event: import("./types").MeetingEvent }>(`/api/events/${id}/notify`, { method: "POST" }),
   cancelEvent: (id: string) => request<{ cancelled: boolean }>(`/api/events/${id}`, { method: "DELETE" }),
 };

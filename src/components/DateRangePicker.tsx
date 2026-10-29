@@ -55,6 +55,7 @@ export function DateRangePicker({
   language,
   initialStart,
   onConfirm,
+  onDirectInput,
   today = currentDateInSeoul(),
 }: {
   language: "ko" | "en";
@@ -68,7 +69,6 @@ export function DateRangePicker({
   const [visibleMonth, setVisibleMonth] = useState(() => monthStart(validInitialStart ?? today));
   const [start, setStart] = useState<string | undefined>(validInitialStart);
   const [end, setEnd] = useState<string | undefined>();
-  const [manual, setManual] = useState<{ start: string; end: string } | null>(null);
   const days = calendarDays(visibleMonth);
   const currentMonth = today.slice(0, 7);
   const visibleMonthKey = formatIsoDate(visibleMonth).slice(0, 7);
@@ -79,21 +79,6 @@ export function DateRangePicker({
     month: "long",
   }).format(visibleMonth);
   const weekdays = ko ? ["월", "화", "수", "목", "금", "토", "일"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  // 날짜를 직접 고르면 달력과 요약에 바로 반영해요. 오늘 이후, 최대 31일까지만 받아요.
-  const manualError = !manual ? "" : !manual.start || !manual.end ? ""
-    : manual.start < today ? (ko ? "시작일은 오늘 이후로 골라 주세요." : "Pick a start date from today onward.")
-    : manual.end < manual.start ? (ko ? "종료일은 시작일과 같거나 이후여야 해요." : "The end date must be on or after the start date.")
-    : manual.end > addDays(manual.start, 30) ? (ko ? "시작일부터 최대 31일까지만 찾을 수 있어요." : "You can search up to 31 days from the start date.")
-    : "";
-
-  function applyManual() {
-    if (!manual || !manual.start || !manual.end || manualError) return;
-    setStart(manual.start);
-    setEnd(manual.end);
-    setVisibleMonth(monthStart(manual.start));
-    setManual(null);
-  }
 
   function selectDate(date: string) {
     if (!start || end) {
@@ -188,21 +173,7 @@ export function DateRangePicker({
       <button className="primary-button date-range-confirm" type="button" disabled={!start || !end} onClick={() => start && end && onConfirm(start, end)}>
         {ko ? "이 날짜로 찾기" : "Continue with this date range"}
       </button>
-      {manual === null ? (
-        <button className="direct-input-button" type="button" onClick={() => setManual({ start: start ?? "", end: end ?? "" })}>{ko ? "직접 입력할게요" : "Enter dates directly"}</button>
-      ) : (
-        <form className="direct-form" onSubmit={(event) => { event.preventDefault(); applyManual(); }}>
-          <div className="direct-dates">
-            <label><span>{ko ? "시작일" : "Start"}</span><input className="rd-input" type="date" min={today} value={manual.start} onChange={(event) => setManual({ ...manual, start: event.target.value })} /></label>
-            <label><span>{ko ? "종료일" : "End"}</span><input className="rd-input" type="date" min={manual.start || today} value={manual.end} onChange={(event) => setManual({ ...manual, end: event.target.value })} /></label>
-          </div>
-          {manualError && <p className="dialog-error" role="alert">{manualError}</p>}
-          <div className="direct-actions">
-            <button type="button" className="secondary-button" onClick={() => setManual(null)}>{ko ? "취소" : "Cancel"}</button>
-            <button type="submit" className="primary-button" disabled={!manual.start || !manual.end || Boolean(manualError)}>{ko ? "적용" : "Apply"}</button>
-          </div>
-        </form>
-      )}
+      <button className="direct-input-button" type="button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter dates directly"}</button>
     </section>
   );
 }

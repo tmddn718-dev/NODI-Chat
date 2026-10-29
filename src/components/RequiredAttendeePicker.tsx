@@ -1,41 +1,22 @@
 import { Check, CircleUser, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NodiMark } from "./NodiMark";
 
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-export function RequiredAttendeePicker({ attendees, language, onConfirm }: {
+export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirectInput, preselect }: {
   attendees: string[];
   language: "ko" | "en";
   onConfirm: (requiredAttendees: string[]) => void;
   onDirectInput?: () => void;
+  preselect?: { names: string[]; nonce: number };
 }) {
   const ko = language === "ko";
   const [selected, setSelected] = useState<string[]>([]);
-  const [manual, setManual] = useState<string | null>(null);
-  const [manualError, setManualError] = useState("");
-
-  // 이름(일부만 써도 돼요)을 쉼표로 구분해 입력하면 참석자 목록에서 찾아 꼭 참석으로 표시해요. 목록에 없는 이름은 알려 줘요.
-  function applyManual() {
-    const tokens = (manual ?? "").split(/[,\n]/).map((item) => item.trim().toLocaleLowerCase()).filter(Boolean);
-    if (!tokens.length) return;
-    const found: string[] = [];
-    const missing: string[] = [];
-    for (const token of tokens) {
-      const exact = attendees.find((name) => name.toLocaleLowerCase() === token);
-      const partial = attendees.filter((name) => name.toLocaleLowerCase().includes(token));
-      const match = exact ?? (partial.length === 1 ? partial[0] : undefined);
-      if (match) found.push(match); else missing.push(token);
-    }
-    if (missing.length) {
-      setManualError(ko ? `${missing.join(", ")}은(는) 참석자 목록에서 찾을 수 없거나 여러 명이에요. 이름을 조금 더 정확히 써 주세요.` : `Could not match: ${missing.join(", ")}.`);
-      return;
-    }
-    setSelected((current) => [...new Set([...current, ...found])]);
-    setManual(null);
-    setManualError("");
-  }
-
+  // 채팅에 쓴 이름은 여기서 자동으로 체크돼요.
+  useEffect(() => {
+    if (preselect?.names.length) setSelected((current) => [...new Set([...current, ...preselect.names])]);
+  }, [preselect?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   function toggle(attendee: string) {
     setSelected((current) => current.includes(attendee) ? current.filter((item) => item !== attendee) : [...current, attendee]);
   }
@@ -72,18 +53,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm }: {
       </div>
 
       <button className="primary-button required-confirm" onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이대로 계속" : "Continue with this rule") : (ko ? "건너뛰기" : "Continue without a required attendee")}</button>
-      {manual === null ? (
-        <button className="direct-input-button" onClick={() => setManual("")}>{ko ? "직접 알려주기" : "Describe the rule instead"}</button>
-      ) : (
-        <form className="direct-form" onSubmit={(event) => { event.preventDefault(); applyManual(); }}>
-          <input className="rd-input" autoFocus aria-label={ko ? "꼭 참석할 사람 직접 입력" : "Required attendees"} placeholder={ko ? "꼭 참석할 분의 이름을 쉼표로 구분해 입력해 주세요" : "Names, separated by commas"} value={manual} onChange={(event) => { setManual(event.target.value); setManualError(""); }} />
-          {manualError && <p className="dialog-error" role="alert">{manualError}</p>}
-          <div className="direct-actions">
-            <button type="button" className="secondary-button" onClick={() => { setManual(null); setManualError(""); }}>{ko ? "취소" : "Cancel"}</button>
-            <button type="submit" className="primary-button" disabled={!manual.trim()}>{ko ? "적용" : "Apply"}</button>
-          </div>
-        </form>
-      )}
+      <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 알려주기" : "Describe the rule instead"}</button>
     </section>
   );
 }

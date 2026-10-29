@@ -49,7 +49,17 @@ export function summarize(record: RoundRecord, now = new Date()) {
       `참여하면 좋은 사람 중 가능 ${row.accepted}명`, `불가 ${row.declined}명`, `미정 ${row.tentative}명`, `미응답 ${row.noResponse}명`,
       tied ? "응답이 같아 선호 시간대·빠른 시간 순으로 정렬했어요" : "",
     ].filter(Boolean).join(" · ");
-    return { ...row, rank: index + 1, reason };
+    // 추천 이유는 실제 계산값과 같은 숫자로, 필수 참석자 → 전체 가능 인원 → 미응답 순서로 말해요.
+    const { required } = splitAttendees(record.meeting);
+    const total = required.length + record.participants.length;
+    const available = (row.candidate.requiredAvailable ? required.length : 0) + row.accepted;
+    const summary = [
+      required.length ? (row.candidate.requiredAvailable ? `필수 참석자 ${required.length}명 모두 가능` : `필수 참석자 ${required.length}명 중 확인 필요`) : "",
+      `전체 ${total}명 중 ${available}명 가능`,
+      row.noResponse ? `미응답 ${row.noResponse}명` : "",
+      row.tentative ? `미정 ${row.tentative}명` : "",
+    ].filter(Boolean).join(" · ");
+    return { ...row, rank: index + 1, reason, summary, availableCount: available, totalCount: total };
   });
   const responded = record.participants.filter((participant) => participant.respondedAt).length;
   const deadlinePassed = now.getTime() >= Date.parse(record.deadlineAt);

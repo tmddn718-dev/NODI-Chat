@@ -9,7 +9,7 @@ import { InvitedMeetings } from "./components/InvitedMeetings";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
 import { SettingsDialog } from "./components/SettingsDialog";
-import type { MeetingEvent } from "./types";
+import type { MeetingDraft, MeetingEvent } from "./types";
 
 type View = "loading" | "connect" | "chat" | "meetings" | "event" | "invited" | "calendars";
 
@@ -69,9 +69,16 @@ export default function App() {
     setView("connect");
   }
 
-  async function updateEvent(title: string) {
+  async function updateEvent(patch: Partial<MeetingDraft>, notify: "now" | "none") {
     if (!event) return;
-    const result = await api.updateEvent(event.id, { ...event.meeting, title });
+    const result = await api.updateEvent(event.id, { ...event.meeting, ...patch }, notify);
+    setEvent(result.event);
+    setEvents((current) => current.map((item) => item.id === result.event.id ? result.event : item));
+  }
+
+  async function retryNotifications() {
+    if (!event) return;
+    const result = await api.retryNotifications(event.id);
     setEvent(result.event);
     setEvents((current) => current.map((item) => item.id === result.event.id ? result.event : item));
   }
@@ -96,7 +103,7 @@ export default function App() {
     return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} />;
   }
   if (view === "event" && event) {
-    return <MeetingManager event={event} onUpdate={updateEvent} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} />;
+    return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} />;
   }
   return (
     <>

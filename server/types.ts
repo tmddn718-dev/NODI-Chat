@@ -32,6 +32,9 @@ export type DemoPerson = {
   blocks: CalendarBlock[];
 };
 
+// 참석 가능 여부의 근거 출처. calendar_free는 "캘린더상 비어 있음"이지 참석 수락이 아니에요.
+export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable";
+
 export type Candidate = {
   id: string;
   start: string;
@@ -53,6 +56,7 @@ export type Candidate = {
   checkedAt: string;
   basedOnMeetingVersion: number;
   basisKey: string;
+  evidence?: Array<{ attendee: string; evidence: AttendanceEvidence }>;
 };
 
 export type AvailabilityStatus = "available" | "unavailable" | "tentative" | "no_response";
@@ -75,8 +79,15 @@ export type MeetingEvent = {
   calendarSyncStatus: "not_connected" | "synced" | "failed";
   preparationStatus: "not_required" | "in_progress" | "awaiting_input" | "ready" | "attention_required";
   invitationSent: boolean;
+  revisions?: MeetingRevision[];
+  notifications?: ChangeNotification[];
   createdAt: string;
 };
+
+// 확정 후 변경 이력: 누가·언제·무엇을 어떻게 바꿨는지 남겨요.
+export type MeetingRevision = { version: number; changedFields: Array<keyof MeetingDraft>; before: Partial<MeetingDraft>; after: Partial<MeetingDraft>; changedAt: string };
+// 알림은 실제 발송 결과가 확인된 뒤에만 "recorded"(데모 발송함 기록)로 표시해요. 주소를 모르면 "failed", 보내지 않기로 했으면 "skipped".
+export type ChangeNotification = { attendee: string; status: "recorded" | "failed" | "skipped"; reason?: string; version: number; at: string };
 
 export type InvitationRecord = {
   id: string;

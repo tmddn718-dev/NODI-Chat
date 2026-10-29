@@ -4,14 +4,16 @@ import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { demoPeople } from "./demo-data.ts";
+import { rateLimit, securityHeaders } from "./security.ts";
+import { applyInterpretation } from "./dialogue.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
 import { DraftConflictError, DraftStore } from "./draft-store.ts";
 import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
 import { InvitationStore } from "./invitation-store.ts";
 import { searchPeople } from "./people.ts";
-import { dispatch, OutboxMailer } from "./mailer.ts";
+import { dispatch, notifyChange, OutboxMailer } from "./mailer.ts";
 import { RoundClosedError, RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
-import { validateMeeting } from "./recommendation.ts";
+import { recommendSlots, validateMeeting } from "./recommendation.ts";
 import type { AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
 
 const app = express();
@@ -27,6 +29,8 @@ const mailer = new OutboxMailer();
 const baseUrlOf = (req: Request) => process.env.NODI_PUBLIC_URL ?? (req.get("origin") ?? `${req.protocol}://${req.get("host")}`);
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
+app.use(securityHeaders);
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 
@@ -117,7 +121,8 @@ app.get("/api/session", (req, res) => {
   res.json({ connected: Boolean(session), models: session?.models ?? [] });
 });
 
-app.post("/api/session/connect", async (req, res, next) => {
+const sessionKey = (req: Request) => (req.cookies[sessionCookie] as string | undefined) ?? req.ip ?? "anon";
+app.post("/api/session/connect", rateLimit(10, 60_000), async (req, res, next) => {
   try {
     const apiKey = typeof req.body.apiKey === "string" ? req.body.apiKey.trim() : "";
     if (!apiKey || apiKey.length > 300) {
@@ -190,7 +195,7 @@ app.get("/api/models", requireSession, async (req, res, next) => {
   }
 });
 
-app.post("/api/chat", requireSession, async (req, res, next) => {
+app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (req, res, next) => {
   try {
     const { session } = getSession(req);
     const messages = Array.isArray(req.body.messages)
@@ -202,6 +207,9 @@ app.post("/api/chat", requireSession, async (req, res, next) => {
           })
           .map((item: { role: "user" | "assistant"; content: string }) => ({ ...item, content: item.content.slice(0, 4000) }))
       : [];
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user" || !last.content.trim()) return res.status(400).json({ error: "메시지를 입력해 주세요.", code: "invalid_input" });
+    if (last.content.length > 2000) return res.status(400).json({ error: "한 번에 2,000자까지 입력할 수 있어요.", code: "input_too_long" });
     const meeting = (req.body.meeting ?? {}) as MeetingDraft;
     const requestedModel = typeof req.body.model === "string" ? req.body.model : "llama-3.3-70b-versatile";
     const model = session!.models.includes(requestedModel)
@@ -209,14 +217,23 @@ app.post("/api/chat", requireSession, async (req, res, next) => {
       : session!.models.includes("llama-3.3-70b-versatile")
         ? "llama-3.3-70b-versatile"
         : session!.models[0];
-    const result = await chatWithGroq(
+    const interpretation = await chatWithGroq(
       session!.apiKey,
       model,
       messages,
       meeting,
       req.body.language === "en" ? "en" : "ko",
+      typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
     );
-    res.json({ ...result, model, complete: validateMeeting(result.meeting).length === 0 });
+    // 해석 → 검증 → 상태 병합 → 다음 행동 계산. nextAction은 AI가 아니라 서버가 정해요.
+    const applied = applyInterpretation(meeting, interpretation, demoPeople, new Date());
+    res.json({
+      intent: interpretation.intent,
+      assistantMessage: interpretation.assistantMessage,
+      model,
+      ...applied,
+      complete: validateMeeting(applied.meeting).length === 0,
+    });
   } catch (error) {
     next(error);
   }
@@ -427,7 +444,7 @@ app.get("/api/rounds/respond/:token", async (req, res, next) => {
   }
 });
 
-app.post("/api/rounds/respond/:token", async (req, res, next) => {
+app.post("/api/rounds/respond/:token", rateLimit(60, 60_000), async (req, res, next) => {
   try {
     const token = readInvitationToken(req.params.token);
     const version = Number(req.body.version);
@@ -453,7 +470,7 @@ app.get("/api/invitations/:token/availability", requireSession, async (req, res,
   }
 });
 
-app.post("/api/invitations/:token/responses", async (req, res, next) => {
+app.post("/api/invitations/:token/responses", rateLimit(60, 60_000), async (req, res, next) => {
   try {
     const token = readInvitationToken(req.params.token);
     const status = req.body.status;
@@ -477,6 +494,40 @@ app.post("/api/recommendations", requireSession, async (req, res, next) => {
     const availability = await resolveAvailability(req.body as Record<string, unknown>);
     const candidates = await provider.getFreeBusy((req.body.meeting ?? {}) as MeetingDraft, availability);
     res.json({ candidates, availability, mode: "manual", checkedAt: new Date().toISOString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 시간을 고른 직후 자동으로 최신 일정을 다시 확인해요. 사용자는 캘린더를 직접 열어 보지 않아도 돼요.
+// ok: 그대로 확정 가능 / conflict: 필수 참석자 일정이 새로 겹침 / stale: 회의 조건이 바뀌어 오래된 후보
+app.post("/api/recommendations/verify", requireSession, rateLimit(60, 60_000, sessionKey), async (req, res, next) => {
+  try {
+    const meeting = (req.body.meeting ?? {}) as MeetingDraft;
+    const candidate = (req.body.candidate ?? {}) as Candidate;
+    const availability = await resolveAvailability(req.body as Record<string, unknown>);
+    const checkedAt = new Date().toISOString();
+    const latest = recommendSlots(meeting, undefined, availability).find((item) => item.id === candidate.id);
+    if (!latest || latest.basisKey !== candidate.basisKey || latest.basedOnMeetingVersion !== candidate.basedOnMeetingVersion) {
+      return res.json({ status: "stale", checkedAt, message: "회의 조건이나 응답이 바뀌어서 이 후보는 더 이상 맞지 않아요. 새 추천을 확인해 주세요." });
+    }
+    if (!latest.requiredAvailable) return res.json({ status: "conflict", checkedAt, message: `선택한 시간에 ${[...latest.unavailable, ...latest.unknown].join(", ")}님의 일정이 맞지 않아요.`, candidate: latest });
+    res.json({ status: "ok", checkedAt, message: "방금 다시 확인했어요. 필수 참석자 모두 가능하고 새로운 충돌은 없어요.", candidate: latest });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/rounds/:token/verify", requireSession, async (req, res, next) => {
+  try {
+    const record = await requireRound(req, res);
+    if (!record) return;
+    const checkedAt = new Date().toISOString();
+    const row = summarize(record).rows.find((item) => item.candidate.id === req.body.candidateId);
+    const fresh = requiredFirstCandidates(record.meeting, Date.parse(record.deadlineAt)).find((item) => item.id === row?.candidate.id);
+    if (!row || !fresh || fresh.start !== row.candidate.start || Date.parse(fresh.start) <= Date.now()) return res.json({ status: "stale", checkedAt, message: "후보가 바뀌었어요. 새 추천을 확인해 주세요." });
+    if (!fresh.requiredAvailable) return res.json({ status: "conflict", checkedAt, message: `선택한 시간에 필수 참석자 ${[...fresh.unavailable, ...fresh.unknown].join(", ")}님의 일정이 맞지 않아요.` });
+    res.json({ status: "ok", checkedAt, message: "방금 다시 확인했어요. 필수 참석자 모두 가능하고 새로운 충돌은 없어요." });
   } catch (error) {
     next(error);
   }
@@ -518,8 +569,30 @@ app.post("/api/events", requireSession, async (req, res, next) => {
 
 app.patch("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    const event = await provider.updateEvent(String(req.params.id), req.body.meeting as MeetingDraft);
+    let event = await provider.updateEvent(String(req.params.id), req.body.meeting as MeetingDraft);
+    const changedFields = event.revisions?.at(-1)?.version === event.version;
+    // 알림은 주최자가 고른 대로만 보내요. "저장만"이면 아무에게도 보내지 않고 직접 공유하도록 표시해요.
+    if (changedFields) {
+      const at = new Date().toISOString();
+      const results = req.body.notify === "now"
+        ? await notifyChange(mailer, event)
+        : (event.meeting.attendees ?? []).map((attendee) => ({ attendee, status: "skipped" as const, reason: "저장만 했어요 · 직접 공유가 필요해요", version: event.version, at }));
+      event = await provider.recordNotifications(event.id, results);
+    }
     res.json({ event, mode: "demo" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/events/:id/notify", requireSession, rateLimit(20, 60_000, sessionKey), async (req, res, next) => {
+  try {
+    const event = (await provider.listEvents()).find((item) => item.id === String(req.params.id));
+    if (!event || event.status === "cancelled") return res.status(404).json({ error: "회의를 찾을 수 없습니다.", code: "not_found" });
+    // 재시도는 이번 변경에서 아직 기록되지 않은 사람에게만 보내요.
+    const pending = (event.notifications ?? []).filter((item) => item.version === event.version && item.status !== "recorded").map((item) => item.attendee);
+    const results = pending.length ? await notifyChange(mailer, event, pending) : [];
+    res.json({ event: results.length ? await provider.recordNotifications(event.id, results) : event, mode: "demo" });
   } catch (error) {
     next(error);
   }

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CalendarProvider } from "./calendar.ts";
 import { FileMeetingStore } from "./store.ts";
 import { recommendSlots } from "./recommendation.ts";
-import type { AvailabilityResponse, Candidate, MeetingDraft } from "./types.ts";
+import type { AvailabilityResponse, Candidate, ChangeNotification, MeetingDraft } from "./types.ts";
 
 export class DemoCalendarProvider implements CalendarProvider {
   readonly id = "demo" as const;
@@ -52,8 +52,21 @@ export class DemoCalendarProvider implements CalendarProvider {
   async updateEvent(id: string, meeting: MeetingDraft) {
     const existing = await this.store.get(id);
     if (!existing || existing.status === "cancelled") throw new Error("수정할 회의를 찾을 수 없습니다.");
-    const updated = { ...existing, meeting, version: existing.version + 1, updatedAt: new Date().toISOString() };
+    const keys = [...new Set([...Object.keys(existing.meeting), ...Object.keys(meeting)])].filter((key) => key !== "version") as Array<keyof MeetingDraft>;
+    const changedFields = keys.filter((key) => JSON.stringify(existing.meeting[key]) !== JSON.stringify(meeting[key]));
+    const now = new Date().toISOString();
+    const revision = { version: existing.version + 1, changedFields, before: Object.fromEntries(changedFields.map((key) => [key, existing.meeting[key]])), after: Object.fromEntries(changedFields.map((key) => [key, meeting[key]])), changedAt: now };
+    const updated = { ...existing, meeting, version: existing.version + 1, updatedAt: now, revisions: [...(existing.revisions ?? []), ...(changedFields.length ? [revision] : [])] };
     return this.store.save(updated, existing.requestId);
+  }
+
+  // 알림 결과를 저장해요. 재시도할 때는 실패한 사람의 결과만 새 결과로 바꿔요.
+  async recordNotifications(id: string, results: ChangeNotification[]) {
+    const existing = await this.store.get(id);
+    if (!existing) throw new Error("회의를 찾을 수 없습니다.");
+    const names = new Set(results.map((item) => item.attendee));
+    const notifications = [...(existing.notifications ?? []).filter((item) => !names.has(item.attendee)), ...results];
+    return this.store.save({ ...existing, notifications }, existing.requestId);
   }
 
   async deleteEvent(id: string) {

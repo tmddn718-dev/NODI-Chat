@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { demoPeople } from "./demo-data.ts";
-import type { RoundRecord } from "./types.ts";
+import type { ChangeNotification, MeetingDraft, MeetingEvent, RoundRecord } from "./types.ts";
 import type { RoundStore } from "./round.ts";
 
 export type MailMessage = { id: string; to: string; subject: string; text: string };
@@ -61,4 +61,24 @@ export async function dispatch(store: RoundStore, mailer: Mailer, record: RoundR
     }
   }));
   return store.recordDelivery(record.token, results, baseUrl, kind === "invite");
+}
+
+const fieldNames: Partial<Record<keyof MeetingDraft, string>> = { title: "제목", purpose: "목적", durationMinutes: "시간", attendees: "참석자", dateStart: "시작일", dateEnd: "종료일" };
+
+// 변경 알림. 실제 메일 서비스가 없는 데모에서는 발송함에 기록만 하므로 "전송 완료"가 아니라 "기록됨"으로 돌려줘요.
+export async function notifyChange(mailer: Mailer, event: MeetingEvent, targets?: string[]): Promise<ChangeNotification[]> {
+  const revision = event.revisions?.at(-1);
+  const at = new Date().toISOString();
+  const names = (event.meeting.attendees ?? []).filter((name) => !targets || targets.includes(name));
+  return Promise.all(names.map(async (attendee): Promise<ChangeNotification> => {
+    const to = emailFor(attendee);
+    if (!to) return { attendee, status: "failed", reason: "메일 주소를 확인할 수 없어요 · 직접 공유가 필요해요", version: event.version, at };
+    const lines = (revision?.changedFields ?? []).map((field) => `${fieldNames[field] ?? field}: ${JSON.stringify(revision!.before[field] ?? "없음")} → ${JSON.stringify(revision!.after[field] ?? "없음")}`);
+    try {
+      await mailer.send({ id: `${event.id}:v${event.version}:${to}:change`, to, subject: `[NODI] ${event.meeting.title ?? "회의"} 일정이 변경됐어요`, text: `${attendee}님, 회의가 변경됐어요.\n${lines.join("\n")}\n시간: ${when(event.candidate.start)}` });
+      return { attendee, status: "recorded", version: event.version, at };
+    } catch {
+      return { attendee, status: "failed", reason: "발송하지 못했어요", version: event.version, at };
+    }
+  }));
 }

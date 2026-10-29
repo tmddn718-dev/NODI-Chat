@@ -78,6 +78,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
       const unknown: string[] = [];
       const tentative: string[] = [];
       const noResponse: string[] = [];
+      const evidence: NonNullable<Candidate["evidence"]> = [];
       let available = 0;
       let calendarFreeCount = 0;
       let manualAvailableCount = 0;
@@ -91,6 +92,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
           if (response.status === "tentative") {
             unknown.push(attendee);
             tentative.push(attendee);
+            evidence.push({ attendee, evidence: "tentative" });
             if (isRequired) requiredAvailable = false;
             continue;
           }
@@ -99,8 +101,10 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
           if (insideAvailableWindow) {
             available += 1;
             manualAvailableCount += 1;
+            evidence.push({ attendee, evidence: "direct_available" });
           } else {
             unavailable.push(attendee);
+            evidence.push({ attendee, evidence: "direct_unavailable" });
             if (isRequired) requiredAvailable = false;
           }
           continue;
@@ -108,18 +112,21 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
         if (!person || person.calendarStatus !== "connected") {
           unknown.push(attendee);
           noResponse.push(attendee);
+          evidence.push({ attendee, evidence: person ? "calendar_unavailable" : "no_response" });
           if (isRequired) requiredAvailable = false;
           continue;
         }
         const busy = person.blocks.some((item) => overlaps(start, end, item.start, item.end));
         if (busy) {
           unavailable.push(person.name);
+          evidence.push({ attendee, evidence: "calendar_conflict" });
           if (isRequired || required.has(normalize(person.name)) || required.has(normalize(person.email))) {
             requiredAvailable = false;
           }
         } else {
           available += 1;
           calendarFreeCount += 1;
+          evidence.push({ attendee, evidence: "calendar_free" });
         }
       }
 
@@ -165,6 +172,7 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
         checkedAt,
         basedOnMeetingVersion,
         basisKey,
+        evidence,
       });
     }
   }

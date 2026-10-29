@@ -26,15 +26,13 @@ describe("AttendeePicker", () => {
     expect(onConfirm).toHaveBeenCalledWith(["김민지"]);
   });
 
-  it("adds comma-separated names typed directly and ignores duplicates", async () => {
+  it("hands direct typing off to the chat composer", async () => {
     vi.mocked(api.people).mockResolvedValue({ people, mode: "demo" });
-    const onConfirm = vi.fn();
-    render(<AttendeePicker language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
+    const onDirectInput = vi.fn();
+    render(<AttendeePicker language="ko" onConfirm={vi.fn()} onDirectInput={onDirectInput} />);
     fireEvent.click(await screen.findByRole("button", { name: "직접 입력할게요" }));
-    fireEvent.change(screen.getByLabelText("참석자 직접 입력"), { target: { value: "홍길동, 김철수, 홍길동" } });
-    fireEvent.click(screen.getByRole("button", { name: "추가" }));
-    fireEvent.click(screen.getByRole("button", { name: "이 사람들과 계속" }));
-    expect(onConfirm).toHaveBeenCalledWith(["홍길동", "김철수"]);
+    expect(onDirectInput).toHaveBeenCalled();
+    expect(screen.queryByLabelText("참석자 직접 입력")).toBeNull();
   });
 
   it("allows an exact external email to be added", async () => {

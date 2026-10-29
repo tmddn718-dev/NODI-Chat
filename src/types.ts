@@ -14,6 +14,10 @@ export type MeetingDraft = {
   priority?: string;
 };
 
+export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable";
+
+export type VerifyResult = { status: "ok" | "conflict" | "stale"; checkedAt: string; message: string; candidate?: Candidate };
+
 export type Candidate = {
   id: string;
   start: string;
@@ -35,6 +39,7 @@ export type Candidate = {
   checkedAt: string;
   basedOnMeetingVersion: number;
   basisKey: string;
+  evidence?: Array<{ attendee: string; evidence: AttendanceEvidence }>;
 };
 
 export type AvailabilityStatus = "available" | "unavailable" | "tentative" | "no_response";
@@ -57,8 +62,13 @@ export type MeetingEvent = {
   calendarSyncStatus: "not_connected" | "synced" | "failed";
   preparationStatus: "not_required" | "in_progress" | "awaiting_input" | "ready" | "attention_required";
   invitationSent: boolean;
+  revisions?: MeetingRevision[];
+  notifications?: ChangeNotification[];
   createdAt: string;
 };
+
+export type MeetingRevision = { version: number; changedFields: Array<keyof MeetingDraft>; before: Partial<MeetingDraft>; after: Partial<MeetingDraft>; changedAt: string };
+export type ChangeNotification = { attendee: string; status: "recorded" | "failed" | "skipped"; reason?: string; version: number; at: string };
 
 export type InvitationSummary = {
   meeting: MeetingDraft;
@@ -118,6 +128,9 @@ export type RoundRow = {
   tentative: number;
   noResponse: number;
   reason: string;
+  summary: string;
+  availableCount: number;
+  totalCount: number;
 };
 
 export type RoundSummary = {
@@ -143,4 +156,25 @@ export type RoundInvitation = {
   deadlineAt: string;
   pastDeadline: boolean;
   confirmed?: { start: string; end: string };
+};
+
+export type NextAction =
+  | { type: "ask"; field: string }
+  | { type: "resolve_person"; options: Array<{ id: string; label: string }> }
+  | { type: "resolve_ambiguity"; ambiguity: { field: string; type: string; rawText: string; options: Array<{ id: string; label: string; patch: Partial<MeetingDraft> }> } }
+  | { type: "confirm_proposal"; field: string }
+  | { type: "show_review" };
+
+// 서버가 해석 → 검증 → 병합한 결과. nextAction은 서버의 대화 플래너가 정해요.
+export type ChatResult = {
+  intent: string;
+  assistantMessage: string;
+  meeting: MeetingDraft;
+  changedFields: string[];
+  proposedFields: Partial<MeetingDraft>;
+  ambiguities: Array<{ field: string; rawText: string; reason: string; options?: Array<{ id: string; label: string }> }>;
+  nextAction: NextAction;
+  issues: string[];
+  complete: boolean;
+  model: string;
 };
