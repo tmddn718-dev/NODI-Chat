@@ -1,5 +1,5 @@
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { CompareTable } from "./CompareTable";
 import { ResponseDecision } from "./ResponseDecision";
@@ -11,15 +11,19 @@ const stamp = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: 
 const presets = [[0.5, "30분 뒤"], [1, "1시간 뒤"], [3, "3시간 뒤"], [6, "6시간 뒤"], [24, "24시간 뒤"]] as const;
 const kstInput = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().slice(0, 16);
 
-export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect }: {
+export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect, onEditRequired, onPhase }: {
   meeting: MeetingDraft;
   token: string;
   requestId: string;
   onTokenChange: (token: string) => void;
   onSelect: (candidate: Candidate) => void;
+  onEditRequired?: () => void;
+  onPhase?: (info: { loaded: boolean; invited: boolean; pending: number; total: number }) => void;
 }) {
   const [round, setRound] = useState<RoundSummary | null>(null);
   const [comparing, setComparing] = useState(false);
+  const topRef = useRef<string | undefined>(undefined);
+  const [rankNotice, setRankNotice] = useState("");
   const [choice, setChoice] = useState<number | "custom">(24);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +40,17 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
     const timer = window.setInterval(() => document.visibilityState === "visible" && void sync(), 5000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token]);
+
+  // 응답이 도착해 1순위가 바뀌면, 화면을 조용히 갱신하는 대신 이유를 한 줄로 알려줘요.
+  useEffect(() => {
+    const top = round?.rows[0];
+    if (!round?.invitedAt || !top) { topRef.current = top?.candidate.id; return; }
+    if (topRef.current && topRef.current !== top.candidate.id) setRankNotice(`응답이 도착해서 추천 순서가 바뀌었어요. 새 1순위는 ${slot.format(new Date(top.candidate.start))}예요.`);
+    topRef.current = top.candidate.id;
+  }, [round]);
+
+  // 요청을 보내기 전(2단계)과 후(3단계)를 화면 상단 단계 표시에 알려줘요.
+  useEffect(() => { onPhase?.({ loaded: Boolean(round), invited: Boolean(round?.invitedAt), pending: round ? round.participants.filter((p) => !p.responded).length : 0, total: round?.total ?? 0 }); }, [round?.invitedAt, round?.responded, round?.total]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(action: () => Promise<{ round: RoundSummary }>, adopt = false) {
     setBusy(true); setError("");
@@ -108,17 +123,36 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
         </>
       )}
       {!round.invitedAt && (
-        <div className="rd-notice">
-          <span className="rd-bottom-info">일정 조율 요청 미리보기</span>
-          <dl className="rd-preview">
-            <div><dt>상태</dt><dd><span className="rd-badge warning">시간 미확정</span></dd></div>
-            <div><dt>후보 시간</dt><dd>{round.rows.length}개</dd></div>
-            <div><dt>요청 대상</dt><dd>{round.total}명</dd></div>
-            <div><dt>응답 마감</dt><dd>{stamp.format(new Date(round.deadlineAt))}</dd></div>
-          </dl>
-          <p className="rd-body">참여하면 좋은 사람 {round.total}명에게 ‘가능한 시간을 모두 선택해 주세요’라는 요청이 나가요. 아직 회의 시간은 확정되지 않았다고 안내해요. 보내도 캘린더에 회의가 만들어지지 않아요.</p>
-          <button className="rd-btn rd-cta" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>{busy ? "보내고 있어요..." : "가능 시간 확인 요청 보내기"}</button>
-        </div>
+        <>
+          <section className="rd-notice first-pass" aria-label="1차 일정 탐색 결과">
+            <span className="rd-bottom-info">1차 일정 탐색 결과</span>
+            <p className="first-pass-count">찾은 후보 {round.rows.length}개</p>
+            <ul className="rd-evidence">
+              <li className="ok"><CircleCheck aria-hidden="true" /><span>확인 가능한 캘린더 검토</span></li>
+              <li className="ok"><CircleCheck aria-hidden="true" /><span>회의 시간 및 날짜 조건 반영</span></li>
+              <li className="warn"><TriangleAlert aria-hidden="true" /><span>참석 가능 여부 추가 확인 필요</span></li>
+            </ul>
+            <p className="rd-caption">필수 참석자는 캘린더로 먼저 확인했어요. 캘린더상 빈 시간은 참석 수락이 아니라서, 나머지 참석자에게는 후보별로 가능 여부를 물어봐요.</p>
+          </section>
+          {round.total === 0 ? <p className="rd-caption">추가로 확인할 사람이 없어요. 아래 후보를 바로 확인할 수 있어요.</p> : <div className="rd-notice">
+            <span className="rd-bottom-info">추가 확인이 필요한 사람이 있어요</span>
+            <p className="rd-body">캘린더로 확인할 수 없는 선택 참석자 {round.total}명에게 후보 시간별로 참석 가능 여부를 물어볼 수 있어요. 요청을 보내지 않아도 아래 후보를 먼저 볼 수 있어요.</p>
+            <dl className="rd-preview">
+              <div><dt>상태</dt><dd><span className="rd-badge warning">시간 미확정</span></dd></div>
+              <div><dt>후보 시간</dt><dd>{round.rows.length}개</dd></div>
+              <div><dt>확인이 필요한 참석자</dt><dd>{round.total}명</dd></div>
+              <div><dt>응답 마감</dt><dd>{stamp.format(new Date(round.deadlineAt))}</dd></div>
+            </dl>
+            <details className="rd-request-preview">
+              <summary>요청 내용 미리보기</summary>
+              <p>“다음 시간 중 참석 가능한 시간을 모두 알려주세요.”</p>
+              <ul>{round.rows.map((row) => <li key={row.candidate.id}>{slot.format(new Date(row.candidate.start))}</li>)}</ul>
+            </details>
+            <p className="rd-body">정식 회의 초대가 아니에요. 아직 회의 시간은 확정되지 않았다고 안내하고, 보내도 캘린더에 회의가 만들어지지 않아요. 확정하면 그때 회의 초대를 따로 안내해요.</p>
+            <button className="rd-btn rd-cta" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>{busy ? "요청하고 있어요..." : "참석 가능 여부 확인하기"}</button>
+            <button type="button" className="rd-btn secondary" onClick={() => document.getElementById("rd-reco-title")?.scrollIntoView({ behavior: "smooth", block: "start" })}>현재 후보 먼저 보기</button>
+          </div>}
+        </>
       )}
       {round.invitedAt && (
         <ResponseDecision
@@ -128,13 +162,8 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
           onRefresh={() => void run(() => api.refreshRound(token))}
           onExtend={(deadlineAt) => void run(() => api.extendRound(token, deadlineAt))}
           onCompare={() => setComparing(true)}
+          onEditRequired={onEditRequired}
           onProceed={(row) => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
-        />
-      )}
-      {comparing && (
-        <CompareTable
-          onClose={() => setComparing(false)}
-          columns={round.rows.map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0 }))}
         />
       )}
       <div>
@@ -163,17 +192,34 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
       <section className="rd-card rd-card-reco" aria-labelledby="rd-reco-title">
         <div className="rd-reco-head">
           <h2 className="rd-title" id="rd-reco-title">회의 추천</h2>
+          {rankNotice && <p className="rd-rank-notice" role="status">{rankNotice} <button type="button" className="text-link" onClick={() => setRankNotice("")}>확인</button></p>}
           <p className="rd-body">{round.invitedAt ? "지금까지 받은 응답을 기준으로 가장 많은 사람이 가능한 시간이에요. 응답이 오면 순위가 바뀔 수 있어요." : "요청을 보내기 전 후보예요. 아직 모든 참석자의 가능 여부가 확인된 것은 아니에요."}</p>
         </div>
+      {round.rows.length > 1 && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 닫기" : "다른 후보 비교하기"}</button>}
+      {comparing && (
+        <CompareTable
+          onClose={() => setComparing(false)}
+          columns={round.rows.map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0, onSelect: row.candidate.requiredAvailable ? () => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }) : undefined }))}
+        />
+      )}
       <ol className="rd-list">
         {round.rows.map((row) => (
           <li className={`rd-slot ${row.rank === 1 && row.candidate.requiredAvailable ? "top" : ""}`} key={row.candidate.id}>
             <div className="rd-slot-top">
-              <span className={`rd-badge ${row.candidate.requiredAvailable ? "success" : "warning"}`}>{row.candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}{row.candidate.requiredAvailable ? "필수 참석자 확인됨" : "잠정 · 필수 확인 필요"}</span>
+              <span className={`rd-badge ${row.candidate.requiredAvailable ? "success" : "warning"}`}>{row.candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}{row.candidate.requiredAvailable ? "필수 참석자 일정 충돌 없음" : "잠정 · 필수 확인 필요"}</span>
               <span className={`rd-badge ${row.rank === 1 ? "recommend" : "neutral"}`}>{row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}</span>
             </div>
             <p className="rd-slot-time">{slot.format(new Date(row.candidate.start))}</p>
+            {row.rank === 1 && row.candidate.requiredAvailable && <p className="rd-reco-line">필수 참석자 조건을 충족하고, 현재 확인된 정보에서 가장 적합한 후보예요.</p>}
             <p className="rd-reason">{row.summary}</p>
+            <p className="rd-why">이 시간을 추천하는 이유</p>
+            <ul className="rd-evidence">
+              <li className={row.candidate.requiredAvailable ? "ok" : "warn"}>{row.candidate.requiredAvailable ? <CircleCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<span>{row.candidate.requiredAvailable ? "필수 참석자 일정 충돌 없음" : "필수 참석자 확인 필요"}</span></li>
+              {(row.people?.accepted.length ?? 0) > 0 && <li className="ok"><CircleCheck aria-hidden="true" /><span>{row.people!.accepted.join(", ")} 참석 가능 응답</span></li>}
+              {(row.people?.declined.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.declined.join(", ")} 참석 불가 응답</span></li>}
+              {(row.people?.tentative.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.tentative.join(", ")} 아직 몰라요</span></li>}
+              {(row.people?.noResponse.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.noResponse.join(", ")} 응답 대기</span></li>}
+            </ul>
             <dl className="rd-stats">
               <div><dt>가능</dt><dd>{row.accepted}</dd></div>
               <div><dt>불가</dt><dd>{row.declined}</dd></div>

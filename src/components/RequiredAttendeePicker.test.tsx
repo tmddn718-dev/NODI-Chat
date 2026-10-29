@@ -9,7 +9,7 @@ describe("RequiredAttendeePicker", () => {
   it("shows every selected attendee and confirms only checked people", () => {
     const onConfirm = vi.fn();
     render(<RequiredAttendeePicker attendees={["김민지", "박준호", "partner@example.com"]} language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
-    expect(screen.getByRole("heading", { name: "누가 꼭 참석해야 하나요?" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" })).toBeTruthy();
     expect(screen.getByText("김민지")).toBeTruthy();
     expect(screen.getByText("박준호")).toBeTruthy();
     expect(screen.getByText("partner@example.com")).toBeTruthy();

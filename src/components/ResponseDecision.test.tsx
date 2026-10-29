@@ -10,7 +10,7 @@ const person = (attendee: string, responded: boolean) => ({ attendee, urlToken: 
 const round = (over: Partial<RoundSummary> = {}, requiredAvailable = true) => ({
   token: "t", version: 1, deadlineAt: new Date(Date.now() + 3_600_000).toISOString(), phase: "collecting", responded: 1, total: 2, reminderCount: 0,
   invitedAt: new Date().toISOString(), updatedAt: "", participants: [person("가", true), person("나", false)],
-  rows: [{ rank: 1, accepted: 1, declined: 0, tentative: 0, noResponse: 1, reason: "", candidate: { id: "c", requiredAvailable } }],
+  rows: [{ rank: 1, accepted: 1, declined: 0, tentative: 0, noResponse: 1, reason: "", people: { accepted: ["가"], declined: [], tentative: [], noResponse: ["나"] }, candidate: { id: "c", requiredAvailable, start: "2026-11-03T05:00:00.000Z" } }],
   ...over,
 }) as unknown as RoundSummary;
 const setup = (r: RoundSummary) => {
@@ -43,7 +43,7 @@ describe("ResponseDecision", () => {
     const fns = setup(round({}, false));
     expect(screen.getByText("꼭 참석할 사람의 시간이 맞는 후보가 없어요")).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "후보 새로 찾기" }));
+    fireEvent.click(screen.getByRole("button", { name: "다른 후보 확인하기" }));
     expect(fns.onRefresh).toHaveBeenCalled();
   });
 
@@ -51,5 +51,19 @@ describe("ResponseDecision", () => {
     setup(round({ responded: 2, participants: [person("가", true), person("나", true)] }));
     expect(screen.getByText("모두 응답했어요")).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
+  });
+
+  it("shows the currently most likely time with each person's response", () => {
+    setup(round());
+    expect(screen.getByText("현재 가장 유력한 시간")).toBeTruthy();
+    expect(screen.getByText("참석 가능")).toBeTruthy();
+    expect(screen.getByText("응답 대기")).toBeTruthy();
+  });
+
+  it("offers editing the required attendees when no candidate fits", () => {
+    const onEditRequired = vi.fn();
+    render(<ResponseDecision round={round({}, false)} busy={false} onRemind={vi.fn()} onProceed={vi.fn()} onRefresh={vi.fn()} onEditRequired={onEditRequired} />);
+    fireEvent.click(screen.getByRole("button", { name: "필수 참석자 조건 수정하기" }));
+    expect(onEditRequired).toHaveBeenCalled();
   });
 });

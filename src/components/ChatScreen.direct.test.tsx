@@ -58,7 +58,7 @@ describe("direct input follows the scheduling flow", () => {
     expect(await screen.findByText(/김민지님을 참석자로 체크했어요/)).toBeTruthy();
     expect(mocks.chat.mock.calls.length).toBe(callsBefore); // AI를 거치지 않았어요
     fireEvent.click(await screen.findByRole("button", { name: "이 사람들과 계속" })); // 체크가 반영되면 계속 버튼이 켜져요
-    await waitFor(() => expect(heading()).toBe("누가 꼭 참석해야 하나요?"));
+    await waitFor(() => expect(heading()).toBe("이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?"));
     fireEvent.click(screen.getByRole("button", { name: "직접 알려주기" }));
     expect((document.getElementById("chat-input") as HTMLTextAreaElement).placeholder).toContain("꼭 참석");
     fireEvent.click(screen.getByRole("button", { name: "건너뛰기" }));
@@ -140,6 +140,8 @@ describe("new conversation", () => {
     pickFirst();
     await waitFor(() => expect(heading()).toBe("얼마나 진행할까요?"));
     fireEvent.click(screen.getAllByRole("button", { name: "새 대화" })[0]);
+    // 작성 중인 내용이 있으면 한 번 확인해요
+    fireEvent.click(await screen.findByRole("button", { name: "새로 시작하기" }));
     await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
     expect(screen.queryByLabelText("제안 확인")).toBeNull();
     expect(screen.queryByLabelText("이렇게 이해했어요")).toBeNull();
@@ -147,4 +149,23 @@ describe("new conversation", () => {
     const saved = JSON.parse(localStorage.getItem("nodi_meeting_draft_v2") ?? "{}");
     expect(saved.meeting?.title).toBeUndefined(); // 자동 저장이 다시 쓴 건 빈 초안뿐이에요
   }, 20_000);
+});
+
+describe("welcome area", () => {
+  it("shows one short greeting at first entry and nothing once the conversation started", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    expect(screen.getByText("안녕하세요. 어떤 회의를 잡을까요?")).toBeTruthy();
+    expect(screen.queryByText("반가워요. NODI예요.")).toBeNull(); // 큰 환영 문구는 없어요
+    pickFirst();
+    await waitFor(() => expect(heading()).toBe("무엇을 위한 회의인가요?"));
+    expect(screen.queryByText("안녕하세요. 어떤 회의를 잡을까요?")).toBeNull();
+  }, 20_000);
+
+  it("does not ask for confirmation when nothing has been entered yet", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    fireEvent.click(screen.getAllByRole("button", { name: "새 대화" })[0]);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
 });

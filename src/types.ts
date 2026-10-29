@@ -128,6 +128,7 @@ export type RoundRow = {
   tentative: number;
   noResponse: number;
   reason: string;
+  people?: { accepted: string[]; declined: string[]; tentative: string[]; noResponse: string[] };
   summary: string;
   availableCount: number;
   totalCount: number;

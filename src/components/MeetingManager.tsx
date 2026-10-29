@@ -145,8 +145,8 @@ export function MeetingManager({
           <div className="done-section-head"><h2 id="done-status">처리 상태</h2></div>
           <ul className="done-steps">
             <li className="done"><CircleCheck aria-hidden="true" /><span>회의 시간 확정 완료</span></li>
-            <li className={event.calendarSyncStatus === "synced" ? "done" : event.calendarSyncStatus === "failed" ? "fail" : ""}>{event.calendarSyncStatus === "synced" ? <CircleCheck aria-hidden="true" /> : event.calendarSyncStatus === "failed" ? <TriangleAlert aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{calendar === "아직 반영 안 됨" ? "외부 캘린더 반영 전" : calendar}</span></li>
-            <li className={event.invitationSent ? "done" : ""}>{event.invitationSent ? <CircleCheck aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{event.invitationSent ? "참석자 초대 발송 완료" : "참석자 초대 발송 전"}</span></li>
+            <li className={event.calendarSyncStatus === "synced" ? "done" : event.calendarSyncStatus === "failed" ? "fail" : ""}>{event.calendarSyncStatus === "synced" ? <CircleCheck aria-hidden="true" /> : event.calendarSyncStatus === "failed" ? <TriangleAlert aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{calendar === "아직 반영 안 됨" ? "외부 캘린더 반영 전" : calendar}{event.calendarSyncStatus === "not_connected" && <small>데모에서는 지원되지 않아요</small>}</span></li>
+            <li className={event.invitationSent ? "done" : ""}>{event.invitationSent ? <CircleCheck aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{event.invitationSent ? "참석자 초대 발송 완료" : "참석자 초대 발송 전"}{!event.invitationSent && <small>데모에서는 지원되지 않아요</small>}</span></li>
           </ul>
           <p className="done-note">현재 데모 환경에서는 실제 캘린더 반영과 초대 발송이 이루어지지 않아요.</p>
         </section>

@@ -22,7 +22,7 @@ describe("AttendeePicker", () => {
     const onConfirm = vi.fn();
     render(<AttendeePicker language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
     fireEvent.click((await screen.findAllByRole("button", { name: /\uae40\ubbfc\uc9c0/ }))[0]);
-    fireEvent.click(screen.getByRole("button", { name: "이 사람들과 계속" }));
+    fireEvent.click(await screen.findByRole("button", { name: "이 사람들과 계속" })); // 부하가 있을 때도 선택이 반영될 때까지 기다려요
     expect(onConfirm).toHaveBeenCalledWith(["김민지"]);
   });
 

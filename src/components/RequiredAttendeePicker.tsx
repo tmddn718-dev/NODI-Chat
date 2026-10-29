@@ -25,12 +25,11 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
     <section className="required-picker" aria-labelledby="required-picker-title">
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
-        <div><p>2 / 6{ko ? "단계 · 참석자와 우선순위" : " · Availability rule"}</p><h2 id="required-picker-title">{ko ? "누가 꼭 참석해야 하나요?" : "Whose availability is required?"}</h2></div>
+        <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="required-picker-title">{ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required?"}</h2></div>
       </div>
-      <progress className="guided-progress" max="6" value="2" aria-label={ko ? "6단계 중 2단계" : "Step 2 of 6"} />
 
       <div className="required-toolbar">
-        <p>{ko ? "꼭 참석할 사람이 가능한 시간만 추천해요. 나머지는 참여하면 좋은 사람으로, 가능한 사람이 많은 순서에 반영해요." : "Only slots that work for everyone selected here can be confirmed."}</p>
+        <p>{ko ? "필수 참석자가 모두 가능해야 확정할 수 있어요. 나머지 참석자는 가능한 한 함께할 수 있는 시간을 찾는 데 반영할게요." : "Only slots that work for everyone selected here can be confirmed."}</p>
         <div><button onClick={() => setSelected(attendees)}>{ko ? "모두 선택" : "Select all"}</button><button onClick={() => setSelected([])}>{ko ? "선택 해제" : "Clear"}</button></div>
       </div>
 

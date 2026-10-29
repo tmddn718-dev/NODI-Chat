@@ -36,11 +36,10 @@ export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDra
     <section className="guided-card review-card" aria-labelledby="review-title">
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
-        <div><p>4 / 6단계 · 조건 검토</p><h2 id="review-title">이 조건으로 시간을 찾아볼까요?</h2></div>
+        <div><p>회의 조건 정하기 · 확인</p><h2 id="review-title">이 조건으로 가능한 시간을 찾아볼까요?</h2></div>
         <strong className="review-count">{done}/{items.length} 완료</strong>
       </div>
-      <progress className="guided-progress" max="6" value="4" aria-label="6단계 중 4단계" />
-      <p className="cd-sub">잘못 이해한 내용이 있다면 수정해 주세요. 확인되면 참석자의 일정을 보고 가장 적합한 시간을 추천할게요.</p>
+      <p className="cd-sub">잘못 이해한 내용이 있다면 수정해 주세요. 확인되면 캘린더를 먼저 살펴 가능한 후보를 찾고, 필요한 참석자에게만 가능 여부를 물어볼게요.</p>
 
       <div className="cd-section">
         <div className="cd-titlebar">
@@ -68,8 +67,8 @@ export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDra
 
       <p className="cd-note"><Info /> 추천 시간 검색은 회의 확정이 아니에요. 확인 가능한 일정 정보를 바탕으로 후보를 제안해요. 시간대는 {meeting.timezone ?? "Asia/Seoul"} 기준이에요.</p>
       <div className="review-actions">
-        <button className="secondary-button" onClick={onEdit}>수정하기</button>
-        <button className="primary-button" onClick={onProceed} disabled={!complete}>추천 시간 찾기</button>
+        <button className="secondary-button" onClick={onEdit}>조건 수정하기</button>
+        <button className="primary-button" onClick={onProceed} disabled={!complete}>가능한 시간 찾기</button>
       </div>
     </section>
   );

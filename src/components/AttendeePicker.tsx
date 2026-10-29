@@ -67,9 +67,8 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect }
     <section className="attendee-picker" aria-labelledby="attendee-picker-title">
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
-        <div><p>2 / 6{ko ? "단계 · 참석자와 우선순위" : " · Attendees"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
+        <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
       </div>
-      <progress className="guided-progress" max="6" value="2" aria-label={ko ? "6단계 중 2단계" : "Step 2 of 6"} />
 
       <div className="people-search">
         <Search aria-hidden="true" />

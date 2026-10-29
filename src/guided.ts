@@ -1,10 +1,10 @@
 import type { MeetingDraft } from "./types";
 
 export type GuidedChoice = { label: string; message: string; patch: Partial<MeetingDraft> };
-export const STAGE_TOTAL = 6;
-export const STAGE_TITLES = ["회의 기본 정보", "참석자와 우선순위", "날짜와 시간 조건", "조건 검토", "추천 시간 비교", "초대와 확정"];
-const STAGE_OF: Record<string, number> = { title: 1, purpose: 1, duration: 1, attendees: 2, availabilityRule: 2, preferredTime: 3, dateStart: 3, dateEnd: 3 };
-export const stageOf = (key: string) => STAGE_OF[key] ?? 4;
+export const STAGE_TOTAL = 4;
+export const STAGE_TITLES = ["회의 조건 정하기", "가능한 시간 찾기", "추천 시간 결정하기", "회의 확정 및 관리"];
+// 입력 단계는 모두 사용자에게는 "회의 조건 정하기" 한 단계예요.
+export const stageOf = (_key: string) => 1;
 
 export type GuidedStep = {
   key: "title" | "purpose" | "duration" | "attendees" | "availabilityRule" | "preferredTime" | "dateStart" | "dateEnd";
@@ -13,6 +13,7 @@ export type GuidedStep = {
   title: string;
   question: string;
   inputPlaceholder: string;
+  hint?: string;
   choices: GuidedChoice[];
 };
 
@@ -118,7 +119,7 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
     return {
       key: "availabilityRule", number: 5, total: 8,
       title: ko ? "꼭 참석할 사람" : "Availability rule",
-      question: ko ? "누가 꼭 참석해야 하나요?" : "Whose availability is required to hold the meeting?",
+      question: ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required to hold the meeting?",
       inputPlaceholder: ko ? "예: 김민지는 꼭 참석해야 해" : "e.g. Minji must be available",
       choices: [
         {
@@ -144,6 +145,7 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
     title: ko ? "선호 시간대" : "Preferred time",
     question: ko ? "언제가 편한가요?" : "Do you have a preferred time of day?",
     inputPlaceholder: ko ? "예: 오후 2시 이후가 좋아" : "e.g. After 2 PM",
+    hint: ko ? "선호 시간대가 없다면 날짜 범위 안에서 참석 가능성이 높은 시간을 우선 찾아볼게요." : "With no preference, we'll look for the times most people can attend within the date range.",
     choices: [
       { label: ko ? "오전" : "Morning", message: ko ? "오전 시간을 선호해." : "I prefer the morning.", patch: { preferredTime: "morning" } },
       { label: ko ? "오후" : "Afternoon", message: ko ? "오후 시간을 선호해." : "I prefer the afternoon.", patch: { preferredTime: "afternoon" } },

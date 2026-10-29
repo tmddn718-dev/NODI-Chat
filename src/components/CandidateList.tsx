@@ -40,7 +40,7 @@ function requiredLine(candidate: Candidate, requiredNames: string[]) {
   return `필수 참석자 ${n}명 확인 완료 (일정 충돌 없음·참석 응답)`;
 }
 
-function toColumn(candidate: Candidate, requiredNames: string[]): CompareColumn {
+function toColumn(candidate: Candidate, requiredNames: string[], onSelect: (candidate: Candidate) => void): CompareColumn {
   const optional = (candidate.evidence ?? []).filter((item) => !requiredNames.includes(item.attendee)).map((item) => item.evidence);
   const count = (kinds: AttendanceEvidence[]) => optional.filter((kind) => kinds.includes(kind)).length;
   return {
@@ -51,6 +51,7 @@ function toColumn(candidate: Candidate, requiredNames: string[]): CompareColumn 
     impossible: count(["calendar_conflict", "direct_unavailable"]),
     waiting: count(["no_response", "tentative"]),
     unknown: count(["calendar_unavailable"]),
+    onSelect: candidate.requiredAvailable ? () => onSelect(candidate) : undefined,
   };
 }
 
@@ -81,7 +82,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
         <span className="demo-badge">데모 데이터</span>
       </div>
       {candidates.length > 1 && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 닫기" : "다른 시간 비교하기"}</button>}
-      {comparing && <CompareTable columns={visible.map((candidate) => toColumn(candidate, requiredNames))} onClose={() => setComparing(false)} />}
+      {comparing && <CompareTable columns={visible.map((candidate) => toColumn(candidate, requiredNames, onSelect))} onClose={() => setComparing(false)} />}
       <ol className="rd-list candidate-rd-list">
         {visible.map((candidate, index) => {
           const picked = pickedId === candidate.id;
@@ -113,6 +114,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
               </div>
               <p className="rd-slot-time">{formatSlot(candidate.start)}</p>
               <p className="rd-slot-range">{formatTime(candidate.start)} ~ {formatTime(candidate.end)}</p>
+              {index === 0 && candidate.requiredAvailable && <p className="rd-reco-line">필수 참석자 조건을 충족하고, 현재 확인된 정보에서 가장 적합한 후보예요.</p>}
               <ul className="rd-evidence">
                 {requiredCount > 0 && (
                   <li className={candidate.requiredAvailable ? "ok" : "warn"}>

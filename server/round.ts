@@ -27,14 +27,15 @@ export function requiredFirstCandidates(meeting: MeetingDraft, notBefore = 0): C
 export function summarize(record: RoundRecord, now = new Date()) {
   const rows = record.candidates.map((candidate) => {
     const counts = { accepted: 0, declined: 0, tentative: 0, noResponse: 0 };
+    const people = { accepted: [] as string[], declined: [] as string[], tentative: [] as string[], noResponse: [] as string[] };
     for (const participant of record.participants) {
       const status = participant.responses[candidate.id];
-      if (status === "accepted") counts.accepted += 1;
-      else if (status === "declined") counts.declined += 1;
-      else if (status === "tentative") counts.tentative += 1;
-      else counts.noResponse += 1;
+      if (status === "accepted") { counts.accepted += 1; people.accepted.push(participant.attendee); }
+      else if (status === "declined") { counts.declined += 1; people.declined.push(participant.attendee); }
+      else if (status === "tentative") { counts.tentative += 1; people.tentative.push(participant.attendee); }
+      else { counts.noResponse += 1; people.noResponse.push(participant.attendee); }
     }
-    return { candidate, ...counts };
+    return { candidate, ...counts, people };
   });
   const unknown = (row: (typeof rows)[number]) => row.tentative + row.noResponse;
   rows.sort((a, b) =>

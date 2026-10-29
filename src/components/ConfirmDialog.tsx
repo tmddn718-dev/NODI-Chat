@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, TriangleAlert, Users, X } from "lucide-react";
+import { Check, LoaderCircle, TriangleAlert, X } from "lucide-react";
 import type { Candidate, MeetingDraft } from "../types";
 
 function formatDate(iso: string) {
@@ -78,16 +78,27 @@ export function ConfirmDialog({
             <div><strong>참여하면 좋은 사람</strong><span>{optional.length ? optional.join(", ") : "없음"}</span></div>
             <em>{optional.length}명</em>
           </div>
-          <p className={`cd-status ${candidate.requiredAvailable ? "good" : "warn"}`}><Check /> {candidate.requiredAvailable ? "꼭 참석할 사람 모두 가능해요" : "꼭 참석할 사람의 시간이 맞지 않아요"}</p>
         </div>
 
-        {candidate.unknownCount > 0 && (
-          <div className="confirm-tip" role="note">
-            <strong><TriangleAlert /> 아직 응답하지 않은 사람이 {candidate.unknownCount}명 있어요</strong>
-            <p>필수 참석자는 아니어서 확정할 수 있지만, 초대 후 참석하지 못할 수 있어요. 수락한 것으로 보지 않아요.</p>
-          </div>
-        )}
-        <p className="cd-note"><Users /> 확정하면 NODI의 회의 시간이 이 시간으로 저장돼요. 실제 캘린더 반영과 초대 발송은 따로 확인해야 하고, 데모에서는 이루어지지 않아요.</p>
+        <div className="cd-groups">
+          <section aria-label="확정 가능한 이유">
+            <h3>확정 가능한 이유</h3>
+            <ul>
+              <li className="ok"><Check aria-hidden="true" /><span>{candidate.requiredAvailable ? (required.length ? "필수 참석자 조건 충족" : "필수 조건 없음") : "필수 참석자 조건 확인 필요"}</span></li>
+              <li className={verify.state === "ok" ? "ok" : "warn"}>{verify.state === "ok" ? <Check aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<span>{verify.state === "ok" ? "최신 일정 충돌 재확인 완료" : verify.state === "checking" ? "최신 일정 확인 중" : "최신 일정을 확인하지 못했어요"}</span></li>
+            </ul>
+          </section>
+          <section aria-label="남아 있는 불확실성">
+            <h3>남아 있는 불확실성</h3>
+            {candidate.unknownCount > 0
+              ? <ul><li className="warn"><TriangleAlert aria-hidden="true" /><span>선택 참석자 {candidate.unknownCount}명 응답 대기</span></li><li className="plain"><span>필수 참석자는 아니어서 확정할 수 있지만, 초대 후 참석하지 못할 수 있어요. 응답 대기를 수락으로 보지 않아요.</span></li></ul>
+              : <ul><li className="plain"><span>남아 있는 미확인 정보는 없어요.</span></li></ul>}
+          </section>
+          <section aria-label="확정 이후 처리될 작업">
+            <h3>확정 이후 처리될 작업</h3>
+            <ul><li className="plain"><span>NODI에 회의 시간이 저장돼요. 캘린더 반영과 실제 초대 발송은 별도 상태로 안내돼요. 데모에서는 이루어지지 않아요.</span></li></ul>
+          </section>
+        </div>
         {error && <p className="dialog-error" role="alert">{error}</p>}
         <div className="dialog-actions">
           <button className="secondary-button" onClick={onClose} disabled={loading}>다른 시간 보기</button>

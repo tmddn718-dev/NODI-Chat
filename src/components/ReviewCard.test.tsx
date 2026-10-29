@@ -17,14 +17,14 @@ describe("ReviewCard", () => {
     const onProceed = vi.fn();
     render(<ReviewCard meeting={full} onEdit={() => undefined} onProceed={onProceed} />);
     expect(screen.getByText("6/6 완료")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "추천 시간 찾기" }));
+    fireEvent.click(screen.getByRole("button", { name: "가능한 시간 찾기" }));
     expect(onProceed).toHaveBeenCalledOnce();
   });
 
   it("disables the CTA and flags missing items", () => {
     render(<ReviewCard meeting={{ ...full, preferredTime: undefined }} onEdit={() => undefined} onProceed={() => undefined} />);
     expect(screen.getByText("5/6 완료")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "추천 시간 찾기" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "가능한 시간 찾기" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getAllByText("아직 정하지 않았어요")).toHaveLength(1);
   });
 });
