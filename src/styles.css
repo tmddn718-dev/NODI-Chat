@@ -2092,14 +2092,6 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 .summary-needs { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .summary-needs li { display: flex; align-items: center; gap: 8px; font-size: var(--fs-13); font-weight: 600; color: #8A5A00; }
 .summary-needs svg { flex: none; width: 16px; height: 16px; color: #B26B00; }
-/* 정한 조건 한 줄 요약 */
-.completed-conditions { margin: 8px 0; }
-.completed-conditions p { margin: 0 0 8px; font-size: var(--fs-12); font-weight: 700; color: #65748B; }
-.completed-conditions ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.completed-conditions button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid #DDE4EF; border-radius: 999px; background: #fff; color: #18243A; font-size: var(--fs-13); cursor: pointer; }
-.completed-conditions button span { color: #65748B; } .completed-conditions button strong { font-weight: 700; }
-.completed-conditions button svg { width: 13px; height: 13px; color: #3654D4; }
-.completed-conditions button:hover { background: #F5F7FB; }
 .row-edit { margin-left: auto; }
 .summary-list > div:has(.row-edit) { display: flex; align-items: center; gap: 8px; }
 .rd-reco-line { margin: 10px 0 4px; font-size: var(--fs-13); font-weight: 700; color: #18243A; }
@@ -2165,3 +2157,5 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .progress-segments i { transition: none; } }
 .chat-welcome h2, .chat-welcome small { display: block; }
 .chat-welcome small { display: none; }
+/* 웹·태블릿(≥768px): 진행 헤더 배경은 흰색. 모바일은 기존 연한 회색을 유지해요 */
+@media (min-width: 768px) { .progress-header { background: #fff; border: 1px solid #DDE4EF; } }

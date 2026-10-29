@@ -18,7 +18,7 @@ import { GuidedChoices } from "./GuidedChoices";
 import { MeetingSummary } from "./MeetingSummary";
 import { RequiredAttendeePicker } from "./RequiredAttendeePicker";
 import { RoundPanel } from "./RoundPanel";
-import { CompletedConditions, ProgressHeader, type EditableField, type ProgressInfo } from "./ProgressParts";
+import { ProgressHeader, type EditableField, type ProgressInfo } from "./ProgressParts";
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
 
 const intro: Message = {
@@ -815,7 +815,6 @@ export function ChatScreen({
             {!loading && (history.length > 0 || recommendationComplete) && (
               <div className="step-back"><button className="rd-btn m ghost" onClick={goBack} title="이전 단계로 (⌘Z)">이전 단계로</button></div>
             )}
-            {!loading && !recommendationComplete && guidedStep && !pendingDecision && <CompletedConditions meeting={meeting} onEdit={clearField} />}
             {!loading && !recommendationComplete && !pendingDecision && guidedStep?.key === "attendees" && (
               <AttendeePicker
                 language={language}

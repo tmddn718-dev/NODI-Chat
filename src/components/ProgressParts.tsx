@@ -1,8 +1,7 @@
-import { Check, ChevronDown, Pencil } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
 import { STAGE_TITLES } from "../guided";
-import type { MeetingDraft } from "../types";
 
 export type EditableField = "title" | "purpose" | "durationMinutes" | "attendees" | "requiredAttendees" | "preferredTime" | "dateStart";
 
@@ -71,36 +70,5 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
         </div>
       )}
     </div>
-  );
-}
-
-const TIME = { morning: "오전", afternoon: "오후", any: "시간대 무관" };
-
-// 이미 답한 질문은 큰 카드 대신 한 줄 요약으로 접고, 항목마다 바로 수정할 수 있게 해요.
-export function CompletedConditions({ meeting, onEdit }: { meeting: MeetingDraft; onEdit: (field: EditableField) => void }) {
-  const attendees = meeting.attendees ?? [];
-  const items: Array<{ field: EditableField; label: string; value: string }> = [
-    meeting.title && { field: "title" as const, label: "회의", value: meeting.title },
-    meeting.purpose && { field: "purpose" as const, label: "목적", value: meeting.purpose },
-    meeting.durationMinutes && { field: "durationMinutes" as const, label: "시간", value: `${meeting.durationMinutes}분` },
-    attendees.length && { field: "attendees" as const, label: "참석자", value: `${attendees.length}명` },
-    meeting.requiredAttendees !== undefined && { field: "requiredAttendees" as const, label: "필수", value: meeting.requiredAttendees.length ? `${meeting.requiredAttendees.length}명` : "없음" },
-    meeting.preferredTime && { field: "preferredTime" as const, label: "선호", value: TIME[meeting.preferredTime] },
-    meeting.dateStart && { field: "dateStart" as const, label: "날짜", value: meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? `${meeting.dateStart.slice(5)} ~ ${meeting.dateEnd.slice(5)}` : meeting.dateStart.slice(5) },
-  ].filter(Boolean) as Array<{ field: EditableField; label: string; value: string }>;
-  if (!items.length) return null;
-  return (
-    <section className="completed-conditions" aria-label="정한 조건">
-      <p>정한 조건</p>
-      <ul>
-        {items.map((item) => (
-          <li key={item.field}>
-            <button type="button" onClick={() => onEdit(item.field)} aria-label={`${item.label} ${item.value} 수정`}>
-              <span>{item.label}</span><strong>{item.value}</strong><Pencil aria-hidden="true" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

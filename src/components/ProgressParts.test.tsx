@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CompletedConditions, ProgressHeader } from "./ProgressParts";
+import { ProgressHeader } from "./ProgressParts";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -30,14 +30,5 @@ describe("progress parts", () => {
     expect(screen.getByRole("dialog", { name: "진행 상태" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "확인" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("folds answered questions into editable chips", () => {
-    const onEdit = vi.fn();
-    render(<CompletedConditions meeting={{ title: "킥오프", durationMinutes: 60, attendees: ["김민지", "박준호"], requiredAttendees: [] }} onEdit={onEdit} />);
-    expect(screen.getByRole("button", { name: "참석자 2명 수정" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "필수 없음 수정" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "시간 60분 수정" }));
-    expect(onEdit).toHaveBeenCalledWith("durationMinutes");
   });
 });
