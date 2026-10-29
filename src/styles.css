@@ -2012,3 +2012,21 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 
 /* 칩 목록·입력칸과 그 아래 캡션 사이는 8pt 간격 기준으로 한 단계(8px) 더 띄워요 */
 .rd-field .rd-chips + .rd-caption, .rd-field .rd-input + .rd-caption, .rd-field .rd-chips + .rd-input + .rd-caption { margin-top: 8px; }
+
+/* 후보 비교 표 */
+.compare { margin: 12px 0; padding: 18px; border: 1px solid #DDE4EF; border-radius: 20px; background: #fff; }
+.compare-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.compare-head h3 { margin: 0; font-size: var(--fs-17); font-weight: 700; color: #18243A; }
+.compare-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px; }
+.compare table { width: 100%; min-width: 460px; border-collapse: collapse; font-size: var(--fs-13); }
+.compare th, .compare td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #EEF0F4; color: #18243A; }
+.compare thead th { font-size: var(--fs-12); font-weight: 700; color: #47566D; vertical-align: bottom; }
+.compare tbody th { font-weight: 500; color: #65748B; white-space: nowrap; }
+.compare td { font-weight: 700; }
+@media (max-width: 640px) { .compare { border-color: transparent; border-radius: 24px; } }
+.done-steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.done-steps li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-15); font-weight: 600; color: #65748B; }
+.done-steps li svg { flex: none; width: 20px; height: 20px; }
+.done-steps li.done { color: #18243A; } .done-steps li.done svg { color: #3654D4; }
+.done-steps li.fail { color: #8A5A00; } .done-steps li.fail svg { color: #B26B00; }
+.step-fold { align-self: center; margin: 4px auto 8px; padding: 8px 14px; border: 0; border-radius: 999px; background: #E9EEFF; color: #3654D4; font-size: var(--fs-13); font-weight: 700; cursor: pointer; }

@@ -2,17 +2,18 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 import type { RoundSummary } from "../types";
 
-type Choice = "wait" | "proceed";
+type Choice = "wait" | "proceed" | "compare";
 const kstInput = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().slice(0, 16);
 
 // 응답 현황(필수 조건 먼저) + 미응답이 있을 때 "기다릴지 / 지금 확정 검토할지"를 주최자가 고르는 카드.
-export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, onExtend }: {
+export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, onExtend, onCompare }: {
   round: RoundSummary;
   busy: boolean;
   onRemind: () => void;
   onProceed: (row: RoundSummary["rows"][number]) => void;
   onRefresh: () => void;
   onExtend?: (deadlineAt: string) => void;
+  onCompare?: () => void;
 }) {
   const [choice, setChoice] = useState<Choice>("wait");
   const [custom, setCustom] = useState<string | null>(null);
@@ -61,6 +62,13 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
               <span className="rd-radio" aria-hidden="true" />
               <span><strong>현재 조건으로 확정 검토</strong><em>미응답은 그대로 두고 마지막 확인 단계로 가요. 거기서 최신 일정을 한 번 더 확인해요.</em></span>
             </label>
+            {onCompare && (
+              <label className={`rd-option ${choice === "compare" ? "on" : ""}`}>
+                <input type="radio" name="decision" checked={choice === "compare"} onChange={() => setChoice("compare")} />
+                <span className="rd-radio" aria-hidden="true" />
+                <span><strong>다른 시간 비교하기</strong><em>후보마다 가능·불가·응답 대기를 나란히 비교해요. 지금까지의 응답은 그대로 유지돼요.</em></span>
+              </label>
+            )}
           </div>
           {choice === "wait" && onExtend && (
             <div className="rd-extend" role="group" aria-label="응답 마감 연장">
@@ -82,6 +90,8 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
           )}
           {choice === "proceed" ? (
             <button className="rd-btn" disabled={busy} onClick={() => onProceed(top)}>1순위 시간으로 확정 검토하기</button>
+          ) : choice === "compare" ? (
+            <button className="rd-btn" onClick={() => onCompare?.()}>후보 비교 보기</button>
           ) : (
             <button className="rd-btn" disabled={busy || !canRemind} onClick={onRemind}>
               {canRemind ? `미응답 ${pending.length}명에게 재알림 보내기` : round.reminderCount ? "재알림은 이미 보냈어요 · 응답을 기다리는 중" : "응답을 기다리는 중이에요"}

@@ -1,6 +1,7 @@
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { CompareTable } from "./CompareTable";
 import { ResponseDecision } from "./ResponseDecision";
 import { Toast } from "./Toast";
 import type { Candidate, MeetingDraft, RoundSummary } from "../types";
@@ -18,6 +19,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
   onSelect: (candidate: Candidate) => void;
 }) {
   const [round, setRound] = useState<RoundSummary | null>(null);
+  const [comparing, setComparing] = useState(false);
   const [choice, setChoice] = useState<number | "custom">(24);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
@@ -125,7 +127,14 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect 
           onRemind={() => void run(() => api.remindRound(token))}
           onRefresh={() => void run(() => api.refreshRound(token))}
           onExtend={(deadlineAt) => void run(() => api.extendRound(token, deadlineAt))}
+          onCompare={() => setComparing(true)}
           onProceed={(row) => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
+        />
+      )}
+      {comparing && (
+        <CompareTable
+          onClose={() => setComparing(false)}
+          columns={round.rows.map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0 }))}
         />
       )}
       <div>

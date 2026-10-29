@@ -17,7 +17,7 @@ describe("CandidateList evidence", () => {
   it("leads with required-attendee status and sources, hides the score until details are opened", () => {
     render(<CandidateList candidates={[candidate]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
     expect(screen.getByText("가장 추천")).toBeTruthy();
-    expect(screen.getByText("필수 참석자 2명 모두 가능")).toBeTruthy();
+    expect(screen.getByText("필수 참석자 2명 확인 완료 (일정 충돌 없음·참석 응답)")).toBeTruthy(); // 캘린더 확인 1명 + 직접 응답 1명이라 섞어서 표현
     expect(screen.getByText("전체 4명 중 3명 참석 가능")).toBeTruthy();
     expect(screen.getByText("캘린더 확인 2명 · 직접 응답 1명")).toBeTruthy();
     expect(screen.getByText("미응답 1명")).toBeTruthy();
@@ -26,7 +26,7 @@ describe("CandidateList evidence", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("직접 응답 · 가능")).toBeTruthy();
+    expect(screen.getByText("참석 가능 응답")).toBeTruthy();
     expect(screen.getByText("응답 대기")).toBeTruthy();
     expect(screen.getByText(/82점/)).toBeTruthy();
   });
@@ -43,5 +43,18 @@ describe("ConfirmDialog re-verification", () => {
     expect(screen.queryByRole("button", { name: "회의 확정하기" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "새로운 추천 보기" }));
     expect(base.onRetry).toHaveBeenCalled();
+  });
+});
+
+describe("candidate comparison", () => {
+  it("compares candidates side by side and keeps waiting separate from unavailable", () => {
+    const second: Candidate = { ...candidate, id: "c2", start: "2026-11-04T05:00:00.000Z", evidence: [{ attendee: "김민지", evidence: "calendar_free" }, { attendee: "박준호", evidence: "calendar_free" }, { attendee: "이소라", evidence: "calendar_conflict" }, { attendee: "최유진", evidence: "calendar_unavailable" }] };
+    render(<CandidateList candidates={[candidate, second]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "다른 시간 비교하기" }));
+    const table = screen.getByRole("table");
+    expect(table).toBeTruthy();
+    expect(screen.getByText("선택 참석자 응답 대기")).toBeTruthy();
+    expect(table.textContent).toContain("일정 확인 불가");
+    expect(screen.getByText(/응답 대기는 불참이 아니에요/)).toBeTruthy();
   });
 });

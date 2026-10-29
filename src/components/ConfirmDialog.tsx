@@ -87,7 +87,7 @@ export function ConfirmDialog({
             <p>필수 참석자는 아니어서 확정할 수 있지만, 초대 후 참석하지 못할 수 있어요. 수락한 것으로 보지 않아요.</p>
           </div>
         )}
-        <p className="cd-note"><Users /> 데모에서는 초대를 보내거나 실제 캘린더에 반영하지 않아요.</p>
+        <p className="cd-note"><Users /> 확정하면 NODI의 회의 시간이 이 시간으로 저장돼요. 실제 캘린더 반영과 초대 발송은 따로 확인해야 하고, 데모에서는 이루어지지 않아요.</p>
         {error && <p className="dialog-error" role="alert">{error}</p>}
         <div className="dialog-actions">
           <button className="secondary-button" onClick={onClose} disabled={loading}>다른 시간 보기</button>

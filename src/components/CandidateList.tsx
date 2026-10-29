@@ -1,6 +1,7 @@
 import { ChevronDown, CircleCheck, Clock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { AttendanceEvidence, Candidate } from "../types";
+import { CompareTable, type CompareColumn } from "./CompareTable";
 
 function formatSlot(iso: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -22,19 +23,43 @@ function formatCheckedAt(iso: string) {
 }
 
 const EVIDENCE: Record<AttendanceEvidence, string> = {
-  calendar_free: "캘린더에서 확인 · 가능",
-  calendar_conflict: "캘린더 일정과 겹쳐요",
-  direct_available: "직접 응답 · 가능",
-  direct_unavailable: "직접 응답 · 어려워요",
+  calendar_free: "일정 충돌 없음",
+  calendar_conflict: "다른 일정 있음",
+  direct_available: "참석 가능 응답",
+  direct_unavailable: "참석 불가 응답",
   tentative: "아직 몰라요",
   no_response: "응답 대기",
-  calendar_unavailable: "캘린더를 확인할 수 없어요",
+  calendar_unavailable: "일정 확인 불가",
 };
+// 캘린더상 비어 있다는 것과 참석 응답은 다른 정보라서, 근거에 맞는 문구를 써요.
+function requiredLine(candidate: Candidate, requiredNames: string[]) {
+  const kinds = (candidate.evidence ?? []).filter((item) => requiredNames.includes(item.attendee)).map((item) => item.evidence);
+  const n = requiredNames.length;
+  if (kinds.length && kinds.every((kind) => kind === "calendar_free")) return `필수 참석자 ${n}명 일정 충돌 없음`;
+  if (kinds.length && kinds.every((kind) => kind === "direct_available")) return `필수 참석자 ${n}명 참석 가능 응답`;
+  return `필수 참석자 ${n}명 확인 완료 (일정 충돌 없음·참석 응답)`;
+}
+
+function toColumn(candidate: Candidate, requiredNames: string[]): CompareColumn {
+  const optional = (candidate.evidence ?? []).filter((item) => !requiredNames.includes(item.attendee)).map((item) => item.evidence);
+  const count = (kinds: AttendanceEvidence[]) => optional.filter((kind) => kinds.includes(kind)).length;
+  return {
+    id: candidate.id,
+    label: formatSlot(candidate.start),
+    required: requiredNames.length ? (candidate.requiredAvailable ? "충돌 없음" : "확인 필요") : "지정 없음",
+    possible: count(["calendar_free", "direct_available"]),
+    impossible: count(["calendar_conflict", "direct_unavailable"]),
+    waiting: count(["no_response", "tentative"]),
+    unknown: count(["calendar_unavailable"]),
+  };
+}
+
 const rankLabel = (index: number) => (index === 0 ? "가장 추천" : `대안 ${index}`);
 
 export function CandidateList({ candidates, onSelect, requiredNames = [] }: { candidates: Candidate[]; onSelect: (candidate: Candidate) => void; requiredNames?: string[] }) {
   const requiredCount = requiredNames.length;
   const [openId, setOpenId] = useState<string>();
+  const [comparing, setComparing] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [chosenId, setPickedId] = useState<string>();
   if (!candidates.length) {
@@ -55,6 +80,8 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
         <div><h2 id="candidate-title">가장 잘 맞는 시간을 찾았어요</h2><p>조건에 잘 맞는 순서로 정리했어요. 아직 확정 전이에요.</p></div>
         <span className="demo-badge">데모 데이터</span>
       </div>
+      {candidates.length > 1 && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 닫기" : "다른 시간 비교하기"}</button>}
+      {comparing && <CompareTable columns={visible.map((candidate) => toColumn(candidate, requiredNames))} onClose={() => setComparing(false)} />}
       <ol className="rd-list candidate-rd-list">
         {visible.map((candidate, index) => {
           const picked = pickedId === candidate.id;
@@ -90,7 +117,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
                 {requiredCount > 0 && (
                   <li className={candidate.requiredAvailable ? "ok" : "warn"}>
                     {candidate.requiredAvailable ? <CircleCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
-                    <span>{candidate.requiredAvailable ? `필수 참석자 ${requiredCount}명 모두 가능` : requiredBad.length ? `필수 참석자 ${requiredBad.join(", ")}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요"}</span>
+                    <span>{candidate.requiredAvailable ? requiredLine(candidate, requiredNames) : requiredBad.length ? `필수 참석자 ${requiredBad.join(", ")}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요"}</span>
                   </li>
                 )}
                 <li className="plain"><span>전체 {candidate.total}명 중 {candidate.available}명 참석 가능</span></li>

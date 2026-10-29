@@ -115,6 +115,7 @@ export function ChatScreen({
   const directoryRef = useRef<Array<{ name: string; email?: string }> | null>(null);
   const [pickPerson, setPickPerson] = useState<Array<{ id: string; label: string }> | null>(null);
   const [meaning, setMeaning] = useState<Extract<NextAction, { type: "resolve_ambiguity" }>["ambiguity"] | null>(null);
+  const [showAllMessages, setShowAllMessages] = useState(false);
   const [serverReady, setServerReady] = useState(false);
   const epochRef = useRef(0); // 새 대화를 누르면 올라가요. 그 전에 보낸 요청의 늦은 응답은 버려요.
   const [syncStatus, setSyncStatus] = useState<"loading" | "saving" | "saved" | "conflict" | "error">("loading");
@@ -123,6 +124,11 @@ export function ChatScreen({
   const endRef = useRef<HTMLDivElement>(null);
   const guidedStep = getGuidedStep(meeting, language);
   const pendingDecision = !!proposal || !!pickPerson || !!meaning;
+  // 긴 대화는 최근 것만 보여주고 이전 대화는 접어요. 현재 결정해야 할 카드가 밀려나지 않게 하려는 거예요.
+  const foldable = messages.length > 10 && !showAllMessages;
+  const visibleMessages = foldable ? [messages[0], ...messages.slice(-6)] : messages;
+  const hiddenCount = foldable ? messages.length - visibleMessages.length : 0;
+  const summaryStatus = selected ? "확정 검토 중" : roundToken && !recommendationComplete ? "참석 응답 확인 중" : recommendationComplete ? "추천 확인 중" : !guidedStep ? "추천 준비 완료" : undefined;
   const requiredCount = meeting.requiredAttendees?.length ?? 0;
   const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
 
@@ -350,6 +356,7 @@ export function ChatScreen({
     setPickPerson(null);
     setMeaning(null);
     setCollectMethod("manual");
+    setShowAllMessages(false);
     setConfirmError("");
     setSummaryOpen(false);
     localStorage.removeItem(draftStorageKey);
@@ -673,7 +680,8 @@ export function ChatScreen({
           <div className="message-stream" aria-live="polite" ref={streamRef} onScroll={(event) => setShowTop(event.currentTarget.scrollTop > 240)}>
             {!online && <div className="offline-banner" role="status"><WifiOff /><span><strong>인터넷에 연결되지 않았어요</strong> 입력한 내용은 이 기기에 보관하고 있어요.</span></div>}
             {syncStatus === "conflict" && <div className="sync-conflict" role="alert"><span><strong>다른 기기에서 내용이 바뀌었어요</strong> 불러오면 이 화면에서 아직 저장하지 않은 내용은 사라져요.</span><button className="secondary-button" onClick={() => void loadServerDraft()}>새 내용 불러오기</button></div>}
-            {messages.map((message) => (
+            {hiddenCount > 0 && <button className="step-fold" onClick={() => setShowAllMessages(true)}>이전 대화 {hiddenCount}개 펼치기</button>}
+            {visibleMessages.map((message) => (
               message.id === "intro" ? (
                 <section key={message.id} className="chat-welcome" aria-labelledby="chat-welcome-title">
                   <div className="welcome-logo" aria-hidden="true"><NodiMark /></div>
@@ -831,7 +839,7 @@ export function ChatScreen({
         {summaryOpen && <div className="sheet-scrim" onClick={() => setSummaryOpen(false)} aria-hidden="true" />}
         <aside className={`context-panel ${summaryOpen ? "open" : ""}`} aria-label="회의 조건과 캘린더">
           <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
-          <MeetingSummary meeting={meeting} proposal={proposal} onChange={(nextMeeting) => {
+          <MeetingSummary meeting={meeting} proposal={proposal} status={summaryStatus} onChange={(nextMeeting) => {
             setHistory((current) => [...current, { meeting, messages }].slice(-30));
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
             setReviewed(false);

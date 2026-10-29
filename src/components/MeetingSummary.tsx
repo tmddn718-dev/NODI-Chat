@@ -10,7 +10,7 @@ const labels = {
 
 const splitNames = (value: string) => [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 
-export function MeetingSummary({ meeting, onChange, proposal }: { meeting: MeetingDraft; onChange?: (meeting: MeetingDraft) => void; proposal?: { field: string; value: unknown } | null }) {
+export function MeetingSummary({ meeting, onChange, proposal, status }: { meeting: MeetingDraft; onChange?: (meeting: MeetingDraft) => void; proposal?: { field: string; value: unknown } | null; status?: string }) {
   const attendees = meeting.attendees ?? [];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(meeting);
@@ -38,7 +38,7 @@ export function MeetingSummary({ meeting, onChange, proposal }: { meeting: Meeti
     <section className="summary-card" aria-labelledby="summary-title">
       <div className="section-heading">
         <h2 id="summary-title">지금까지 정한 내용</h2>
-        {onChange ? <div className="summary-heading-actions"><span>{confirmedFields}/8 입력</span><button className="summary-edit-button" onClick={() => setEditing((value) => !value)}>{editing ? "닫기" : "바꾸기"}</button></div> : <span>{meeting.title ? "작성 중" : "시작 전"}</span>}
+        {onChange ? <div className="summary-heading-actions"><span>{status ?? `${confirmedFields}/8 입력`}</span><button className="summary-edit-button" onClick={() => setEditing((value) => !value)}>{editing ? "닫기" : "바꾸기"}</button></div> : <span>{meeting.title ? "작성 중" : "시작 전"}</span>}
       </div>
       {editing ? (
         <form className="summary-edit-form" onSubmit={save}>

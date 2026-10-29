@@ -1,4 +1,4 @@
-import { CircleCheck, TriangleAlert } from "lucide-react";
+import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { MeetingDraft, MeetingEvent } from "../types";
 
@@ -98,7 +98,7 @@ export function MeetingManager({
       <section className="result-card done">
         <div className="done-hero">
           <span className="done-check"><CircleCheck aria-hidden="true" /></span>
-          <p className="done-eyebrow">회의 시간이 정해졌어요</p>
+          <p className="done-eyebrow">NODI에서 회의 시간이 확정됐어요</p>
           <h1>{day}</h1>
           <p className="done-time">{clock(event.candidate.start)} – {clock(event.candidate.end)} <span>· {minutes}분</span></p>
         </div>
@@ -143,11 +143,12 @@ export function MeetingManager({
 
         <section className="done-section" aria-labelledby="done-status">
           <div className="done-section-head"><h2 id="done-status">처리 상태</h2></div>
-          <dl className="done-rows">
-            <div><dt>캘린더</dt><dd><span className={`status-badge ${event.calendarSyncStatus === "synced" ? "status-success" : event.calendarSyncStatus === "failed" ? "status-error" : "status-neutral"}`}>{calendar}</span></dd></div>
-            <div><dt>참석자 초대</dt><dd><span className="status-badge status-neutral">{event.invitationSent ? "전송됨" : "아직 안 보냈어요"}</span></dd></div>
-          </dl>
-          <p className="done-note">데모에서는 실제 캘린더와 초대에 반영하지 않아요.</p>
+          <ul className="done-steps">
+            <li className="done"><CircleCheck aria-hidden="true" /><span>회의 시간 확정 완료</span></li>
+            <li className={event.calendarSyncStatus === "synced" ? "done" : event.calendarSyncStatus === "failed" ? "fail" : ""}>{event.calendarSyncStatus === "synced" ? <CircleCheck aria-hidden="true" /> : event.calendarSyncStatus === "failed" ? <TriangleAlert aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{calendar === "아직 반영 안 됨" ? "외부 캘린더 반영 전" : calendar}</span></li>
+            <li className={event.invitationSent ? "done" : ""}>{event.invitationSent ? <CircleCheck aria-hidden="true" /> : <Circle aria-hidden="true" />}<span>{event.invitationSent ? "참석자 초대 발송 완료" : "참석자 초대 발송 전"}</span></li>
+          </ul>
+          <p className="done-note">현재 데모 환경에서는 실제 캘린더 반영과 초대 발송이 이루어지지 않아요.</p>
         </section>
 
         {(event.notifications?.length ?? 0) > 0 && !editing && (
