@@ -1,14 +1,14 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, api } from "../api";
-import { capture } from "../analytics";
+import { trackAnalyticsEvent, type FeedbackTag } from "../analytics";
 import { anonymousId } from "../consent";
 import { deviceInfo } from "../device";
 import { experimentVariant } from "../experiment";
 import { currentRunId, isRunConfirmed } from "../flow";
 import { PROTOTYPE } from "../prototype";
 
-export const FEEDBACK_TAGS: Array<[string, string]> = [
+export const FEEDBACK_TAGS: Array<[FeedbackTag, string]> = [
   ["input_hard", "조건 입력이 어려웠어요"], ["participants_hard", "참석자 고르기가 불편했어요"], ["recommendation_unclear", "추천 이유가 이해되지 않았어요"],
   ["confirm_unclear", "확정 단계가 헷갈렸어요"], ["too_slow", "너무 느렸어요"], ["mobile_hard", "모바일에서 쓰기 불편했어요"], ["other", "기타"],
 ];
@@ -32,7 +32,7 @@ function Scale({ label, value, onChange }: { label: string; value: number; onCha
 export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   const [overall, setOverall] = useState(0);
   const [ease, setEase] = useState(0);
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<FeedbackTag[]>([]);
   const [comment, setComment] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -42,7 +42,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (openedRef.current) return;
     openedRef.current = true;
-    capture("feedback_opened", { completed: isRunConfirmed() }, { step: "feedback" });
+    trackAnalyticsEvent("feedback_opened", { flow_completed: isRunConfirmed() }, { step: "feedback" });
   }, []);
 
   async function submit() {
@@ -57,7 +57,8 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         appVersion: PROTOTYPE.appVersion, flowVersion: PROTOTYPE.flowVersion, experimentId: PROTOTYPE.experiment.id, experimentVariant: id ? experimentVariant(id) : "none",
         testMode: PROTOTYPE.testMode, deviceCategory: deviceInfo().device_category,
       });
-      capture("feedback_submitted", { overall_score: overall, ease_score: ease, tags, run_id: currentRunId() }, { step: "feedback" });
+      // DB 저장이 성공한 뒤에만, 점수와 선택 태그만 보내요(run_id·자유 의견은 보내지 않아요).
+      trackAnalyticsEvent("feedback_submitted", { feedback_score: overall, ease_score: ease, feedback_tags: tags }, { step: "feedback" });
       setComment(""); // 자유 의견은 화면에 남기지 않아요
       setState("done");
     } catch (reason) {

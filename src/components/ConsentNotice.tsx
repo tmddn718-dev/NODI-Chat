@@ -18,8 +18,9 @@ export function ConsentNotice({ onDecide }: { onDecide: (analytics: boolean) => 
           <summary>무엇을 어떻게 수집하나요?</summary>
           <dl>
             <div><dt>수집해요</dt><dd>단계 진행과 걸린 시간, 기기 종류(모바일·태블릿·데스크톱)와 화면 크기 구간, 앱 버전, 오류 코드, 피드백 점수와 선택 태그. 임의로 만든 익명 ID로만 구분해요.</dd></div>
+            <div><dt>저장해요</dt><dd>분석 도구가 만든 익명 Device ID(무작위 값)와 우리가 만든 익명 세션 ID를 이 브라우저의 저장소(localStorage)에 저장해요. 쿠키는 쓰지 않고, 철회하면 지워요.</dd></div>
             <div><dt>수집하지 않아요</dt><dd>이름, 이메일, 전화번호, 입력한 문장, 일정 내용, 자유 의견 원문, API 키. 화면을 녹화(세션 리플레이)하지도 않아요.</dd></div>
-            <div><dt>사용 도구</dt><dd>PostHog(익명 이벤트 분석)</dd></div>
+            <div><dt>사용 도구</dt><dd>Amplitude(익명 이벤트 분석). 이름·IP·위치는 보내지 않아요.</dd></div>
             <div><dt>보존 기간</dt><dd>{retention}</dd></div>
             <div><dt>철회 방법</dt><dd>설정에서 ‘익명 사용 데이터’를 끄면 바로 수집을 멈추고 익명 ID를 지워요.</dd></div>
             <div><dt>문의</dt><dd>{contact}</dd></div>

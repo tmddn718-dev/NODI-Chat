@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-// 공개 테스트의 "구조화된 결과"(흐름 요약·피드백) 저장소. 사용자 행동 이벤트는 PostHog가 맡고, 여기에는 필요한 것만 둬요.
+// 공개 테스트의 "구조화된 결과"(흐름 요약·피드백) 저장소. 사용자 행동 이벤트는 Amplitude가 맡고, 여기에는 필요한 것만 둬요.
 // 이 프로젝트에는 기존 DB가 없어서(데이터는 JSON 파일) Render 재시작·재배포에 안전하지 않아요.
 // SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY(서버 환경변수)를 설정하면 Supabase(RLS 켠 테이블)에 저장하고, 없으면 로컬 파일에 저장해요.
 export type RunSummary = {

@@ -33,5 +33,14 @@ grep -nE "VITE_[A-Z_]*(SECRET|SERVICE|GROQ|TOKEN|PRIVATE)" .env.example render*.
 echo "9) .env.example에 실제 값처럼 보이는 것이 없는지"
 grep -nE "(gsk_|phc_|sb_secret|eyJ)[A-Za-z0-9_-]{8,}" .env.example 2>/dev/null && fail=1 || echo "   없음"
 
+echo "10) PostHog 코드·주소·환경변수가 소스·설정·빌드 결과에 없는지(교체 완료 확인)"
+if grep -rEn "posthog\.com|posthog-js|VITE_POSTHOG|POSTHOG_" src server scripts vite.config.ts render*.yaml .env.example package.json 2>/dev/null | grep -v "check-secrets.sh\|replacement.test.ts"; then fail=1; else echo "   소스·설정에 없음"; fi
+if [ -d dist ]; then grep -rEl "posthog\.com|posthog-js|VITE_POSTHOG|process_person_profile" dist && fail=1 || echo "   dist에 없음"; fi
+
+echo "11) Amplitude 비밀 키·Session Replay가 없는지"
+grep -rEn "AMPLITUDE_SECRET|VITE_AMPLITUDE_[A-Z_]*(SECRET|ADMIN|PRIVATE)" src server vite.config.ts render*.yaml .env.example 2>/dev/null | grep -v "replacement.test.ts" && fail=1 || echo "   없음"
+if [ -d dist ]; then grep -rEl "plugin-session-replay|session-replay-browser|AMPLITUDE_SECRET" dist && fail=1 || echo "   dist에 Replay·비밀 키 없음"; fi
+grep -nE "session-replay" package.json && fail=1 || echo "   Replay 패키지 없음"
+
 [ "$fail" -eq 0 ] && echo "통과" || echo "실패: 위 항목을 확인하세요"
 exit "$fail"

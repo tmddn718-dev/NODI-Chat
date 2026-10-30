@@ -9,6 +9,7 @@ process.env.GROQ_API_KEY = "gsk_test_not_a_real_key_0000000000000000";
 process.env.RATE_LIMIT_PER_MINUTE = "5";
 process.env.MAX_INPUT_CHARS = "100";
 process.env.OPS_TOKEN = "ops-test-token";
+delete process.env.VITE_AMPLITUDE_API_KEY;
 process.env.PROTOTYPE_DATA_PATH = path.join(os.tmpdir(), `nodi-proto-${process.pid}.jsonl`);
 
 const SECRET = process.env.GROQ_API_KEY;
@@ -44,7 +45,8 @@ const talk = (text: string) => ({ messages: [{ role: "user", content: text }], m
 describe("public prototype: server-side key", () => {
   it("starts without a key, reports status without secrets, and never returns the key", async () => {
     const health = await (await fetch(`${base}/api/health`)).text();
-    expect(JSON.parse(health)).toMatchObject({ ok: true, mode: "public", aiConfigured: true, publicDemoEnabled: true });
+    expect(JSON.parse(health)).toMatchObject({ ok: true, mode: "public", aiConfigured: true, publicDemoEnabled: true, analyticsConfigured: false });
+    expect(health).not.toContain("test_amplitude_project_key"); // 키 값은 절대 노출하지 않아요
     expect(health).not.toContain(SECRET!.slice(0, 8));
     const connect = await fetch(`${base}/api/session/connect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: "gsk_user_supplied" }) });
     expect(connect.status).toBe(403);

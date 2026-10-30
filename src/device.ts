@@ -2,12 +2,12 @@
 export type DeviceCategory = "mobile" | "tablet" | "desktop";
 export const deviceCategory = (width: number): DeviceCategory => (width <= 767 ? "mobile" : width <= 1199 ? "tablet" : "desktop");
 
-export function viewportBucket(width: number) {
-  return width < 360 ? "lt360" : width < 480 ? "360_479" : width < 768 ? "480_767" : width < 1024 ? "768_1023" : width < 1200 ? "1024_1199" : width < 1600 ? "1200_1599" : "gte1600";
-}
+// viewport_bucket: 화면 폭 3구간(기기 구분과는 별개의 보조 값). small < 480 · medium 480~1023 · large ≥ 1024
+export type ViewportBucket = "small" | "medium" | "large";
+export const viewportBucket = (width: number): ViewportBucket => (width < 480 ? "small" : width < 1024 ? "medium" : "large");
 
 // 세션이 시작될 때 한 번 정해서 고정해요. 화면을 돌리거나 창 크기를 바꿔도 같은 세션의 값이 바뀌지 않아요.
-let cached: { device_category: DeviceCategory; viewport_bucket: string } | undefined;
+let cached: { device_category: DeviceCategory; viewport_bucket: ViewportBucket } | undefined;
 export function deviceInfo() {
   if (cached) return cached;
   try {

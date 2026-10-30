@@ -65,5 +65,5 @@ AI 챗봇으로 회의 일정을 조율하는 서비스. 반응형 웹 + 모바�
 
 ## 공개 프로토타입(`NODI_MODE=public`)
 - 서버 비밀값(`GROQ_API_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`OPS_TOKEN`)은 서버 환경변수에서만 읽고 `VITE_`·클라이언트·로그·문서에 쓰지 않는다. 확인: `bash scripts/check-secrets.sh`.
-- 분석 이벤트는 `src/analytics.ts`의 허용 목록(SCHEMA)에 속성을 추가해야 나간다. 이름·문장·일정·자유 의견 원문은 절대 속성으로 보내지 않는다. 동의 전에는 어떤 요청도 보내지 않는다.
+- 분석은 **Amplitude Browser SDK 2**(PostHog는 제거됨). 이벤트는 `src/analytics.ts`의 `EventMap`·`EVENT_PROPERTIES`에 이름·속성을 함께 추가해야 나간다. 이름·문장·일정·자유 의견 원문은 절대 속성으로 보내지 않는다. 동의 전에는 SDK 로드·요청 모두 0건. 자동 수집·Session Replay·`userId`/`identify` 금지. 클라이언트에는 Project API Key만(Secret Key 금지).
 - 문서는 `docs/public-prototype/`. 흐름이 바뀌면 `src/prototype.ts`의 `flowVersion`을 올린다.

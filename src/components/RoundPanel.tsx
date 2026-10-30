@@ -1,5 +1,5 @@
 import { demo } from "../demo";
-import { flowError, recommendationRegenerated, recommendationSelected, recommendationsViewed } from "../flow";
+import { flowError, recommendationRegenerated, recommendationSelected, recommendationsRequested, recommendationsViewed } from "../flow";
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -69,12 +69,13 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
   // 요청을 보내기 전(2단계)과 후(3단계)를 화면 상단 단계 표시에 알려줘요.
   useEffect(() => { onPhase?.({ loaded: Boolean(round), invited: Boolean(round?.invitedAt), pending: round ? round.participants.filter((p) => !p.responded).length : 0, total: round?.total ?? 0 }); }, [round?.invitedAt, round?.responded, round?.total]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function run(action: () => Promise<{ round: RoundSummary }>, adopt = false) {
+  async function run(action: () => Promise<{ round: RoundSummary }>, adopt = false, onSuccess?: () => void) {
     setBusy(true); setError("");
     try {
       const { round: next } = await action();
       setRound(next);
       if (adopt) onTokenChange(next.token);
+      onSuccess?.();
     } catch (reason) {
       flowError(reason, "search");
       setError(reason instanceof Error ? reason.message : "요청을 처리하지 못했어요.");
@@ -113,7 +114,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           <p className="rd-caption">{ready ? `${stamp.format(new Date(deadlineMs))}까지 응답을 받아요 (한국 표준시). 이 시간 이후에 시작하는 후보만 찾아요.` : "지금보다 뒤의 시간을 골라 주세요"}</p>
         </fieldset>
         {error && <p className="rd-error" role="alert"><TriangleAlert />{error}</p>}
-        <button className="rd-btn rd-cta" disabled={busy || !ready} onClick={() => { searchStartedRef.current = Date.now(); void run(() => api.createRound(meeting, requestId, new Date(deadlineMs).toISOString()), true); }}>{busy ? "후보를 찾고 있어요..." : "후보 찾기"}</button>
+        <button className="rd-btn rd-cta" disabled={busy || !ready} onClick={() => { searchStartedRef.current = Date.now(); recommendationsRequested(); void run(() => api.createRound(meeting, requestId, new Date(deadlineMs).toISOString()), true); }}>{busy ? "후보를 찾고 있어요..." : "후보 찾기"}</button>
       </section>
     );
   }
@@ -188,7 +189,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           round={round}
           busy={busy}
           onRemind={() => void run(() => api.remindRound(token))}
-          onRefresh={() => { recommendationRegenerated("no_candidates"); void run(() => api.refreshRound(token)); }}
+          onRefresh={() => { searchStartedRef.current = Date.now(); recommendationsRequested(); void run(() => api.refreshRound(token), false, () => recommendationRegenerated("no_candidates")); }}
           onExtend={(deadlineAt) => void run(() => api.extendRound(token, deadlineAt))}
           onCompare={() => setComparing(true)}
           onEditRequired={onEditRequired}
@@ -224,7 +225,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
       <div className="rd-actions">
         {round.invitedAt && failed.length > 0 && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>발송 실패 {failed.length}명 다시 보내기</button>}
-        <button className="rd-btn m ghost" disabled={busy} onClick={() => { recommendationRegenerated("refresh"); void run(() => api.refreshRound(token)); }}>후보 새로 찾기</button>
+        <button className="rd-btn m ghost" disabled={busy} onClick={() => { searchStartedRef.current = Date.now(); recommendationsRequested(); void run(() => api.refreshRound(token), false, () => recommendationRegenerated("refresh")); }}>후보 새로 찾기</button>
         {demo.on && round.invitedAt && pending.length > 0 && !unsent.length && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.demoResponses(token))}>가상 참석자 응답 받기 (데모)</button>}
         <button className="rd-btn m ghost" disabled={busy || !round.invitedAt || round.reminderCount >= 1 || round.phase === "final" || !pending.length || pending.length === unsent.length} onClick={() => void run(() => api.remindRound(token))}>{round.reminderCount ? "재알림 보냄" : `미응답 ${pending.length}명 재알림`}</button>
       </div>

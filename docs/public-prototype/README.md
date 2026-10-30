@@ -11,17 +11,22 @@
 
 ## 문서 목차
 1. README(이 문서): 로컬 실행·환경변수
-2. [Render 배포·롤백](02-render-deploy.md)
-3. [분석 이벤트 사전](03-analytics-events.md)
-4. [PostHog 퍼널·대시보드 설정](04-posthog-dashboards.md)
-5. [개인정보·동의·세션 리플레이](05-privacy-consent.md)
-6. [가상 캘린더 fixture](06-fictional-calendar.md)
-7. [운영 가이드: 한도·예산·킬 스위치·장애 대응](07-operations.md)
-8. [QA 체크리스트](08-qa-checklist.md)
+2. [Amplitude 계정·프로젝트·API Key](01-amplitude-setup.md)
+3. [Render 배포·롤백](02-render-deploy.md)
+4. [분석 이벤트 사전](03-analytics-events.md)
+5. [Amplitude 퍼널·차트·대시보드](04-amplitude-dashboards.md)
+6. [개인정보·동의·철회](05-privacy-consent.md)
+7. [가상 캘린더 fixture](06-fictional-calendar.md)
+8. [운영 가이드: 한도·예산·킬 스위치·장애 대응](07-operations.md)
+9. [QA 체크리스트](08-qa-checklist.md)
+10. [이벤트 검증·디버깅](09-event-validation.md)
+11. [파일럿(10–20명) 해석](10-pilot-interpretation.md)
+12. [피드백·Supabase 저장 확인](11-feedback-check.md)
+13. [PostHog 수동 정리](12-posthog-cleanup.md)
 
 ## 구조 한눈에
 ```text
-브라우저 ── (동의 후) 익명 이벤트 ──▶ PostHog        ※ 대화·이름·일정 내용은 보내지 않아요
+브라우저 ── (동의 후) 익명 이벤트 ──▶ Amplitude     ※ 대화·이름·일정 내용은 보내지 않아요
    │
    └── /api/* ──▶ NODI 서버(Express) ──▶ Groq        ※ 키는 서버 환경변수에서만 읽어요
                     ├─ 사용량 보호(분당·일일·전역 예산·동시 요청·킬 스위치)
@@ -37,7 +42,7 @@ npx tsx --env-file=.env server/index.ts      # NODI_MODE=public, GROQ_API_KEY=..
 # 화면(Vite가 .env의 VITE_ 변수를 읽어요)
 PORT=3001 npx vite --port 5173
 ```
-- 분석을 로컬에서 시험하려면 `.env`에 `VITE_POSTHOG_KEY`(**개발용 별도 프로젝트** 키)와 `VITE_ANALYTICS_IN_DEV=true`를 넣으세요. 이 값이 없으면 개발 빌드는 이벤트를 보내지 않아요(운영 프로젝트에 섞이지 않게).
+- 분석을 로컬에서 시험하려면 `.env`에 `VITE_AMPLITUDE_API_KEY`(**개발용 별도 프로젝트**의 API Key)와 `VITE_ANALYTICS_IN_DEV=true`를 넣으세요. 이 값이 없으면 개발 빌드는 이벤트를 보내지 않아요(운영 프로젝트에 섞이지 않게).
 - 키 없이 화면만 보려면 `GROQ_API_KEY` 없이 실행하세요. 선택지 흐름은 동작하고, 자유 입력은 "AI 연결 설정이 아직 끝나지 않았어요"를 보여줘요.
 - 검증: `npx tsc -b && npx vitest run && npm run build && bash scripts/check-secrets.sh`
 
@@ -63,12 +68,13 @@ PORT=3001 npx vite --port 5173
 | `NODI_PUBLIC_URL` / `ALLOWED_ORIGINS` | 서버 | - | 없음 | 허용 Origin(같은 출처는 항상 허용) |
 | `TRUST_PROXY_HOPS` | 서버 | - | 1 | Render는 1 |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | 서버 | **비밀** | 없음 | 둘 다 있으면 Supabase에 저장 |
-| `VITE_POSTHOG_KEY` | 클라이언트 | 공개 | 없음 | PostHog **프로젝트 키**(phc_…). 개인용·관리용 키 금지 |
-| `VITE_POSTHOG_HOST` | 클라이언트 | 공개 | `https://us.i.posthog.com` | 지역에 맞게(EU는 `https://eu.i.posthog.com`) |
-| `VITE_ANALYTICS_ENV` | 클라이언트 | 공개 | `production`/`development` | 환경별 필터용 |
+| `VITE_AMPLITUDE_API_KEY` | 클라이언트 | 공개 | 없음 | Amplitude **Project API Key**만. Secret Key 금지 |
+| `VITE_AMPLITUDE_SERVER_ZONE` | 클라이언트 | 공개 | `US` | 프로젝트 지역(`US`/`EU`)과 같게 |
+| `VITE_ANALYTICS_ENVIRONMENT` | 클라이언트 | 공개 | `production`/`development` | development·staging·production, 대시보드 필터용 |
+| `VITE_APP_VERSION`, `VITE_FLOW_VERSION`, `VITE_EXPERIMENT_ID` | 클라이언트 | 공개 | 빌드 버전, `flow-1`, `none` | 버전·실험 비교용 |
 | `VITE_PRIVACY_CONTACT`, `VITE_DATA_RETENTION_DAYS` | 클라이언트 | 공개 | 없음 | 동의 안내에 표시(비면 "운영자가 별도로 안내해요") |
 
-**환경별 값**: 개발=로컬 `.env`(개발용 PostHog 프로젝트), 스테이징=Render 별도 서비스(`VITE_ANALYTICS_ENV=staging`, 스테이징용 PostHog 프로젝트), 운영=`nodi-public`(운영 프로젝트). `VITE_` 값을 바꾸면 **다시 배포**해야 반영돼요.
+**환경별 값**: 개발=로컬 `.env`(개발용 Amplitude 프로젝트), 스테이징=Render 별도 서비스(`VITE_ANALYTICS_ENVIRONMENT=staging`, 스테이징용 프로젝트), 운영=`nodi-public`(운영 프로젝트). `VITE_` 값을 바꾸면 **다시 배포**해야 반영돼요.
 
 ## 버전·실험 설정(중앙)
 `src/prototype.ts` 한 곳에서 관리해요: `appVersion`(빌드 시 `package.json` 버전 + Render 커밋 해시), `flowVersion`(흐름이 바뀔 때 수동으로 올려요), `experiment`(`{ id, variants }`, 실험이 없으면 `none`), 동의 정책 버전. 실험군은 익명 ID로 결정론적으로 배정돼 새로고침해도 유지되고, 동의하지 않은 사용자는 `none`이에요.

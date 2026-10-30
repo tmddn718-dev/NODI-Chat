@@ -324,3 +324,13 @@ NODI-Chat/
 - **배포**: `render.public.yaml`(서비스 `nodi-public`, 수동 배포). 기존 `nodi-demo`(`render.yaml`)와 별개.
 - **세션 리플레이는 구현하지 않음**(기본 OFF, 마스킹 보장 어려움 → 문서에 도입 조건).
 - **미확인/사용자 결정**: 실제 Groq 키로 자유 입력 품질·한도 동작, PostHog 실제 프로젝트의 대시보드 설정, Supabase 실제 연결, 보존 기간·문의처, Render 실배포. 검증은 가짜 Groq/로컬 수신 서버로 했음.
+
+## 13. Amplitude 기반 공개 프로토타입 재설계 (브랜치 `feat/amplitude-public-prototype`, 미커밋)
+위 12장의 PostHog 분석 부분은 **Amplitude Browser SDK 2로 완전히 교체**됐어요(12장의 PostHog 서술은 과거 기록).
+- **SDK**: `@amplitude/analytics-browser` 2.48.1(정확 고정), 동의 후 동적 import(별도 청크). 자동 수집 전부 OFF, Session Replay 없음, `userId`/`identify` 없음, IP 미수집 설정. 철회는 `setOptOut(true)` + 대기 이벤트 폐기(`nodi-consent-gate` 플러그인) + `AMP_*`·익명 ID 삭제.
+- **모듈**: `src/analytics.ts`(`initializeAnalyticsAfterConsent`·`trackAnalyticsEvent`·`updateAnalyticsConsent`·`isAnalyticsEnabled`·`resetAnalyticsIdentity`·`getSafeAnalyticsContext`, 타입 이벤트 사전 14개 + 허용 목록 + 값 검증), `src/flow.ts`(퍼널 시점·중복 방지; 퍼널 순서 details → participants 보장), `src/prototype.ts`(환경변수·정책 버전 `2026-11-02-amplitude`), `src/consent.ts`(`cleanupLegacyAnalyticsStorage`로 `ph_*` 정리).
+- **환경변수**: `VITE_AMPLITUDE_API_KEY`(Project API Key만; Secret Key 금지)·`VITE_AMPLITUDE_SERVER_ZONE`·`VITE_ANALYTICS_ENVIRONMENT`·`VITE_APP_VERSION`·`VITE_FLOW_VERSION`·`VITE_EXPERIMENT_ID`. `render.public.yaml`: 브랜치 `feat/amplitude-public-prototype`, `autoDeploy: false`.
+- **식별**: `run_id`는 서버 저장소에만(Amplitude에 안 보냄). 피드백 자유 의견은 DB에만, `feedback_submitted`는 DB 저장 성공 후 점수·태그만.
+- **문서**: `docs/public-prototype/` 01(계정·키)·03(이벤트 사전)·04(퍼널·대시보드)·09(검증)·10(파일럿 해석)·11(피드백 확인)·12(PostHog 수동 정리) 추가/갱신. PostHog 대시보드 문서는 삭제.
+- **검증됨**: tsc·vitest·build·check-secrets, 로컬 수신 서버로 동의 전 0요청·동의 후 이벤트 순서/중복/PII 없음·철회 후 중단 확인.
+- **미확인/사용자 결정**: 실제 Amplitude 프로젝트·키·대시보드, 실제 Groq 키, Render 실배포, Supabase 실제 연결, 보존 기간·문의처, PostHog 프로젝트 수동 정리(12-posthog-cleanup.md).

@@ -1,4 +1,4 @@
-# 공개 프로토타입 테스트 서비스(NODI_MODE=public). 기존 nodi-demo(render.yaml)·개발 서비스와 별개의 서비스예요.
+# 공개 프로토타입 테스트 서비스(NODI_MODE=public, 분석은 Amplitude). 기존 NODI-Chat(main)·nodi-demo(render.yaml)와 별개의 서비스예요.
 # Render 대시보드: New + > Blueprint > 이 저장소 > Blueprint Path에 render.public.yaml 입력 > 브랜치 선택.
 # sync: false 값은 Render가 만들 때 물어봐요. 비밀값은 이 파일에 쓰지 않고 대시보드에서만 입력하세요.
 services:
@@ -6,7 +6,7 @@ services:
     name: nodi-public
     runtime: node
     plan: free
-    branch: feat/public-prototype-test
+    branch: feat/amplitude-public-prototype
     autoDeploy: false          # 공개 서비스는 확인한 뒤 수동으로 배포해요
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
@@ -34,8 +34,11 @@ services:
       - { key: DAILY_GLOBAL_REQUEST_BUDGET, value: "1500" }
       - { key: MAX_CONCURRENT_AI_REQUESTS, value: "4" }
       # 클라이언트 공개 값(VITE_ — 빌드 시점에 번들에 들어가요. 바꾸면 다시 배포해야 해요)
-      - { key: VITE_POSTHOG_KEY, sync: false }          # PostHog 프로젝트 키(공개용)
-      - { key: VITE_POSTHOG_HOST, value: "https://us.i.posthog.com" }
-      - { key: VITE_ANALYTICS_ENV, value: production }
+      - { key: VITE_AMPLITUDE_API_KEY, sync: false }    # Amplitude Project API Key(공개용). 비밀 키·관리 키 금지
+      - { key: VITE_AMPLITUDE_SERVER_ZONE, value: US }  # 프로젝트를 만든 데이터 리전: US 또는 EU
+      - { key: VITE_ANALYTICS_ENVIRONMENT, value: production }
+      - { key: VITE_FLOW_VERSION, value: flow-1 }
+      - { key: VITE_EXPERIMENT_ID, value: none }
+      # VITE_APP_VERSION은 비워 두면 package.json 버전 + 배포 커밋 해시로 자동 주입돼요
       - { key: VITE_PRIVACY_CONTACT, sync: false }
       - { key: VITE_DATA_RETENTION_DAYS, sync: false }

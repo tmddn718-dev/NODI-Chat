@@ -3,14 +3,14 @@
 기존 서비스(`NODI-Chat`=main 배포, `nodi-demo`=데모)는 **그대로 두고**, 공개 테스트는 **새 서비스 `nodi-public`**으로 따로 만들어요. 운영 배포는 사용자(운영자)가 직접 해요.
 
 ## 1. 배포 전 준비 (사용자가 직접)
-- [ ] **PostHog 프로젝트 만들기**(운영용·개발용 분리) → 프로젝트 키 확보. 프로젝트 설정에서 *Discard client IP data*를 켜세요(IP를 저장하지 않게).
+- [ ] **Amplitude 프로젝트 만들기**(운영용·개발용 분리, 운영은 새 프로젝트) → Project API Key 확보. 자세한 절차는 [01](01-amplitude-setup.md).
 - [ ] **결과 저장소 결정**: 피드백·흐름 요약을 Render 재시작 후에도 보관하려면 Supabase를 쓰세요(아래 3번). 안 쓰면 로컬 파일에 저장되어 재배포 때 사라져요.
 - [ ] 개인정보 안내에 넣을 **보존 기간·문의처** 결정(`VITE_DATA_RETENTION_DAYS`, `VITE_PRIVACY_CONTACT`).
 - [ ] Groq 사용량 한도와 **하루 예산**(`DAILY_GLOBAL_REQUEST_BUDGET`) 결정. Groq 콘솔에서도 사용량 알림을 켜 두세요.
 
 ## 2. 서비스 만들기
-1. Render → **New + → Blueprint** → 저장소 `NODI-Chat` → **Blueprint Path: `render.public.yaml`** → 브랜치 선택(`feat/public-prototype-test` 또는 합친 뒤의 브랜치).
-2. 입력 칸이 나오는 변수(`sync: false`)를 대시보드에서 채워요: `GROQ_API_KEY`(비밀), `OPS_TOKEN`(비밀, 길고 무작위로), `NODI_PUBLIC_URL`(배포 주소), `VITE_POSTHOG_KEY`, (선택) `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY`, `VITE_PRIVACY_CONTACT`, `VITE_DATA_RETENTION_DAYS`.
+1. Render → **New + → Blueprint** → 저장소 `NODI-Chat` → **Blueprint Path: `render.public.yaml`** → 브랜치 선택(`feat/amplitude-public-prototype` 또는 합친 뒤의 브랜치).
+2. 입력 칸이 나오는 변수(`sync: false`)를 대시보드에서 채워요: `GROQ_API_KEY`(비밀), `OPS_TOKEN`(비밀, 길고 무작위로), `NODI_PUBLIC_URL`(배포 주소), `VITE_AMPLITUDE_API_KEY`, (선택) `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY`, `VITE_PRIVACY_CONTACT`, `VITE_DATA_RETENTION_DAYS`.
 3. **비밀값은 Render 대시보드에만** 입력해요. 저장소·문서·`VITE_` 변수에는 넣지 않아요.
 4. 빌드 명령 `npm ci --include=dev && npm run build`, 시작 명령 `npm start`, 상태 확인 `/api/health`(비밀 없이 상태만 반환: `aiConfigured`는 키 설정 여부일 뿐 값은 없어요).
 5. `autoDeploy: false`라서 **확인 후 수동 배포**해요.
@@ -37,7 +37,7 @@
 ## 6. 롤백
 1. 먼저 **킬 스위치**: `PUBLIC_DEMO_ENABLED=false`로 바꾸고 저장 → 서비스가 재시작되며 AI 호출과 새 세션이 즉시 막혀요(점검 안내가 보여요).
 2. 코드 문제면 Render 서비스 → **Events/Deploys**에서 이전 성공 배포를 **Rollback**(또는 이전 커밋을 수동 배포).
-3. `VITE_` 변수 문제(잘못된 PostHog 키 등)는 값을 고치고 **다시 배포**해야 해요(빌드 시점 값).
+3. `VITE_` 변수 문제(잘못된 Amplitude 키·지역 등)는 값을 고치고 **다시 배포**해야 해요(빌드 시점 값).
 4. Groq 키 노출이 의심되면 → [운영 가이드](07-operations.md)의 키 유출 대응.
 
 ## 7. 공개 중단(킬 스위치) 사용법
@@ -48,5 +48,5 @@
 ## 8. 대시보드에서 확인할 운영 항목
 - **Render**: 배포 상태, 재시작 횟수, 메모리, 로그의 `[nodi:budget]`·`[nodi:error]` 줄(숫자와 오류 종류만 있고 사용자 입력은 없어요).
 - **Groq 콘솔**: 일일 요청·토큰 사용량, 429 비율.
-- **PostHog**: 이벤트 수신 여부, `environment` 값, 퍼널([04](04-posthog-dashboards.md)).
+- **Amplitude**: 이벤트 수신 여부, `environment` 값, 퍼널([04](04-amplitude-dashboards.md), 검증 [09](09-event-validation.md)).
 - **Supabase**: `prototype_runs`, `prototype_feedback` 행 증가, 저장소 용량.

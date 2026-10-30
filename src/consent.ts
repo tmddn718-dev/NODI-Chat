@@ -43,3 +43,24 @@ export function subscribeConsent(listener: () => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
+
+// 이전 분석 도구(PostHog) 시절 저장값 정리. 분석 도구가 바뀌어 동의 정책 버전을 올렸으므로,
+// 버전이 다른 이전 동의·익명 ID는 지우고(다시 동의를 받아요), PostHog가 남겼을 수 있는 저장값(ph_*)도 지워요.
+export function cleanupLegacyAnalyticsStorage() {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (raw) {
+      let version = "";
+      try { version = (JSON.parse(raw) as Consent).policyVersion; } catch { /* 깨진 값은 지워요 */ }
+      if (version !== PROTOTYPE.consentPolicyVersion) { localStorage.removeItem(CONSENT_KEY); localStorage.removeItem(ANON_KEY); }
+    } else {
+      localStorage.removeItem(ANON_KEY);
+    }
+    for (const key of Object.keys(localStorage)) if (/^ph_|posthog/i.test(key)) localStorage.removeItem(key);
+    for (const key of Object.keys(sessionStorage)) if (/^ph_|posthog/i.test(key)) sessionStorage.removeItem(key);
+    for (const part of document.cookie.split(";")) {
+      const name = part.split("=")[0]?.trim() ?? "";
+      if (/^ph_|posthog/i.test(name)) document.cookie = `${name}=; Max-Age=0; path=/`;
+    }
+  } catch { /* 저장소를 못 쓰는 환경 */ }
+}

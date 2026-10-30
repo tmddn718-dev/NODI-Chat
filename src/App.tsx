@@ -7,13 +7,12 @@ import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
 import { CalendarConnections } from "./components/CalendarConnections";
 import { InvitedMeetings } from "./components/InvitedMeetings";
-import { capture } from "./analytics";
+import { initializeAnalyticsAfterConsent, trackAnalyticsEvent, updateAnalyticsConsent, withdrawAnalyticsConsent } from "./analytics";
 import { ConsentNotice } from "./components/ConsentNotice";
 import { FeedbackDialog } from "./components/FeedbackDialog";
-import { readConsent, writeConsent } from "./consent";
+import { cleanupLegacyAnalyticsStorage, readConsent } from "./consent";
 import { demo } from "./demo";
-import { flowAbandoned } from "./flow";
-import { PROTOTYPE } from "./prototype";
+import { flowAbandoned, newRun } from "./flow";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -35,28 +34,33 @@ function Screens() {
   const [events, setEvents] = useState<MeetingEvent[]>([]);
   const [notice, setNotice] = useState("");
   const [slowBoot, setSlowBoot] = useState(false);
-  const [consent, setConsent] = useState(readConsent);
+  // 이전 분석 도구(PostHog)가 남긴 저장값과 이전 정책의 동의는 지우고 시작해요(분석 도구가 바뀌어 다시 동의를 받아요).
+  const [consent, setConsent] = useState(() => { cleanupLegacyAnalyticsStorage(); return readConsent(); });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const viewedRef = useRef(false);
 
-  // 분석 동의: 처음 한 번 정하고, 설정에서 철회할 수 있어요. 철회하면 마지막 상태 이벤트 한 번만 보내고 수집을 멈춰요.
+  // 분석 동의: 처음 한 번 정하고, 설정에서 철회할 수 있어요. 거부는 로컬에만 기록하고 Amplitude에는 아무것도 보내지 않아요.
+  // 철회하면 즉시 추적을 멈추고 대기 중인 이벤트와 식별자를 지워요.
   function decide(analytics: boolean) {
-    setConsent(writeConsent(analytics));
-    if (analytics) capture("analytics_consent_updated", { consent_status: "granted", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent" });
+    void updateAnalyticsConsent(analytics);
+    setConsent(readConsent());
   }
   function toggleAnalytics(analytics: boolean) {
-    if (!analytics) capture("analytics_consent_updated", { consent_status: "withdrawn", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent", force: true });
-    setConsent(writeConsent(analytics));
-    if (analytics) capture("analytics_consent_updated", { consent_status: "granted", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent" });
+    if (analytics) void updateAnalyticsConsent(true);
+    else withdrawAnalyticsConsent();
+    setConsent(readConsent());
   }
+
+  // 이미 동의한 사용자가 다시 들어오면 SDK를 초기화해요(동의하지 않았다면 아무 일도 하지 않아요).
+  useEffect(() => { if (consent?.analytics === true) void initializeAnalyticsAfterConsent(); }, [consent?.analytics]);
 
   // 공개 테스트 첫 진입(동의한 경우에만). 같은 페이지 로드에서 한 번만 보내요.
   useEffect(() => {
     if (demo.mode !== "public" || consent?.analytics !== true || view === "loading" || viewedRef.current) return;
     viewedRef.current = true;
-    let entry = "direct";
+    let entry: "direct" | "internal" | "external" = "direct";
     try { if (document.referrer) entry = new URL(document.referrer).origin === window.location.origin ? "internal" : "external"; } catch { entry = "direct"; }
-    capture("prototype_viewed", { entry }, { step: "consent" });
+    trackAnalyticsEvent("prototype_viewed", { entry_context: entry }, { step: "consent" });
   }, [consent, view]);
 
   // 시작했지만 확정하지 못한 채 페이지가 닫히면 이탈로 기록해요(근사치).
@@ -117,6 +121,9 @@ function Screens() {
   }
 
   async function disconnect() {
+    // 테스트 데이터 초기화는 명시적으로 다시 시작하는 거라 이탈로 기록하고, 새 실행 ID로 시작해요(익명 세션 ID는 그대로예요).
+    flowAbandoned("restart");
+    newRun();
     await api.disconnect();
     setSettings(false);
     setEvent(null);

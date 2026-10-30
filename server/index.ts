@@ -140,8 +140,8 @@ async function resolveAvailability(body: Record<string, unknown>) {
   return invitation.availability;
 }
 
-// 비밀값 없이 상태만 알려요(키가 설정됐는지 여부만, 값은 절대 노출하지 않아요).
-app.get("/api/health", (_req, res) => res.json({ ok: true, mode: appMode, ...(publicMode ? { aiConfigured: Boolean(process.env.GROQ_API_KEY?.trim()), publicDemoEnabled: getConfig().publicDemoEnabled } : {}) }));
+// 비밀값 없이 상태만 알려요(Groq 키·Amplitude 키가 설정됐는지 여부만, 값은 절대 노출하지 않아요).
+app.get("/api/health", (_req, res) => res.json({ ok: true, mode: appMode, ...(publicMode ? { aiConfigured: Boolean(process.env.GROQ_API_KEY?.trim()), publicDemoEnabled: getConfig().publicDemoEnabled, analyticsConfigured: Boolean(process.env.VITE_AMPLITUDE_API_KEY?.trim()) } : {}) }));
 
 // 공개 테스트의 피드백·흐름 요약 수집. 서버가 형식을 검증하고(코드형 값·길이 제한), 한 실행당 피드백은 1건만 받아요.
 // 조회 API는 만들지 않아요(공개 클라이언트에서 전체 데이터를 읽을 수 없게).

@@ -22,7 +22,7 @@ import { ProgressHeader, type EditableField, type ProgressInfo } from "./Progres
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
 import { namesLabel } from "../format";
 import { ConditionsDone } from "./ConditionsDone";
-import { detailsCompleted, flowAbandoned, flowError, flowStarted, isRunConfirmed, meetingConfirmed, newRun, participantsConfigured, recommendationRegenerated, recommendationSelected, recommendationsViewed } from "../flow";
+import { detailsCompleted, flowAbandoned, flowError, flowStarted, isRunConfirmed, meetingConfirmed, newRun, participantsConfigured, recommendationRegenerated, recommendationSelected, recommendationsRequested, recommendationsViewed } from "../flow";
 
 const intro: Message = {
   id: "intro",
@@ -134,7 +134,13 @@ export function ChatScreen({
   const [serverReady, setServerReady] = useState(false);
   // 분석용: 이번 흐름에서 선택지와 직접 입력을 어떻게 썼는지(내용이 아니라 방식만 기억해요).
   const inputMethodRef = useRef({ guided: false, typed: false });
-  const inputMethod = () => { const m = inputMethodRef.current; return m.guided && m.typed ? "mixed" as const : m.typed ? "typed" as const : "guided" as const; };
+  // 자유 입력을 한 번이라도 썼으면 natural_language, 선택지만 썼으면 choice예요.
+  const inputMethod = () => (inputMethodRef.current.typed ? "natural_language" as const : "choice" as const);
+  // 퍼널 이정표: 회의 정보(제목·목적·시간)가 정해지면 details, 참석자와 필수/선택이 정해지면 participants(각각 한 번만 기록돼요).
+  const trackMilestones = (m: MeetingDraft) => {
+    if (m.title && m.purpose && m.durationMinutes) detailsCompleted(inputMethod());
+    if (m.attendees?.length && m.requiredAttendees !== undefined) participantsConfigured(m.attendees.length);
+  };
   // 확정을 마친 뒤 새 회의를 시작하면 새 실행(run)으로 시작해요.
   useEffect(() => { if (isRunConfirmed()) newRun(); }, []);
   const epochRef = useRef(0); // 새 대화를 누르면 올라가요. 그 전에 보낸 요청의 늦은 응답은 버려요.
@@ -450,11 +456,13 @@ export function ChatScreen({
     setError("");
     const epoch = epochRef.current;
     const searchStartedAt = Date.now();
-    if (candidates.length || recommendationComplete) recommendationRegenerated("refresh");
+    const isRegeneration = candidates.length > 0 || recommendationComplete;
+    recommendationsRequested();
     try {
       const recommendation = await api.recommendations(nextMeeting, responses, (collectMethod === "invite" && invitationToken) || undefined);
       if (epoch !== epochRef.current) return;
       recommendationsViewed(recommendation.candidates.length, recommendation.candidates.map((candidate) => candidate.id).join(","), Date.now() - searchStartedAt);
+      if (isRegeneration) recommendationRegenerated("refresh"); // 재탐색은 성공했을 때만 기록해요
       setAvailability(recommendation.availability);
       setCandidates(recommendation.candidates);
       setRecommendationComplete(true);
@@ -483,7 +491,7 @@ export function ChatScreen({
     setLoading(true);
     setError("");
     inputMethodRef.current.typed = true;
-    flowStarted("typed");
+    flowStarted("natural_language");
     const epoch = epochRef.current;
     try {
       const result = await api.chat({
@@ -521,8 +529,7 @@ export function ChatScreen({
       if (nothing && nearest) setRecommended(nearest.label);
       setHistory((current) => [...current, { meeting, messages }].slice(-30));
       setMeeting(nextMeeting);
-      if (changed.includes("attendees") && nextMeeting.attendees?.length) participantsConfigured(nextMeeting.attendees.length);
-      if (result.complete) detailsCompleted(inputMethod());
+      trackMilestones(nextMeeting);
       setReviewed(false);
       setInvitationToken("");
     setRoundToken("");
@@ -603,9 +610,8 @@ export function ChatScreen({
     const nextMeeting = { ...meeting, ...choice.patch, version: (meeting.version ?? 1) + 1 };
     const nextStep = getGuidedStep(nextMeeting, language);
     inputMethodRef.current.guided = true;
-    flowStarted("guided");
-    if (choice.patch.attendees?.length) participantsConfigured(choice.patch.attendees.length);
-    if (!nextStep) detailsCompleted(inputMethod());
+    flowStarted("choice");
+    trackMilestones(nextMeeting);
     const assistantMessage = nextStep
       ? language === "ko"
         ? `${choice.label}, 좋아요. ${nextStep.question}`
