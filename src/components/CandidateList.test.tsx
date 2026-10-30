@@ -17,15 +17,16 @@ describe("CandidateList evidence", () => {
   it("leads with required-attendee status and sources, hides the score until details are opened", () => {
     render(<CandidateList candidates={[candidate]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
     expect(screen.getByText("가장 추천")).toBeTruthy();
-    expect(screen.getByText("필수 참석자 2명 확인 완료 (일정 충돌 없음·참석 응답)")).toBeTruthy();
-    expect(screen.getByText("전체 4명 중 3명 참석 가능")).toBeTruthy();
-    expect(screen.getByText("캘린더 확인 2명 · 직접 응답 1명")).toBeTruthy();
-    expect(screen.getByText("선택 참석자 1명은 응답 대기 중")).toBeTruthy();
+    expect(screen.getByText("확정 검토 가능")).toBeTruthy();
+    expect(screen.getByText("필수 참석자 조건 충족")).toBeTruthy();
+    expect(screen.getByText("현재 확인된 일정 충돌 없음")).toBeTruthy();
+    expect(screen.getByText("선택 참석자 1명 응답 대기")).toBeTruthy();
     expect(screen.getByText("이 시간을 추천하는 이유")).toBeTruthy();
     const details = document.querySelector("details.rcard-more") as HTMLDetailsElement;
     expect(details.open).toBe(false); // 세부 정보는 접혀 있어요
     details.open = true;
     expect(screen.getByText("참석 가능 응답")).toBeTruthy();
+    expect(screen.getByText("4명 중 3명")).toBeTruthy(); // 전체 인원 요약은 세부 정보 안으로
     expect(screen.getByText(/82점/)).toBeTruthy(); // 점수는 세부 정보 안에서만
   });
 });
@@ -54,5 +55,20 @@ describe("candidate comparison", () => {
     expect(screen.getByText("선택 참석자 응답 대기")).toBeTruthy();
     expect(table.textContent).toContain("일정 확인 불가");
     expect(screen.getByText(/응답 대기는 불참이 아니에요/)).toBeTruthy();
+  });
+});
+
+describe("recommendation states", () => {
+  it("never presents a candidate that fails the required rule as ready to confirm", () => {
+    const conflict: Candidate = { ...candidate, id: "c2", requiredAvailable: false, unavailable: ["김민지"], conflictCount: 1, evidence: [{ attendee: "김민지", evidence: "calendar_conflict" }, { attendee: "박준호", evidence: "calendar_free" }] };
+    render(<CandidateList candidates={[conflict]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
+    expect(screen.getByText("조건 충돌")).toBeTruthy();
+    expect(screen.queryByText("확정 검토 가능")).toBeNull();
+    expect((screen.getByRole("button", { name: "확정 검토 불가" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it("marks an alternative with optional conflicts as a reference candidate", () => {
+    const alt: Candidate = { ...candidate, id: "c3", conflictCount: 1, unavailable: ["이소라"], evidence: [{ attendee: "김민지", evidence: "calendar_free" }, { attendee: "박준호", evidence: "direct_available" }, { attendee: "이소라", evidence: "calendar_conflict" }] };
+    render(<CandidateList candidates={[candidate, alt]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
+    expect(screen.getByText("참고 후보")).toBeTruthy();
   });
 });

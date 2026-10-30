@@ -25,7 +25,7 @@ describe("AttendeePicker", () => {
     const onConfirm = vi.fn();
     render(<AttendeePicker language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
     fireEvent.click((await screen.findAllByRole("button", { name: /\uae40\ubbfc\uc9c0/ }, { timeout: 8000 }))[0]);
-    fireEvent.click(await screen.findByRole("button", { name: "이 사람들과 계속" }, { timeout: 8000 })); // 부하가 있을 때도 선택이 반영될 때까지 기다려요
+    fireEvent.click(await screen.findByRole("button", { name: "참석자 1명 추가하기" }, { timeout: 8000 })); // 부하가 있을 때도 선택이 반영될 때까지 기다려요
     expect(onConfirm).toHaveBeenCalledWith(["김민지"]);
   }, 20000);
 
@@ -47,7 +47,7 @@ describe("AttendeePicker", () => {
     fireEvent.change(screen.getByLabelText("참석자 검색"), { target: { value: "partner@example.com" } });
     await waitFor(() => expect(screen.getByText("외부 참석자로 초대")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /partner@example.com/ }));
-    fireEvent.click(screen.getByRole("button", { name: "이 사람들과 계속" }));
+    fireEvent.click(screen.getByRole("button", { name: "참석자 1명 추가하기" }));
     expect(onConfirm).toHaveBeenCalledWith(["partner@example.com"]);
   });
 
@@ -72,3 +72,27 @@ describe("AttendeePicker", () => {
     expect(screen.queryByText(/선택한 참석자/)).toBeNull();
   }, 20000);
 });
+
+describe("AttendeePicker on a phone", () => {
+  it("opens a full-screen sheet with a fixed confirm bar that carries the selected count", async () => {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: (query: string) => ({ matches: true, media: query, addEventListener: () => undefined, removeEventListener: () => undefined, addListener: () => undefined, removeListener: () => undefined }) });
+    vi.mocked(api.directory).mockResolvedValue(tree);
+    vi.mocked(api.people).mockResolvedValue({ people, mode: "demo" });
+    const onConfirm = vi.fn();
+    try {
+      render(<AttendeePicker language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "참석자 선택하기" }));
+      const sheet = screen.getByRole("dialog", { name: "참석자 선택" });
+      expect(sheet).toBeTruthy();
+      expect((screen.getByRole("button", { name: "함께할 사람을 선택해 주세요" }) as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click((await screen.findAllByRole("button", { name: /김민지/ }, { timeout: 8000 }))[0]);
+      fireEvent.click(await screen.findByRole("button", { name: "참석자 1명 추가하기" }, { timeout: 8000 }));
+      expect(onConfirm).toHaveBeenCalledWith(["김민지"]);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    } finally {
+      Reflect.deleteProperty(window, "matchMedia");
+    }
+  }, 20000);
+});
+

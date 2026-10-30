@@ -2,6 +2,8 @@ import { Check, History, Plus, Search, UserPlus, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { MAX_ATTENDEES, type OrgTree, type PersonSummary } from "../types";
+import { MOBILE_QUERY, useMedia } from "../useMedia";
+import { namesLabel } from "../format";
 import { NodiMark } from "./NodiMark";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,6 +37,23 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  // 모바일에서는 목록을 전체 화면 시트로 열어요: 위에 검색·필터, 가운데 스크롤 목록, 아래에 인원과 확인 버튼.
+  const isMobile = useMedia(MOBILE_QUERY);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [viewport, setViewport] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const vv = window.visualViewport;
+    const update = () => vv && setViewport({ top: vv.offsetTop, height: vv.height });
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setSheetOpen(false); };
+    window.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { vv?.removeEventListener("resize", update); vv?.removeEventListener("scroll", update); window.removeEventListener("keydown", onKey); document.body.style.overflow = previous; };
+  }, [sheetOpen]);
 
   // 채팅에 쓴 이름은 여기서 자동으로 체크돼요.
   useEffect(() => {
@@ -114,14 +133,18 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   }
 
   const shownChips = expanded ? selected : selected.slice(0, CHIPS_SHOWN);
+  const confirmLabel = selected.length ? (ko ? `참석자 ${selected.length}명 추가하기` : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees");
 
-  return (
-    <section className="attendee-picker" aria-labelledby="attendee-picker-title">
-      <div className="guided-heading">
-        <span className="heading-logo"><NodiMark /></span>
-        <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
-      </div>
+  const heading = (
+    <div className="guided-heading">
+      <span className="heading-logo"><NodiMark /></span>
+      <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
+    </div>
+  );
 
+  // 검색 → 필터 → (팀 전체 추가) → 선택한 참석자 요약. 고른 사람은 목록 위에 고정돼 있어요.
+  const controls = (
+    <>
       <div className="people-search">
         <Search aria-hidden="true" />
         <label className="sr-only" htmlFor="attendee-search">{ko ? "참석자 검색" : "Search attendees"}</label>
@@ -165,7 +188,11 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
       {(notice || undo) && (
         <p className="people-notice" role="status">{notice}{undo && <button onClick={() => { setSelected(undo); setUndo(null); setNotice(""); }}>{ko ? "되돌리기" : "Undo"}</button>}</p>
       )}
+    </>
+  );
 
+  const results = (
+    <>
       <div className="people-stack">
         {recent.length > 0 && (
           <div className="people-section">
@@ -193,11 +220,45 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
         </div>
       </div>
       {externalEmail && <button className={`external-person ${selected.includes(externalEmail) ? "selected" : ""}`} onClick={() => toggle(externalEmail)}><span className="person-avatar">@</span><span className="person-copy"><strong>{externalEmail}</strong><small>{ko ? "외부 참석자로 초대" : "Invite as an external attendee"}</small></span><span className="person-add-icon">{selected.includes(externalEmail) ? <Check /> : <Plus />}</span></button>}
-
       {unlisted.length > 0 && <p className="rd-caption attendee-unlisted" role="note">{ko ? `${unlisted.join(", ")}은(는) 조직 구성원에서 찾을 수 없어요. 이메일 주소로 추가하면 응답 링크를 메일로 보낼 수 있고, 이름만 있으면 링크를 복사해서 직접 전달해야 해요.` : `${unlisted.join(", ")} not found in the directory. Add an email to send the link by mail, or copy the link and share it yourself.`}</p>}
       {error && <p className="dialog-error" role="alert">{error}</p>}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <section className="attendee-picker apick-mobile" aria-labelledby="attendee-picker-title">
+        {heading}
+        <p className="apick-lead">{ko ? "이름이나 팀으로 검색해서 참석자를 골라요. 한 번에 최대 50명까지 넣을 수 있어요." : "Search by name or team and pick attendees (up to 50)."}</p>
+        {selected.length > 0 && <p className="apick-picked"><strong>{ko ? `선택한 참석자 ${selected.length}명` : `${selected.length} selected`}</strong><span>{namesLabel(selected)}</span></p>}
+        {selected.length > 0 && !sheetOpen && <button className="primary-button attendee-confirm" onClick={() => onConfirm(selected)}>{confirmLabel}</button>}
+        <button className={selected.length ? "secondary-button apick-open" : "primary-button apick-open"} onClick={() => setSheetOpen(true)}>{selected.length ? (ko ? "참석자 더 고르기" : "Pick more") : (ko ? "참석자 선택하기" : "Choose attendees")}</button>
+        <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
+        {sheetOpen && (
+          <div className="asheet" role="dialog" aria-modal="true" aria-labelledby="asheet-title" style={viewport ? { top: viewport.top, height: viewport.height } : undefined}>
+            <header className="asheet-head">
+              <h2 id="asheet-title">{ko ? "참석자 선택" : "Choose attendees"}</h2>
+              <button className="asheet-close" onClick={() => setSheetOpen(false)} aria-label={ko ? "참석자 선택 닫기" : "Close"}><X aria-hidden="true" /></button>
+            </header>
+            <div className="asheet-controls">{controls}</div>
+            <div className="asheet-results">{results}</div>
+            <footer className="asheet-foot">
+              <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => { setSheetOpen(false); onConfirm(selected); }}>{confirmLabel}</button>
+            </footer>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="attendee-picker" aria-labelledby="attendee-picker-title">
+      {heading}
+      {controls}
+      {results}
       <p className="attendee-request-note">{ko ? "선택이 끝나면 각자에게 응답 링크를 보낼 수 있어요." : "After confirming the meeting details, you can send each attendee a private response link."}</p>
-      <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이 사람들과 계속" : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees")}</button>
+      <button className="primary-button attendee-confirm" disabled={!selected.length} onClick={() => onConfirm(selected)}>{confirmLabel}</button>
+      {!selected.length && <p className="attendee-disabled-reason">{ko ? "한 명 이상 선택하면 계속할 수 있어요." : "Select at least one person to continue."}</p>}
       <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
     </section>
   );

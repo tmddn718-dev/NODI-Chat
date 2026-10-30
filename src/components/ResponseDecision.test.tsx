@@ -23,7 +23,7 @@ describe("ResponseDecision", () => {
   it("lets the organizer pick wait or proceed when someone has not answered", () => {
     const fns = setup(round());
     expect(screen.getByText("어떻게 진행할까요?")).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: /응답 더 기다리기/ }));
+    // 비교 버튼이 없는 화면에서는 "응답 더 기다리기"가 처음부터 펼쳐져 있어요
     fireEvent.click(screen.getByRole("button", { name: "미응답 1명에게 재알림 보내기" }));
     expect(fns.onRemind).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "+3시간" }));
@@ -34,29 +34,29 @@ describe("ResponseDecision", () => {
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(fns.onExtend).toHaveBeenCalledTimes(2);
     expect(fns.onExtend.mock.calls[1][0]).toBe(new Date(`${when}:00+09:00`).toISOString());
-    fireEvent.click(screen.getByRole("radio", { name: /현재 조건으로 확정 검토/ }));
-    fireEvent.click(screen.getByRole("button", { name: "현재 조건으로 확정 검토" }));
+    fireEvent.click(screen.getByRole("button", { name: "현재 조건으로 확정 검토하기" }));
     expect(fns.onProceed).toHaveBeenCalledTimes(1);
   });
 
   it("holds confirmation and offers a refresh when no candidate fits the required people", () => {
     const fns = setup(round({}, false));
     expect(screen.getByText("꼭 참석할 사람의 시간이 맞는 후보가 없어요")).toBeTruthy();
-    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "응답 더 기다리기" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "다른 후보 확인하기" }));
     expect(fns.onRefresh).toHaveBeenCalled();
   });
 
   it("shows no decision card once everyone answered", () => {
     setup(round({ responded: 2, participants: [person("가", true), person("나", true)] }));
-    expect(screen.getByText("모든 응답을 받았어요")).toBeTruthy();
-    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByText("모두 응답")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "응답 더 기다리기" })).toBeNull();
   });
 
   it("shows the currently most likely time with each person's response", () => {
     setup(round());
     expect(screen.getByText("현재 가장 유력한 시간")).toBeTruthy();
-    expect(screen.getByText("필수 참석자 일정 충돌 없음")).toBeTruthy();
+    expect(screen.getByText("필수 참석자 조건 충족")).toBeTruthy();
+    expect(screen.getByText("1명 대기")).toBeTruthy();
     expect(screen.getByText("가 참석 가능 응답")).toBeTruthy();
     expect(screen.getByText("선택 참석자 1명 응답 대기")).toBeTruthy();
   });
@@ -68,14 +68,19 @@ describe("ResponseDecision", () => {
     expect(onEditRequired).toHaveBeenCalled();
   });
 
-  it("defaults to comparing other times, changes the primary action per choice and warns that absentees are not guaranteed", () => {
+  it("emphasizes one primary action, hides waiting tools until asked, and warns that absentees are not guaranteed", () => {
     const onCompare = vi.fn();
-    render(<ResponseDecision round={round()} busy={false} onRemind={vi.fn()} onProceed={vi.fn()} onRefresh={vi.fn()} onCompare={onCompare} />);
-    expect((screen.getByRole("radio", { name: /다른 시간 비교하기/ }) as HTMLInputElement).checked).toBe(true);
+    const onProceed = vi.fn();
+    render(<ResponseDecision round={round()} busy={false} onRemind={vi.fn()} onProceed={onProceed} onRefresh={vi.fn()} onCompare={onCompare} onExtend={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "다른 시간 비교하기" }).className).not.toContain("secondary");
+    expect(screen.getByRole("button", { name: "응답 더 기다리기" }).className).toContain("secondary");
+    expect(screen.queryByRole("group", { name: "응답 마감 연장" })).toBeNull(); // 기다리기 도구는 눌러야 보여요
     expect(screen.getByText("미응답자의 참석은 보장되지 않아요")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "다른 후보 비교하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "다른 시간 비교하기" }));
     expect(onCompare).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("radio", { name: /현재 조건으로 확정 검토/ }));
-    expect(screen.getByRole("button", { name: "현재 조건으로 확정 검토" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "응답 더 기다리기" }));
+    expect(screen.getByRole("group", { name: "응답 마감 연장" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "현재 조건으로 확정 검토하기" }));
+    expect(onProceed).toHaveBeenCalled();
   });
 });

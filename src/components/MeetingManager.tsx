@@ -186,8 +186,8 @@ export function MeetingManager({
         {!editing && (
           <>
             <div className="done-actions">
-              <button className="secondary-button" onClick={onBack}>내 회의 보기</button>
-              <button className="primary-button" onClick={onNew}>새 회의 만들기</button>
+              <button className="secondary-button" onClick={onNew}>새 회의 만들기</button>
+              <button className="primary-button" onClick={onBack}>내 회의 보기</button>
             </div>
             {confirmCancel ? (
               <div className="done-cancel" role="alertdialog" aria-label="회의 취소 확인">
@@ -195,7 +195,10 @@ export function MeetingManager({
                 <div><button className="ghost-button" onClick={() => setConfirmCancel(false)} disabled={loading}>그대로 둘게요</button><button className="danger-button" onClick={cancel} disabled={loading}>{loading ? "취소 중..." : "회의 취소하기"}</button></div>
               </div>
             ) : (
-              <button className="text-link done-cancel-link" onClick={() => setConfirmCancel(true)}>회의 취소</button>
+              <details className="done-more">
+                <summary>더보기</summary>
+                <button type="button" className="done-more-item danger" onClick={() => setConfirmCancel(true)}>회의 취소</button>
+              </details>
             )}
           </>
         )}

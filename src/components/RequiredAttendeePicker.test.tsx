@@ -15,17 +15,21 @@ describe("RequiredAttendeePicker", () => {
     expect(screen.getByText("partner@example.com")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /\uae40\ubbfc\uc9c0/ }));
     fireEvent.click(screen.getByRole("button", { name: /partner@example.com/ }));
-    fireEvent.click(screen.getByRole("button", { name: "이대로 계속" }));
+    fireEvent.click(screen.getByRole("button", { name: "이 조건으로 계속하기" }));
     expect(onConfirm).toHaveBeenCalledWith(["김민지", "partner@example.com"]);
   });
 
   it("supports explicit select all and no-required-attendee choices", () => {
     const onConfirm = vi.fn();
     render(<RequiredAttendeePicker attendees={["김민지", "박준호"]} language="ko" onConfirm={onConfirm} onDirectInput={() => undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: "모두 선택" }));
-    expect(screen.getByText("2명이 꼭 참석해요")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "선택 해제" }));
-    fireEvent.click(screen.getByRole("button", { name: "건너뛰기" }));
+    fireEvent.click(screen.getByRole("button", { name: "모두 필수로" }));
+    expect(screen.getByText("필수 참석자 2명")).toBeTruthy();
+    expect(screen.getByText("필수 2명")).toBeTruthy();
+    expect(screen.getByText("선택 0명")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "모두 선택으로" }));
+    expect(screen.getByText("필수 참석자 없음")).toBeTruthy();
+    expect(screen.getByText(/모든 참석자를 선택 참석자로 보고/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "이 조건으로 계속하기" }));
     expect(onConfirm).toHaveBeenCalledWith([]);
   });
 });
