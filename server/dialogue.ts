@@ -2,7 +2,12 @@ import type { DemoPerson, MeetingDraft } from "./types.ts";
 
 // 자연어 해석(AI) 결과를 그대로 저장하지 않고, 검증한 뒤 상태에 합치고 다음 행동을 정해요. AI는 이해만, 결정은 여기서 해요.
 export type Field = "title" | "purpose" | "durationMinutes" | "attendees" | "requiredAttendees" | "preferredTime" | "dateStart" | "dateEnd";
-export type UserIntent = "create_meeting" | "update_condition" | "remove_condition" | "request_recommendation" | "confirm_condition" | "confirm_meeting" | "cancel_flow" | "ask_explanation" | "unknown";
+// 의도 분류(System Prompt v1.0). 이전 이름(update_condition 등)은 normalizeIntent가 새 이름으로 바꿔요.
+export type UserIntent =
+  | "create_meeting" | "update_meeting" | "add_attendee" | "remove_attendee" | "update_attendee_priority" | "update_date_range" | "update_time_preference"
+  | "search_availability" | "explain_recommendation" | "compare_candidates" | "check_rsvp_status" | "confirm_condition" | "confirm_meeting" | "cancel_meeting"
+  | "help" | "out_of_scope" | "unknown"
+  | "update_condition" | "remove_condition" | "request_recommendation" | "ask_explanation" | "cancel_flow";
 export type AmbiguityType = "multiple_meanings" | "unclear_person" | "unclear_group" | "unclear_date" | "unclear_time" | "unclear_duration" | "unclear_requirement" | "conflicting_value" | "missing_reference" | "delegated_decision";
 export type AmbiguityOption = { id: string; label: string; patch?: Partial<MeetingDraft> };
 export type Ambiguity = { field: Field; rawText: string; reason: string; type?: AmbiguityType; options?: AmbiguityOption[] };

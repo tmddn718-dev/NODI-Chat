@@ -175,6 +175,8 @@ export type NextAction =
 // 서버가 해석 → 검증 → 병합한 결과. nextAction은 서버의 대화 플래너가 정해요.
 export type ChatResult = {
   intent: string;
+  // true이면 회의 조건을 바꾸지 않는 답변(설명·비교·응답 현황·안내)이에요.
+  answerOnly?: boolean;
   assistantMessage: string;
   meeting: MeetingDraft;
   changedFields: string[];

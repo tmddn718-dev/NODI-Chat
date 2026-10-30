@@ -461,11 +461,11 @@ export function ChatScreen({
     setCustomPlaceholder("");
     setLoading(true);
     setError("");
-    setCandidates([]);
-    setRecommendationComplete(false);
     const epoch = epochRef.current;
     try {
       const result = await api.chat({
+        // 후보·응답을 설명해 달라는 질문에 실제 데이터로 답하도록 현재 후보와 라운드를 함께 보내요.
+        context: { roundToken: roundToken || undefined, candidates: candidates.slice(0, 5) },
         messages: nextMessages.map(({ role, content: value }) => ({ role, content: value })),
         meeting,
         model,
@@ -473,6 +473,14 @@ export function ChatScreen({
         currentField: guidedStep?.key,
       });
       if (epoch !== epochRef.current) return;
+      // 설명·비교·응답 현황 같은 질문은 답만 하고 회의 조건과 후보 화면은 그대로 둬요.
+      if (result.answerOnly) {
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.assistantMessage }]);
+        setLastAction(null);
+        return;
+      }
+      setCandidates([]);
+      setRecommendationComplete(false);
       const nextMeeting = { ...(result.meeting ?? meeting), version: (meeting.version ?? 1) + 1 };
       const changed = (result.changedFields ?? []) as FieldKey[];
       const proposedField = (Object.keys(result.proposedFields ?? {})[0] ?? null) as FieldKey | null;

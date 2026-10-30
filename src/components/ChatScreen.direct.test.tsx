@@ -117,6 +117,21 @@ describe("ambiguous input", () => {
   }, 20_000);
 });
 
+describe("answer-only reply", () => {
+  it("shows the answer in the chat and leaves the question, meeting and understood card untouched", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    mocks.chat.mockResolvedValue({ intent: "help", answerOnly: true, assistantMessage: "NODI는 대화로 회의 조건을 정해요.", meeting: { timezone: "Asia/Seoul", version: 1 }, changedFields: [], proposedFields: {}, ambiguities: [], nextAction: { type: "ask", field: "title" }, issues: [], complete: false, model: "m" });
+    const box = document.getElementById("chat-input") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "어떻게 쓰는 거야?" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText("NODI는 대화로 회의 조건을 정해요.", undefined, { timeout: 8000 })).toBeTruthy();
+    expect(heading()).toBe("어떤 회의를 잡을까요?");
+    expect(document.querySelector(".guided-options .recommended")).toBeNull();
+    expect(mocks.chat.mock.calls[0][0].context).toBeDefined();
+  }, 20_000);
+});
+
 describe("understood card", () => {
   it("reverts a single understood field", async () => {
     render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
