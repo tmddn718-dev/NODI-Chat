@@ -1,6 +1,6 @@
 import { chatWithGroq } from "./groq.ts";
 import type { Interpretation } from "./dialogue.ts";
-import { demoPeople } from "./demo-data.ts";
+import { orgPeople } from "./org-data.ts";
 import { interpretScenario } from "./scenario.ts";
 import type { MeetingDraft } from "./types.ts";
 
@@ -27,7 +27,7 @@ export const groqInterpreter: Interpreter = {
 // 외부 호출이 없는 체험용 해석기. LLM이 아니라 정해진 규칙으로 읽는다.
 export const scenarioInterpreter: Interpreter = {
   interpret: async ({ messages, meeting, currentField }) =>
-    interpretScenario(messages.filter((m) => m.role === "user").at(-1)?.content ?? "", meeting, demoPeople, new Date(), currentField),
+    interpretScenario(messages.filter((m) => m.role === "user").at(-1)?.content ?? "", meeting, orgPeople, new Date(), currentField),
 };
 
 // NODI_MODE=demo 이면 키 없이 체험 모드로, 그 외에는 Groq 모드(기본)로 동작한다.

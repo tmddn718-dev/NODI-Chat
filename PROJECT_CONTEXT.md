@@ -280,3 +280,22 @@ NODI-Chat/
 4. 확인 못 한 화면 점검: 실제 Groq 키 연결 후 라운드 전체(요청 → 응답 → 추천 → 확정 → 변경 알림)와 키보드 열림 동작.
 5. 정리 작업(요청 시): `styles.css` 미사용 규칙·`:root` 중복 정리(백업 후), 5장 목록 갱신.
 6. 중장기: 후보 직접 추가/수정, 확정 후 시간 변경(새 라운드), 필수 참석자 직접 응답, Phase 0(DB·인증), 실제 메일·캘린더, 사용성 테스트.
+
+## 9. 100~500명 규모 개편 (2026-10-30 · `ver.2`, 커밋 전)
+회사 구성원 100~500명과 공유 캘린더를 가정해 디렉터리·참석자 선택·추천·응답 현황을 바꿨습니다.
+- **조직 데이터** `server/org-data.ts`: 8개 본부·약 30개 팀·259명(샘플 5명 포함)의 결정적 가상 조직(`generateOrg(기준일)`). 직급, 근무시간(`workHours`), 휴가(`leave`), 팀 정기회의 포함. 서버가 켜진 날을 기준일로 쓰므로 며칠씩 켜 두면 날짜가 지납니다(`ponytail:` 주석). 실제 디렉터리로 바꿀 때는 `DemoPerson[]`을 돌려주는 부분만 교체.
+- **검색 API** `server/people.ts`: `searchDirectory`(이름·이메일·팀·부서·직무 검색, 부서/팀 필터, `limit`(기본 30·최대 500)/`offset`, `total`, `hasMore`), `orgTree`. `GET /api/people?query&department&team&limit&offset`, `GET /api/directory`. 일정 블록(제목 포함)은 응답에 담지 않음.
+- **추천 엔진** `server/recommendation.ts`: 이름 조회·일정 블록 캐시(WeakMap)로 계산량 축소, 휴가·근무시간 밖은 새 근거 `out_of_office`("휴가·근무 시간 외")로 불가 처리. 점수 규칙은 그대로.
+- **참석자 상한 50명**: `dialogue.ts`의 `MAX_ATTENDEES`와 `src/types.ts`의 `MAX_ATTENDEES`를 같게 유지. 초과하면 이유를 안내.
+- **화면**: `AttendeePicker`(검색·부서/팀 필터·더 보기·"팀 전체 추가"·선택 요약·되돌리기), `RequiredAttendeePicker`(9명 이상이면 찾기·팀별 묶음·팀 전체 꼭 참석), `RoundPanel` 응답 현황(9명 이상이면 팀별 묶음·미응답만 보기), 추천 카드 상세(8명까지 표시 후 펼침), 긴 이름 목록은 `namesLabel`("A, B, C, D 외 N명").
+- **동명이인**: 참석자는 아직 이름 문자열로 식별합니다. 가상 조직 이름은 모두 고유하고, 같은 이름이 둘 이상이면 기존 "누구인가요?" 선택 흐름이 처리합니다. 실제 회사 도입 전에 사번/이메일 기준 식별로 바꿔야 합니다(미구현).
+- **미확인**: 실제 Groq 키로 대규모 팀 문장("개발팀 다 부를게") 해석 품질, 실기기 키보드, 5,000명 이상 규모.
+
+## 10. 대화 엔진 개편 — System Prompt v1.0 반영 (2026-10-30 · `ver.2`, 커밋 전)
+- **역할 분리 유지**: AI(`groq.ts`)는 의도·값 해석만, 사용자에게 보이는 문장은 `server/conversation.ts`가 실제 데이터로 만든다. AI가 쓴 설명·확정 문구는 그대로 보여주지 않는다.
+- **의도 분류**: `UserIntent`를 명세 목록(create/update_meeting, add/remove_attendee, update_attendee_priority, update_date_range, update_time_preference, search_availability, explain_recommendation, compare_candidates, check_rsvp_status, confirm/cancel_meeting, help, out_of_scope, unknown)으로 확장. 이전 이름은 `normalizeIntent`가 새 이름으로 바꿈. 프롬프트에 필수/선택 표현("꼭 와야 해"/"되면 오라고"), "언제든", 모호한 날짜·시간은 선택지로 묻기 규칙 추가.
+- **근거 기반 답변(답변만 하는 응답, `answerOnly: true`)**: 추천 설명·후보 비교·응답 현황·사용법·범위 밖 요청. 라운드가 있으면 서버 저장값(`roundToken`), 없으면 화면이 보낸 후보(`context.candidates`, 필드만 골라 받음)를 사용. 점수·보장·"최고" 표현 금지, 캘린더 빈 시간 ≠ 수락, 응답 없음 ≠ 불참을 문장에 명시, 근거가 없으면 "상세 추천 근거를 확인할 수 없어요"(조회했다고 말하지 않음).
+- **변경 요약 문구**: 바뀐 항목만("회의 시간을 60분에서 30분으로 변경했어요. 나머지 조건은 그대로 유지할게요.")을 `describeChanges`가 생성. 변경과 질문이 함께 오면 변경을 먼저 알리고 답을 이어 붙임.
+- **보호**: 채팅으로 "확정/취소해줘"가 와도 확정·취소하지 않고 확인 화면 승인 방법을 안내. 아무것도 연결하지 못하면 표준 문장("회의 시간, 참석자, 날짜 중 어떤 항목을…").
+- **화면**: `ChatScreen.send`가 후보·라운드 맥락을 함께 보내고, `answerOnly` 응답은 대화창에 답만 추가(조건·후보·카드 유지). 오류가 나도 후보를 지우지 않음.
+- **미확인**: 실제 Groq로 새 의도 분류 정확도(특히 explain/compare/rsvp 구분), "좀 늦은 시간으로"처럼 시각 단위 선호(현재 선호 시간은 오전/오후/무관만 표현), 후보 화면에서 채팅 입력창이 모든 단계에 열려 있는지 화면 확인.

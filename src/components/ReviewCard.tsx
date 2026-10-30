@@ -1,6 +1,7 @@
 import { CircleAlert, Info, Pencil } from "lucide-react";
 import type { MeetingDraft } from "../types";
 import { NodiMark } from "./NodiMark";
+import { namesLabel } from "../format";
 
 const timeLabels = { morning: "오전", afternoon: "오후", any: "시간대 무관" };
 
@@ -12,7 +13,7 @@ export function reviewItems(meeting: MeetingDraft) {
   return [
     { label: "회의", value: [meeting.title, meeting.purpose].filter(Boolean).join(" · "), ok: Boolean(meeting.title && meeting.purpose) },
     { label: "소요 시간", value: meeting.durationMinutes ? `${meeting.durationMinutes}분` : "", ok: Boolean(meeting.durationMinutes) },
-    { label: "꼭 참석할 사람", value: required ? (required.length ? `${required.length}명 · ${required.join(", ")}` : "없음") : "", ok: required !== undefined },
+    { label: "꼭 참석할 사람", value: required ? (required.length ? `${required.length}명 · ${namesLabel(required)}` : "없음") : "", ok: required !== undefined },
     { label: "참여하면 좋은 사람", value: required ? (optionalCount ? `${optionalCount}명` : "없음") : "", ok: required !== undefined && attendees.length > 0 },
     { label: "날짜와 시간대", value: meeting.dateStart && meeting.dateEnd && meeting.preferredTime ? `${range} · ${timeLabels[meeting.preferredTime]}` : "", ok: Boolean(meeting.dateStart && meeting.dateEnd && meeting.preferredTime) },
     { label: "시간대", value: meeting.timezone ?? "Asia/Seoul", ok: true },
@@ -56,11 +57,11 @@ export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDra
 
       <div className="cd-section">
         <div className="cd-people">
-          <div><strong>필수 참석자</strong><span>{required ? (required.length ? required.join(", ") : "없음") : missing}</span></div>
+          <div><strong>필수 참석자</strong><span>{required ? (required.length ? namesLabel(required) : "없음") : missing}</span></div>
           {required && <em>{required.length}명</em>}
         </div>
         <div className="cd-people">
-          <div><strong>참여하면 좋은 사람</strong><span>{required ? (optional.length ? optional.join(", ") : "없음") : missing}</span></div>
+          <div><strong>참여하면 좋은 사람</strong><span>{required ? (optional.length ? namesLabel(optional) : "없음") : missing}</span></div>
           {required && <em>{optional.length}명</em>}
         </div>
       </div>

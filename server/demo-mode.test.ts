@@ -53,4 +53,23 @@ describe("demo mode", () => {
     expect(await events(a)).toEqual([]);
     expect(await events(b)).toEqual([]);
   });
+
+  it("answers a why-question from the candidate sent with it and keeps the demo help for unreadable input", async () => {
+    const cookie = await start();
+    const meeting = { title: "t", purpose: "p", durationMinutes: 30, attendees: ["김민지", "박준호"], requiredAttendees: ["김민지"], preferredTime: "any", dateStart: "2099-01-05", dateEnd: "2099-01-09" };
+    const candidate = { start: "2099-01-06T05:00:00.000Z", requiredAvailable: true, unavailable: [], noResponse: ["박준호"], tentative: [], evidence: [{ attendee: "김민지", evidence: "calendar_free" }, { attendee: "박준호", evidence: "no_response" }] };
+    const why = (await (await post("/api/chat", { messages: [{ role: "user", content: "왜 이 시간이 좋아?" }], meeting, context: { candidates: [candidate] } }, cookie)).json()) as { answerOnly: boolean; assistantMessage: string };
+    expect(why.answerOnly).toBe(true);
+    expect(why.assistantMessage).toContain("필수 참석자 1명의 캘린더에 충돌이 없어요");
+    const lost = (await (await post("/api/chat", { messages: [{ role: "user", content: "점심 메뉴 알려줘 ㅎㅎ" }], meeting }, cookie)).json()) as { assistantMessage: string };
+    expect(lost.assistantMessage).toContain("데모에서는");
+    expect(outbound).toEqual([]);
+  });
+
+  it("serves the company directory to a demo visitor", async () => {
+    const cookie = await start();
+    const page = (await (await fetch(`${base}/api/people?limit=10`, { headers: { cookie } })).json()) as { people: unknown[]; total: number };
+    expect(page.people).toHaveLength(10);
+    expect(page.total).toBeGreaterThanOrEqual(100);
+  });
 });

@@ -2,7 +2,12 @@ import type { DemoPerson, MeetingDraft } from "./types.ts";
 
 // 자연어 해석(AI) 결과를 그대로 저장하지 않고, 검증한 뒤 상태에 합치고 다음 행동을 정해요. AI는 이해만, 결정은 여기서 해요.
 export type Field = "title" | "purpose" | "durationMinutes" | "attendees" | "requiredAttendees" | "preferredTime" | "dateStart" | "dateEnd";
-export type UserIntent = "create_meeting" | "update_condition" | "remove_condition" | "request_recommendation" | "confirm_condition" | "confirm_meeting" | "cancel_flow" | "ask_explanation" | "unknown";
+// 의도 분류(System Prompt v1.0). 이전 이름(update_condition 등)은 normalizeIntent가 새 이름으로 바꿔요.
+export type UserIntent =
+  | "create_meeting" | "update_meeting" | "add_attendee" | "remove_attendee" | "update_attendee_priority" | "update_date_range" | "update_time_preference"
+  | "search_availability" | "explain_recommendation" | "compare_candidates" | "check_rsvp_status" | "confirm_condition" | "confirm_meeting" | "cancel_meeting"
+  | "help" | "out_of_scope" | "unknown"
+  | "update_condition" | "remove_condition" | "request_recommendation" | "ask_explanation" | "cancel_flow";
 export type AmbiguityType = "multiple_meanings" | "unclear_person" | "unclear_group" | "unclear_date" | "unclear_time" | "unclear_duration" | "unclear_requirement" | "conflicting_value" | "missing_reference" | "delegated_decision";
 export type AmbiguityOption = { id: string; label: string; patch?: Partial<MeetingDraft> };
 export type Ambiguity = { field: Field; rawText: string; reason: string; type?: AmbiguityType; options?: AmbiguityOption[] };
@@ -26,6 +31,7 @@ const norm = (value: string) => value.trim().toLocaleLowerCase("ko-KR").replaceA
 const validDate = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 export const MIN_DURATION = 15;
 export const MAX_DURATION = 480;
+export const MAX_ATTENDEES = 50;
 
 // 이름을 디렉터리와 연결해요. 한 명이면 정식 이름으로, 여러 명이면 모호성으로, 없으면 입력한 그대로(외부·미등록) 둬요.
 function resolveAttendees(names: string[], people: DemoPerson[]) {
@@ -46,7 +52,7 @@ function resolveAttendees(names: string[], people: DemoPerson[]) {
       ambiguities.push({ field: "attendees", rawText: raw, reason: "multiple_people", options: hits.map((person) => ({ id: person.name, label: `${person.name} · ${person.team ?? ""} ${person.title ?? ""}`.trim() })) });
     } else resolved.push(hits[0]?.name ?? (raw.includes("@") ? raw.trim().toLowerCase() : raw.trim()));
   }
-  return { attendees: [...new Set(resolved)].slice(0, 50), ambiguities, groups: [...new Set(groups)], askTeam };
+  return { attendees: [...new Set(resolved)].slice(0, MAX_ATTENDEES), ambiguities, groups: [...new Set(groups)], askTeam };
 }
 
 function clean(raw: Partial<MeetingDraft>, people: DemoPerson[]) {
@@ -105,6 +111,8 @@ export function applyInterpretation(current: MeetingDraft, interp: Interpretatio
   for (const field of FIELDS) if (next[field] !== undefined || patch[field] !== undefined || (field === "requiredAttendees" && proposed[field] && !next.attendees?.length)) delete proposed[field];
 
   if (groups.length) proposed.attendees = [...new Set([...(current.attendees ?? []), ...groups])];
+  if ((proposed.attendees?.length ?? 0) > MAX_ATTENDEES) { proposed.attendees = proposed.attendees!.slice(0, MAX_ATTENDEES); issues.push(`한 회의에는 최대 ${MAX_ATTENDEES}명까지 넣을 수 있어서 앞의 ${MAX_ATTENDEES}명만 제안했어요.`); }
+  if (Array.isArray(interp.meetingPatch.attendees) && interp.meetingPatch.attendees.length > MAX_ATTENDEES) issues.push(`한 회의에는 최대 ${MAX_ATTENDEES}명까지 넣을 수 있어서 앞의 ${MAX_ATTENDEES}명만 반영했어요.`);
   const changedFields = FIELDS.filter((field) => JSON.stringify(current[field]) !== JSON.stringify(next[field]));
   // AI가 낸 해석 선택지는 patch를 검증해 2~4개만 남기고, patch가 없거나 무효인 선택지는 버려요(직접 입력은 UI가 항상 제공해요).
   const aiAmbiguities = interp.ambiguities.flatMap((item) => {

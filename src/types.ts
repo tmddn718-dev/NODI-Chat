@@ -14,7 +14,7 @@ export type MeetingDraft = {
   priority?: string;
 };
 
-export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable";
+export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable" | "out_of_office";
 
 export type VerifyResult = { status: "ok" | "conflict" | "stale"; checkedAt: string; message: string; candidate?: Candidate };
 
@@ -90,7 +90,13 @@ export type PersonSummary = {
   lastMetAt?: string;
   title?: string;
   team?: string;
+  department?: string;
 };
+
+// 한 회의의 참석자 상한(서버 dialogue.ts와 같은 값).
+export const MAX_ATTENDEES = 50;
+
+export type OrgTree = { total: number; departments: Array<{ name: string; count: number; teams: Array<{ name: string; count: number }> }> };
 
 export type DraftPayload = {
   meeting: MeetingDraft;
@@ -144,7 +150,7 @@ export type RoundSummary = {
   reminderCount: number;
   rows: RoundRow[];
   invitedAt?: string;
-  participants: Array<{ attendee: string; urlToken: string; responded: boolean; delivery: "not_sent" | "sent" | "failed"; deliveryError?: string }>;
+  participants: Array<{ attendee: string; team?: string; urlToken: string; responded: boolean; delivery: "not_sent" | "sent" | "failed"; deliveryError?: string }>;
   updatedAt: string;
 };
 
@@ -169,6 +175,8 @@ export type NextAction =
 // 서버가 해석 → 검증 → 병합한 결과. nextAction은 서버의 대화 플래너가 정해요.
 export type ChatResult = {
   intent: string;
+  // true이면 회의 조건을 바꾸지 않는 답변(설명·비교·응답 현황·안내)이에요.
+  answerOnly?: boolean;
   assistantMessage: string;
   meeting: MeetingDraft;
   changedFields: string[];

@@ -1,5 +1,6 @@
 import { Check, LoaderCircle, TriangleAlert, X } from "lucide-react";
 import type { Candidate, MeetingDraft } from "../types";
+import { namesLabel } from "../format";
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -71,11 +72,11 @@ export function ConfirmDialog({
 
         <div className="cd-section">
           <div className="cd-people">
-            <div><strong>필수 참석자</strong><span>{required.length ? required.join(", ") : "없음"}</span></div>
+            <div><strong>필수 참석자</strong><span>{required.length ? namesLabel(required) : "없음"}</span></div>
             <em>{required.length}명</em>
           </div>
           <div className="cd-people">
-            <div><strong>참여하면 좋은 사람</strong><span>{optional.length ? optional.join(", ") : "없음"}</span></div>
+            <div><strong>참여하면 좋은 사람</strong><span>{optional.length ? namesLabel(optional) : "없음"}</span></div>
             <em>{optional.length}명</em>
           </div>
         </div>

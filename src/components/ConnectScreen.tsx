@@ -61,7 +61,7 @@ export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
           <div className="connect-card">
             <span className="key-icon"><PlayCircle size={26} /></span>
             <h2 id="connect-title">바로 체험해 보세요</h2>
-            <p className="muted">가상 캘린더와 가상 직원 5명으로 회의 시간을 찾는 과정을 체험할 수 있어요.</p>
+            <p className="muted">가상 캘린더와 가상 조직(약 260명)으로 회의 시간을 찾는 과정을 체험할 수 있어요.</p>
             {notice && <p className="connect-notice" role="status">{notice}</p>}
             <ul className="demo-points">
               <li>실제 일정이나 메일은 만들어지지 않아요.</li>

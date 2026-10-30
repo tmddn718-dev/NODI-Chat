@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ draft: vi.fn(), saveDraft: vi.fn(), people: vi.fn(), chat: vi.fn() }));
 vi.mock("../api", () => ({
   ApiError: class ApiError extends Error { constructor(message: string, readonly status: number, readonly code?: string) { super(message); } },
-  api: { draft: mocks.draft, saveDraft: mocks.saveDraft, people: mocks.people, chat: mocks.chat, deleteDraft: vi.fn().mockResolvedValue(undefined), invitationAvailability: vi.fn() },
+  api: { draft: mocks.draft, saveDraft: mocks.saveDraft, people: mocks.people, directory: vi.fn().mockResolvedValue({ total: 0, departments: [] }), chat: mocks.chat, deleteDraft: vi.fn().mockResolvedValue(undefined), invitationAvailability: vi.fn() },
 }));
 import { ChatScreen } from "./ChatScreen";
 
@@ -115,6 +115,37 @@ describe("ambiguous input", () => {
     fireEvent.click(screen.getByRole("button", { name: "아이디어를 다양하게 모으기" }));
     await waitFor(() => expect(heading()).toBe("얼마나 진행할까요?")); // 목적만 정해지고 종류는 그대로
   }, 20_000);
+});
+
+describe("answer-only reply", () => {
+  it("shows the answer in the chat and leaves the question, meeting and understood card untouched", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    mocks.chat.mockResolvedValue({ intent: "help", answerOnly: true, assistantMessage: "NODI는 대화로 회의 조건을 정해요.", meeting: { timezone: "Asia/Seoul", version: 1 }, changedFields: [], proposedFields: {}, ambiguities: [], nextAction: { type: "ask", field: "title" }, issues: [], complete: false, model: "m" });
+    const box = document.getElementById("chat-input") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "어떻게 쓰는 거야?" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText("NODI는 대화로 회의 조건을 정해요.", undefined, { timeout: 8000 })).toBeTruthy();
+    expect(heading()).toBe("어떤 회의를 잡을까요?");
+    expect(document.querySelector(".guided-options .recommended")).toBeNull();
+    expect(mocks.chat.mock.calls[0][0].context).toBeDefined();
+  }, 20_000);
+});
+
+describe("answer-only reply while choosing attendees", () => {
+  it("keeps the people already picked", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    for (const next of ["무엇을 위한 회의인가요?", "얼마나 진행할까요?", "누구와 함께하나요?"]) { pickFirst(); await waitFor(() => expect(heading()).toBe(next)); }
+    fireEvent.click((await screen.findAllByRole("button", { name: /김민지/ }, { timeout: 8000 }))[0]);
+    expect(document.querySelector(".selected-people")?.textContent).toContain("김민지");
+    mocks.chat.mockResolvedValue({ intent: "help", answerOnly: true, assistantMessage: "사용법이에요.", meeting: { timezone: "Asia/Seoul", version: 1 }, changedFields: [], proposedFields: {}, ambiguities: [], nextAction: { type: "ask", field: "attendees" }, issues: [], complete: false, model: "m" });
+    const box = document.getElementById("chat-input") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "어떻게 쓰는 거야?" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText("사용법이에요.", undefined, { timeout: 8000 })).toBeTruthy();
+    await waitFor(() => expect(document.querySelector(".selected-people")?.textContent).toContain("김민지"), { timeout: 8000 });
+  }, 30_000);
 });
 
 describe("understood card", () => {

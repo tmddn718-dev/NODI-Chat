@@ -38,7 +38,8 @@ function findMentions(text: string, people: DemoPerson[]): Mention[] {
   };
   for (const person of people) {
     const aliases = [person.name];
-    if (/^[가-힣]{3}$/.test(person.name)) aliases.push(person.name.slice(1));
+    // 이름만 부르는 별칭은 샘플 직원에게만 써요(조직 구성원 수백 명의 두 글자 이름이 일반 문장과 겹치지 않게).
+    if (/^[가-힣]{3}$/.test(person.name) && !/^p\d{3}$/.test(person.id)) aliases.push(person.name.slice(1));
     if (/^[A-Za-z]/.test(person.name)) aliases.push(person.name.split(/\s+/)[0]);
     take(person.name, aliases, true);
   }
@@ -158,12 +159,15 @@ export function interpretScenario(raw: string, meeting: MeetingDraft, people: De
   const hasPatch = Object.keys(patch).length > 0;
   const hasProposal = Object.keys(proposed).length > 0;
   const intent: Interpretation["intent"] = hasPatch
-    ? (meeting.title || meeting.attendees?.length || meeting.durationMinutes ? "update_condition" : "create_meeting")
-    : /처음부터|그만|취소|리셋/.test(text) ? "cancel_flow"
-    : /추천|찾아|잡아/.test(text) ? "request_recommendation"
+    ? (meeting.title || meeting.attendees?.length || meeting.durationMinutes ? "update_meeting" : "create_meeting")
+    : /처음부터|그만|취소|리셋/.test(text) ? "cancel_meeting"
+    : /왜|이유|근거|어째서/.test(text) ? "explain_recommendation"
+    : /비교|차이|다른 후보|대안/.test(text) ? "compare_candidates"
+    : /응답|답했|답변|누가 (왔|답)/.test(text) ? "check_rsvp_status"
+    : /어떻게|사용법|도움말|뭘 (할|해)|할 수 있/.test(text) ? "help"
     : /확정|진행해|그걸로/.test(text) ? "confirm_meeting"
-    : /왜|설명|어떻게/.test(text) ? "ask_explanation"
-    : hasProposal ? "update_condition" : "unknown";
+    : /추천|찾아|잡아/.test(text) ? "search_availability"
+    : hasProposal ? "update_meeting" : "unknown";
 
   const assistantMessage = parts.length
     ? `${parts.join(", ")} 내용을 반영했어요.`

@@ -1,6 +1,7 @@
 import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { MeetingDraft, MeetingEvent } from "../types";
+import { namesLabel } from "../format";
 
 export function MeetingManager({
   event,
@@ -135,8 +136,8 @@ export function MeetingManager({
             <dl className="done-rows">
               <div><dt>회의</dt><dd>{event.meeting.title}</dd></div>
               {event.meeting.purpose && <div><dt>목적</dt><dd>{event.meeting.purpose}</dd></div>}
-              {required.length > 0 && <div><dt>꼭 참석 {required.length}명</dt><dd>{required.join(", ")}</dd></div>}
-              <div><dt>{required.length ? `참여하면 좋은 사람 ${optional.length}명` : `참석자 ${attendees.length}명`}</dt><dd>{(required.length ? optional : attendees).join(", ") || "없음"}</dd></div>
+              {required.length > 0 && <div><dt>꼭 참석 {required.length}명</dt><dd>{namesLabel(required)}</dd></div>}
+              <div><dt>{required.length ? `참여하면 좋은 사람 ${optional.length}명` : `참석자 ${attendees.length}명`}</dt><dd>{namesLabel(required.length ? optional : attendees) || "없음"}</dd></div>
             </dl>
           )}
         </section>

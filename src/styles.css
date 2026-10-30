@@ -2290,3 +2290,38 @@ body.demo-on { --demo-h: 32px; }
 .demo-points li { position: relative; padding-left: 16px; }
 .demo-points li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--nodi-action-primary, #3654D4); }
 @media (max-width: 767px) { .demo-ribbon { font-size: var(--fs-12); padding: 0 12px; } }
+/* 수백 명 규모 조직: 참석자 선택(검색·부서/팀 필터·선택 요약·더 보기) */
+.people-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.people-filters select { width: 100%; min-height: 44px; padding: 0 12px; color: var(--nodi-text-primary); background: #F6F7F8; border: 1px solid transparent; border-radius: 12px; font: inherit; font-size: var(--fs-14); }
+.people-filters select:disabled { color: var(--nodi-text-placeholder); }
+.people-filters select:focus-visible { outline: 0; background: #fff; border-color: #A7B0CC; box-shadow: 0 0 0 3px rgb(54 84 212 / .09); }
+.team-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 10px; color: #3654D4; background: #E9EEFF; border: 1px solid #D1DCFF; border-radius: 12px; font-size: var(--fs-14); font-weight: 600; }
+.team-add svg { width: 18px; height: 18px; }
+.selected-summary { margin-top: 14px; }
+.selected-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.selected-head strong { color: var(--nodi-text-primary); font-size: var(--fs-14); font-weight: 700; }
+.selected-head button, .people-notice button { min-height: 32px; padding: 0 8px; color: #3654D4; background: transparent; border: 0; font-size: var(--fs-13); font-weight: 600; }
+.selected-people .selected-more { color: var(--nodi-text-secondary); background: transparent; border-color: var(--nodi-border-default); }
+.people-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 0; color: var(--nodi-text-secondary); font-size: var(--fs-13); line-height: 20px; }
+.attendee-picker .people-list { max-height: 340px; }
+.people-more { width: 100%; min-height: 44px; margin-top: 4px; color: #3654D4; background: #F4F6FF; border: 1px solid #D1DCFF; border-radius: 12px; font-size: var(--fs-14); font-weight: 600; }
+.people-more:disabled { color: var(--nodi-text-secondary); }
+@media (max-width: 767px) {
+  .people-filters { grid-template-columns: 1fr; }
+  .attendee-picker .people-list { max-height: 44dvh; }
+}
+
+/* 많은 참석자 중 꼭 참석할 사람 고르기 */
+.required-people.required-many { max-height: 46dvh; overflow-y: auto; }
+.required-group-head { margin-top: 6px; position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 2px; background: #fff; color: var(--nodi-text-secondary); font-size: var(--fs-13); font-weight: 700; }
+.required-group-head small { font-weight: 500; }
+.required-group-head button { min-height: 32px; padding: 0 8px; color: #3654D4; background: transparent; border: 0; font-size: var(--fs-13); font-weight: 600; }
+
+/* 응답 현황: 많은 참석자를 팀별로 묶어 보기 */
+.rsc-people-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 4px; color: var(--nodi-text-secondary); font-size: var(--fs-14); }
+.rsc-people-tools label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.rsc-people-tools input { width: 20px; height: 20px; accent-color: #3654D4; }
+.rsc-team + .rsc-team { margin-top: 8px; }
+.rsc-team-head { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 4px; color: var(--nodi-text-secondary); font-size: var(--fs-13); font-weight: 700; }
+.rsc-team-head span { font-weight: 500; }
+.rcard-more summary { min-height: 32px; color: #3654D4; font-size: var(--fs-13); font-weight: 600; cursor: pointer; }

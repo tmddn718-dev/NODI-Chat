@@ -5,20 +5,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
-import { demoPeople } from "./demo-data.ts";
+import { orgPeople as directory } from "./org-data.ts";
 import { rateLimit, securityHeaders } from "./security.ts";
 import { applyInterpretation } from "./dialogue.ts";
+import { buildReply, normalizeIntent, viewOfCandidate, viewOfRow, type CandidateView, type RsvpInput } from "./conversation.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
 import { DraftConflictError, DraftStore } from "./draft-store.ts";
 import { listModels, UpstreamError } from "./groq.ts";
 import { appMode, interpreterFor } from "./interpreter.ts";
+import { UNSUPPORTED_HELP } from "./scenario.ts";
 import { MemoryMeetingStore } from "./store.ts";
 import { InvitationStore } from "./invitation-store.ts";
-import { searchPeople } from "./people.ts";
+import { orgTree, searchDirectory } from "./people.ts";
 import { dispatch, notifyChange, OutboxMailer } from "./mailer.ts";
 import { RoundClosedError, RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
 import { recommendSlots, validateMeeting } from "./recommendation.ts";
-import type { AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
+import type { AttendanceEvidence, AvailabilityResponse, Candidate, DraftPayload, MeetingDraft } from "./types.ts";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -254,10 +256,22 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
       currentField: typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
     });
     // 해석 → 검증 → 상태 병합 → 다음 행동 계산. nextAction은 AI가 아니라 서버가 정해요.
-    const applied = applyInterpretation(meeting, interpretation, demoPeople, new Date());
+    const applied = applyInterpretation(meeting, interpretation, directory, new Date());
+    const intent = normalizeIntent(interpretation.intent);
+    // 설명·비교·응답 현황은 AI의 문장이 아니라 실제 후보·응답 데이터로 서버가 써요.
+    const context = ["explain_recommendation", "compare_candidates", "check_rsvp_status"].includes(intent)
+      ? await readChatContext(req.body.context, meeting.requiredAttendees ?? [])
+      : { views: [] as CandidateView[], rsvp: undefined as RsvpInput | undefined };
+    const reply = buildReply({
+      intent, interpretation, current: meeting, next: applied.meeting, changedFields: applied.changedFields,
+      hasProposalOrChoice: Object.keys(applied.proposedFields).length > 0 || applied.ambiguities.length > 0 || applied.issues.length > 0 || ["resolve_person", "resolve_ambiguity", "confirm_proposal"].includes(applied.nextAction.type),
+      context: { ...context, text: last.content },
+      notUnderstood: session!.mode === "demo" ? UNSUPPORTED_HELP : undefined,
+    });
     res.json({
-      intent: interpretation.intent,
-      assistantMessage: interpretation.assistantMessage,
+      intent,
+      assistantMessage: reply.message,
+      answerOnly: reply.answerOnly,
       model,
       ...applied,
       complete: validateMeeting(applied.meeting).length === 0,
@@ -267,12 +281,48 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
   }
 });
 
-app.get("/api/demo/people", (_req, res) => res.json({ people: demoPeople, label: "데모 데이터" }));
+// 채팅이 후보·응답을 설명할 때 쓰는 데이터. 라운드가 있으면 서버에 저장된 값을, 없으면 화면이 보낸 후보를 써요(필드만 골라 받아요).
+async function readChatContext(raw: unknown, required: string[]): Promise<{ views: CandidateView[]; rsvp?: RsvpInput }> {
+  const input = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const token = readInvitationToken(input.roundToken);
+  const record = token ? await roundStore.get(token) : undefined;
+  if (record) {
+    const summary = summarize(record);
+    const pending = record.participants.filter((p) => !p.respondedAt && p.delivery === "sent").map((p) => p.attendee);
+    const failed = record.participants.filter((p) => p.delivery === "failed").map((p) => p.attendee);
+    const top = summary.rows[0];
+    return {
+      views: summary.rows.map((row) => viewOfRow(row, required)),
+      rsvp: { invited: Boolean(record.invitedAt), total: record.participants.length, responded: record.participants.filter((p) => p.respondedAt).length, pending, failed, top: top && { accepted: top.accepted, declined: top.declined, tentative: top.tentative, noResponse: top.noResponse } },
+    };
+  }
+  const names = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.slice(0, 100)).slice(0, 100) : []);
+  const evidenceKinds = ["calendar_free", "calendar_conflict", "direct_available", "direct_unavailable", "tentative", "no_response", "calendar_unavailable", "out_of_office"];
+  const candidates = (Array.isArray(input.candidates) ? input.candidates : []).slice(0, 5).flatMap((item): Candidate[] => {
+    const c = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    if (typeof c.start !== "string" || !Number.isFinite(Date.parse(c.start))) return [];
+    const evidence = (Array.isArray(c.evidence) ? c.evidence : []).flatMap((entry) => {
+      const e = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
+      return typeof e.attendee === "string" && evidenceKinds.includes(String(e.evidence)) ? [{ attendee: e.attendee.slice(0, 100), evidence: e.evidence as AttendanceEvidence }] : [];
+    }).slice(0, 200);
+    return [{ start: c.start, requiredAvailable: c.requiredAvailable === true, unavailable: names(c.unavailable), noResponse: names(c.noResponse), tentative: names(c.tentative), evidence } as Candidate];
+  });
+  return { views: candidates.map((candidate) => viewOfCandidate(candidate, required)) };
+}
+
+app.get("/api/directory", requireSession, (_req, res) => res.json(orgTree(directory)));
 
 app.get("/api/people", requireSession, async (req, res, next) => {
   try {
-    const query = typeof req.query.query === "string" ? req.query.query.slice(0, 100) : "";
-    res.json({ people: searchPeople(demoPeople, await providerOf(req).listEvents(), query), mode: "demo" });
+    const text = (value: unknown, max = 100) => (typeof value === "string" ? value.slice(0, max) : undefined);
+    const result = searchDirectory(directory, await providerOf(req).listEvents(), {
+      query: text(req.query.query),
+      department: text(req.query.department),
+      team: text(req.query.team),
+      limit: Number(req.query.limit) || 30,
+      offset: Number(req.query.offset) || 0,
+    });
+    res.json({ ...result, mode: "demo" });
   } catch (error) {
     next(error);
   }
@@ -322,6 +372,8 @@ app.get("/api/invitations/:token", async (req, res, next) => {
   }
 });
 
+const teamByName = new Map(directory.map((person) => [person.name, person.team]));
+
 function organizerView(record: NonNullable<Awaited<ReturnType<RoundStore["get"]>>>) {
   return {
     token: record.token,
@@ -331,7 +383,7 @@ function organizerView(record: NonNullable<Awaited<ReturnType<RoundStore["get"]>
     updatedAt: record.updatedAt,
     ...summarize(record),
     invitedAt: record.invitedAt,
-    participants: record.participants.map((p) => ({ attendee: p.attendee, urlToken: p.token, responded: Boolean(p.respondedAt), delivery: p.delivery ?? "not_sent", deliveryError: p.deliveryError })),
+    participants: record.participants.map((p) => ({ attendee: p.attendee, team: teamByName.get(p.attendee), urlToken: p.token, responded: Boolean(p.respondedAt), delivery: p.delivery ?? "not_sent", deliveryError: p.deliveryError })),
   };
 }
 

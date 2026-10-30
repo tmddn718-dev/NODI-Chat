@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoPeople } from "./demo-data.ts";
+import { orgPeople } from "./org-data.ts";
 import { interpretScenario, UNSUPPORTED_HELP } from "./scenario.ts";
 
 // 2026-10-30(금) 정오(한국 시간)
@@ -46,5 +47,20 @@ describe("scenario interpreter", () => {
     const r = run("이소라는 빼줘", { attendees: ["김민지", "이소라"], requiredAttendees: ["이소라"] });
     expect(r.meetingPatch.attendees).toEqual(["김민지"]);
     expect(r.meetingPatch.requiredAttendees).toEqual([]);
+  });
+
+  it("classifies questions so the app can answer them from real data", () => {
+    expect(run("왜 이 시간이 좋아?").intent).toBe("explain_recommendation");
+    expect(run("후보 비교해줘").intent).toBe("compare_candidates");
+    expect(run("다들 응답했어?").intent).toBe("check_rsvp_status");
+    expect(run("어떻게 쓰는 거야?").intent).toBe("help");
+    expect(run("확정해줘").intent).toBe("confirm_meeting");
+    expect(run("회의 취소해줘").intent).toBe("cancel_meeting");
+  });
+
+  it("finds company members by full name but not by accidental two-letter overlaps", () => {
+    const member = orgPeople.find((person) => /^p\d{3}$/.test(person.id))!;
+    expect(interpretScenario(`${member.name}랑 30분`, {}, orgPeople, now).meetingPatch.attendees).toEqual([member.name]);
+    expect(interpretScenario("다음 주 화요일 오전 서연 지우 하준", {}, orgPeople, now).meetingPatch.attendees).toBeUndefined();
   });
 });

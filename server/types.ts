@@ -29,11 +29,15 @@ export type DemoPerson = {
   recentMeetingAt?: string;
   title?: string;
   team?: string;
+  department?: string;
+  // 근무 시간(한국 시간 기준 시 단위)과 휴가일. 없으면 종일 근무로 봐요.
+  workHours?: { start: number; end: number };
+  leave?: string[];
   blocks: CalendarBlock[];
 };
 
 // 참석 가능 여부의 근거 출처. calendar_free는 "캘린더상 비어 있음"이지 참석 수락이 아니에요.
-export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable";
+export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable" | "out_of_office";
 
 export type Candidate = {
   id: string;

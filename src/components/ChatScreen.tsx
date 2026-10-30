@@ -20,6 +20,7 @@ import { RequiredAttendeePicker } from "./RequiredAttendeePicker";
 import { RoundPanel } from "./RoundPanel";
 import { ProgressHeader, type EditableField, type ProgressInfo } from "./ProgressParts";
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
+import { namesLabel } from "../format";
 
 const intro: Message = {
   id: "intro",
@@ -116,6 +117,8 @@ export function ChatScreen({
   const [understood, setUnderstood] = useState<Understood | null>(null);
   const [proposal, setProposal] = useState<{ field: FieldKey; value: MeetingDraft[FieldKey]; reason?: string; alternatives?: number[] } | null>(null);
   const [preselect, setPreselect] = useState<{ names: string[]; nonce: number }>({ names: [], nonce: 0 });
+  // 참석자 카드에서 고르는 중인 사람. 질문에 대한 답이 오가도 카드가 다시 그려지며 사라지지 않게 여기 보관해요.
+  const [pickerDraft, setPickerDraft] = useState<{ attendees: string[]; required: string[] }>({ attendees: [], required: [] });
   const directoryRef = useRef<Array<{ name: string; email?: string }> | null>(null);
   const [pickPerson, setPickPerson] = useState<Array<{ id: string; label: string }> | null>(null);
   const [meaning, setMeaning] = useState<Extract<NextAction, { type: "resolve_ambiguity" }>["ambiguity"] | null>(null);
@@ -403,6 +406,7 @@ export function ChatScreen({
     setProposal(null);
     setPickPerson(null);
     setMeaning(null);
+    setPickerDraft({ attendees: [], required: [] });
     setCollectMethod("manual");
     setShowAllMessages(false);
     setConfirmError("");
@@ -460,11 +464,11 @@ export function ChatScreen({
     setCustomPlaceholder("");
     setLoading(true);
     setError("");
-    setCandidates([]);
-    setRecommendationComplete(false);
     const epoch = epochRef.current;
     try {
       const result = await api.chat({
+        // 후보·응답을 설명해 달라는 질문에 실제 데이터로 답하도록 현재 후보와 라운드를 함께 보내요.
+        context: { roundToken: roundToken || undefined, candidates: candidates.slice(0, 5) },
         messages: nextMessages.map(({ role, content: value }) => ({ role, content: value })),
         meeting,
         model,
@@ -472,6 +476,14 @@ export function ChatScreen({
         currentField: guidedStep?.key,
       });
       if (epoch !== epochRef.current) return;
+      // 설명·비교·응답 현황 같은 질문은 답만 하고 회의 조건과 후보 화면은 그대로 둬요.
+      if (result.answerOnly) {
+        setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.assistantMessage }]);
+        setLastAction(null);
+        return;
+      }
+      setCandidates([]);
+      setRecommendationComplete(false);
       const nextMeeting = { ...(result.meeting ?? meeting), version: (meeting.version ?? 1) + 1 };
       const changed = (result.changedFields ?? []) as FieldKey[];
       const proposedField = (Object.keys(result.proposedFields ?? {})[0] ?? null) as FieldKey | null;
@@ -542,7 +554,7 @@ export function ChatScreen({
     let pool: Array<{ name: string; email?: string }>;
     if (key === "availabilityRule") pool = (meeting.attendees ?? []).map((name) => ({ name }));
     else {
-      if (!directoryRef.current) directoryRef.current = await api.people("").then((result) => result.people.map((person) => ({ name: person.name, email: person.email }))).catch(() => []);
+      if (!directoryRef.current) directoryRef.current = await api.people({ limit: 500 }).then((result) => result.people.map((person) => ({ name: person.name, email: person.email }))).catch(() => []);
       pool = directoryRef.current;
     }
     const { matched, ambiguous, emails } = matchNames(typed, pool);
@@ -751,7 +763,7 @@ export function ChatScreen({
             <button onClick={onShowCalendars}><Plug /> 캘린더 연결</button>
           </nav>
           <div className="connection-box">
-            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 일정 5명 연결</small></span></div>
+            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 조직 구성원 일정 연결</small></span></div>
             <p>실제 캘린더에는 반영되지 않아요.</p>
           </div>
         </aside>
@@ -819,26 +831,30 @@ export function ChatScreen({
               <AttendeePicker
                 language={language}
                 preselect={preselect}
-                onConfirm={(attendees) => selectGuidedChoice({
-                  label: attendees.join(", "),
-                  message: language === "ko" ? `참석 요청 대상은 ${attendees.join(", ")}이야.` : `Invite ${attendees.join(", ")}.`,
+                draft={pickerDraft.attendees}
+                onDraft={(attendees) => setPickerDraft((current) => (current.attendees.join("\n") === attendees.join("\n") ? current : { ...current, attendees }))}
+                onConfirm={(attendees) => { setPickerDraft({ attendees: [], required: [] }); selectGuidedChoice({
+                  label: namesLabel(attendees),
+                  message: language === "ko" ? `참석 요청 대상은 ${namesLabel(attendees)}이야.` : `Invite ${namesLabel(attendees)}.`,
                   patch: { attendees },
-                })}
+                }); }}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}
             {!loading && !recommendationComplete && !pendingDecision && guidedStep?.key === "availabilityRule" && (
               <RequiredAttendeePicker
                 preselect={preselect}
+                draft={pickerDraft.required}
+                onDraft={(required) => setPickerDraft((current) => (current.required.join("\n") === required.join("\n") ? current : { ...current, required }))}
                 attendees={meeting.attendees ?? []}
                 language={language}
-                onConfirm={(requiredAttendees) => selectGuidedChoice({
-                  label: requiredAttendees.join(", ") || (language === "ko" ? "꼭 참석할 사람 없음" : "No required attendees"),
+                onConfirm={(requiredAttendees) => { setPickerDraft({ attendees: [], required: [] }); selectGuidedChoice({
+                  label: namesLabel(requiredAttendees) || (language === "ko" ? "꼭 참석할 사람 없음" : "No required attendees"),
                   message: language === "ko"
-                    ? requiredAttendees.length ? `${requiredAttendees.join(", ")} 모두 꼭 참석해야 해.` : "꼭 참석해야 하는 사람은 없어."
-                    : requiredAttendees.length ? `${requiredAttendees.join(", ")} must all be available.` : "No attendee is required to be available.",
+                    ? requiredAttendees.length ? `${namesLabel(requiredAttendees)} 모두 꼭 참석해야 해.` : "꼭 참석해야 하는 사람은 없어."
+                    : requiredAttendees.length ? `${namesLabel(requiredAttendees)} must all be available.` : "No attendee is required to be available.",
                   patch: { requiredAttendees },
-                })}
+                }); }}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}

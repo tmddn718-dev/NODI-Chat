@@ -48,7 +48,14 @@ export const api = {
       body: JSON.stringify({ expectedVersion, payload }),
     }),
   deleteDraft: () => request<void>("/api/draft", { method: "DELETE" }),
-  people: (query = "") => request<{ people: import("./types").PersonSummary[]; mode: "demo" }>(`/api/people?query=${encodeURIComponent(query)}`),
+  // 구성원이 많아서 한 번에 일부만 받아요(기본 30명). 이어서 받으려면 offset을 넘기세요.
+  people: (params: string | { query?: string; department?: string; team?: string; limit?: number; offset?: number } = "") => {
+    const input = typeof params === "string" ? { query: params } : params;
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(input)) if (value !== undefined && value !== "") search.set(key, String(value));
+    return request<{ people: import("./types").PersonSummary[]; total?: number; hasMore?: boolean; mode: "demo" }>(`/api/people?${search}`);
+  },
+  directory: () => request<import("./types").OrgTree>("/api/directory"),
   chat: (body: object) =>
     request<import("./types").ChatResult>(
       "/api/chat",

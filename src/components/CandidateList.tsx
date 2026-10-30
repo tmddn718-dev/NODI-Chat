@@ -1,6 +1,6 @@
 import { Clock } from "lucide-react";
-import { useState } from "react";
-import { slotLabel } from "../format";
+import { type ReactNode, useState } from "react";
+import { namesLabel, slotLabel } from "../format";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
 import type { AttendanceEvidence, Candidate } from "../types";
 import { CompareBar, CompareTable, type CompareColumn } from "./CompareTable";
@@ -18,7 +18,13 @@ const EVIDENCE: Record<AttendanceEvidence, string> = {
   tentative: "아직 몰라요",
   no_response: "응답 대기",
   calendar_unavailable: "일정 확인 불가",
+  out_of_office: "휴가·근무 시간 외",
 };
+// 참석자가 많아도 상세가 끝없이 길어지지 않게 앞 8명만 보이고 나머지는 펼쳐 봐요.
+function CappedItems({ names, render }: { names: string[]; render: (name: string) => ReactNode }) {
+  const limit = 8;
+  return <>{names.slice(0, limit).map(render)}{names.length > limit && <li className="rcard-more"><details><summary>{`외 ${names.length - limit}명 더 보기`}</summary><ul>{names.slice(limit).map(render)}</ul></details></li>}</>;
+}
 const rankLabel = (index: number) => (index === 0 ? "가장 추천" : `대안 ${index}`);
 
 // 캘린더상 비어 있다는 것과 참석 응답은 다른 정보라서, 근거에 맞는 문구를 써요.
@@ -38,7 +44,7 @@ function toColumn(candidate: Candidate, requiredNames: string[], onSelect: (cand
     label: slotLabel(candidate.start),
     required: requiredNames.length ? (candidate.requiredAvailable ? "확인됨" : "확인 필요") : "지정 없음",
     possible: count(["calendar_free", "direct_available"]),
-    impossible: count(["calendar_conflict", "direct_unavailable"]),
+    impossible: count(["calendar_conflict", "direct_unavailable", "out_of_office"]),
     waiting: count(["no_response", "tentative"]),
     unknown: count(["calendar_unavailable"]),
     onSelect: candidate.requiredAvailable ? () => onSelect(candidate) : undefined,
@@ -77,13 +83,13 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
           const evidence = candidate.evidence ?? [];
           const byName = new Map(evidence.map((item) => [item.attendee, item.evidence]));
           const people = [...new Set(evidence.map((item) => item.attendee))];
-          const group = (names: string[]) => names.map((name) => <li key={name}><span>{name}</span><span>{byName.has(name) ? EVIDENCE[byName.get(name)!] : "확인 정보 없음"}</span></li>);
+          const group = (names: string[]) => <CappedItems names={names} render={(name) => <li key={name}><span>{name}</span><span>{byName.has(name) ? EVIDENCE[byName.get(name)!] : "확인 정보 없음"}</span></li>} />;
           const waiting = candidate.noResponse.length + candidate.tentative.length;
           const mine = (list: string[]) => list.filter((name) => requiredNames.includes(name));
           const requiredBad = [...mine(candidate.unavailable), ...mine(candidate.unknown)];
           const ok = candidate.requiredAvailable;
           const reasons: ReasonLine[] = [
-            ...(requiredCount > 0 ? [{ kind: ok ? "ok" as const : "warn" as const, text: ok ? requiredLine(candidate, requiredNames) : requiredBad.length ? `필수 참석자 ${requiredBad.join(", ")}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요" }] : []),
+            ...(requiredCount > 0 ? [{ kind: ok ? "ok" as const : "warn" as const, text: ok ? requiredLine(candidate, requiredNames) : requiredBad.length ? `필수 참석자 ${namesLabel(requiredBad)}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요" }] : []),
             ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 조건에 적합해요" }] : []),
             { kind: "plain", text: `전체 ${candidate.total}명 중 ${candidate.available}명 참석 가능` },
             ...((candidate.calendarFreeCount > 0 || candidate.manualAvailableCount > 0) ? [{ kind: "plain" as const, text: `캘린더 확인 ${candidate.calendarFreeCount}명 · 직접 응답 ${candidate.manualAvailableCount}명` }] : []),
