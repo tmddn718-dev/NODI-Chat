@@ -2316,3 +2316,90 @@ a.brand:focus-visible { outline: 3px solid #D1DCFF; outline-offset: 4px; }
 .rsc-team-head { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 4px; color: var(--nodi-text-secondary); font-size: var(--fs-13); font-weight: 700; }
 .rsc-team-head span { font-weight: 500; }
 .rcard-more summary { min-height: 32px; color: #3654D4; font-size: var(--fs-13); font-weight: 600; cursor: pointer; }
+
+/* 추천 상태 체계: 확정 검토 가능(파랑) / 응답 대기(주의) / 조건 충돌(빨강) / 참고 후보(중립) */
+.sbadge.wait { color: var(--nodi-status-warning-fg); background: var(--nodi-status-warning-bg); }
+.sbadge.neutral { color: #47566D; background: #EEF0F4; }
+.rcard-lines li.wait { color: #47566D; } .rcard-lines li.wait svg { color: var(--nodi-status-warning-fg); }
+.rcard-cta:disabled { color: #65748B; background: #EEF0F4; border-color: transparent; }
+
+/* 응답 대기 카드: 버튼은 위아래 2개, 확정 검토는 텍스트 링크로 낮춰 CTA 경쟁을 줄여요 */
+.rsc-likely-time { margin: 12px 0 0; font-size: 20px; font-weight: 700; line-height: 28px; color: #18243A; }
+.rsc-likely-label { margin: 2px 0 12px; font-size: 13px; line-height: 20px; color: #65748B; }
+.rsc-actions { display: grid; gap: 8px; margin-top: 12px; }
+.rsc-wait { display: grid; gap: 12px; margin-top: 12px; padding: 14px 16px; border-radius: 12px; background: #F5F7FB; }
+.rsc-link { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 0 8px; color: #3654D4; background: transparent; border: 0; font-size: 14px; font-weight: 600; line-height: 20px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rsc-link:disabled { color: #65748B; cursor: not-allowed; text-decoration: none; }
+@media (max-width: 767px) { .rsc-actions .rd-btn { min-height: 48px; font-size: 15px; } }
+
+/* 필수/선택 참석자 지정: 개수 요약과 사람별 상태 태그 */
+.required-counts { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 14px; line-height: 22px; color: #65748B; }
+.required-counts strong { color: #18243A; font-weight: 700; }
+.req-name { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; }
+.req-tag { flex: none; padding: 0 8px; border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 600; line-height: 18px; color: #47566D; background: #EEF0F4; }
+.req-tag.on { color: #3654D4; background: #E9EEFF; }
+
+/* 모바일 참석자 선택: 전체 화면 시트(위 검색·필터 · 가운데 스크롤 목록 · 아래 인원과 확인 버튼) */
+.apick-lead { margin: 4px 0 12px; font-size: 14px; line-height: 22px; color: #47566D; }
+.apick-picked { display: grid; gap: 4px; margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: #F4F6FF; font-size: 14px; line-height: 22px; color: #47566D; }
+.apick-picked strong { color: #18243A; font-weight: 700; }
+.apick-mobile .attendee-confirm, .apick-mobile .apick-open { width: 100%; min-height: 48px; margin-top: 8px; font-size: 15px; }
+.attendee-disabled-reason { margin: 8px 0 0; text-align: center; font-size: 13px; line-height: 20px; color: #65748B; }
+.asheet { position: fixed; top: 0; left: 0; right: 0; height: 100dvh; z-index: 100; display: flex; flex-direction: column; background: #fff; animation: nodi-sheet-in .22s ease-out; }
+.asheet-head { position: relative; flex: none; display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 56px; border-bottom: 1px solid #EEF0F4; }
+.asheet-head h2 { margin: 0; font-size: 16px; font-weight: 700; line-height: 24px; color: #18243A; }
+.asheet-close { position: absolute; right: 6px; top: 6px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; color: #18243A; background: transparent; border: 0; border-radius: 12px; }
+.asheet-close svg { width: 22px; height: 22px; }
+.asheet-controls { flex: none; max-height: 48%; overflow-y: auto; padding: 4px 16px 0; }
+.asheet-results { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 16px 16px; }
+.asheet .people-filters { grid-template-columns: 1fr 1fr; }
+.asheet .people-list { max-height: none; overflow: visible; border: 0; }
+.asheet .selected-people { max-height: 88px; overflow-y: auto; }
+.asheet-foot { flex: none; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid #EEF0F4; background: #fff; }
+.asheet-foot .attendee-confirm { width: 100%; min-height: 52px; margin: 0; }
+@keyframes nodi-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .asheet { animation: none; } }
+
+/* 완료한 단계 요약: 이전 대화를 접어 현재 작업을 먼저 보여줘요 */
+.cdone { display: grid; grid-template-columns: 32px minmax(0, 1fr) 24px; align-items: center; gap: 12px; width: 100%; max-width: 720px; margin: 0 0 16px; padding: 14px 16px; text-align: left; color: #18243A; background: #fff; border: 1px solid #DDE4EF; border-radius: 16px; cursor: pointer; }
+.cdone:hover { background: #F8F9FF; }
+.cdone-icon { display: grid; place-items: center; width: 32px; height: 32px; color: #fff; background: var(--nodi-status-success-fg); border-radius: 50%; }
+.cdone-icon svg { width: 16px; height: 16px; stroke-width: 3; }
+.cdone-copy { display: grid; gap: 2px; min-width: 0; }
+.cdone-copy strong { font-size: 14px; font-weight: 700; line-height: 22px; }
+.cdone-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 20px; color: #47566D; }
+.cdone-copy .cdone-hint { color: #3654D4; font-weight: 600; }
+.cdone-chevron { width: 18px; height: 18px; color: #65748B; transition: transform .15s; }
+.cdone.open .cdone-chevron { transform: rotate(180deg); }
+
+/* 최종 확정: 일시 → 확정 가능 여부 → 확인이 필요한 사항 → 확정 후 처리 (회의 정보는 접어서) */
+.cd-when { margin: 12px 0 0; font-size: 20px; font-weight: 700; line-height: 28px; color: #18243A; }
+.cd-when-sub { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: #65748B; }
+.cd-checks { margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: #F5F7FB; }
+.cd ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.cd-checks li, .cd-todo li, .cd-after li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 22px; color: #18243A; }
+.cd-checks li svg, .cd-todo li svg, .cd-after li svg { flex: none; width: 16px; height: 16px; margin-top: 3px; }
+.cd li.ok svg { color: var(--nodi-status-success-fg); } .cd li.wait svg { color: var(--nodi-status-warning-fg); } .cd li.warn { color: var(--nodi-status-error-fg); } .cd li.warn svg { color: var(--nodi-status-error-fg); }
+.cd li.plain { font-size: 13px; color: #47566D; }
+.cd-fail { margin: 10px 0 0; font-size: 13px; line-height: 20px; color: var(--nodi-status-error-fg); }
+.cd-todo, .cd-after { margin-top: 16px; }
+.cd-todo h3, .cd-after h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; line-height: 22px; color: #18243A; }
+.cd-dot { flex: none; width: 6px; height: 6px; margin: 8px 5px 0; border-radius: 50%; background: #C5CDDB; }
+.cd-more { margin-top: 16px; }
+.cd-more summary { display: flex; align-items: center; gap: 4px; min-height: 44px; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #3654D4; }
+.cd-more summary::-webkit-details-marker { display: none; }
+.cd-more summary svg { width: 18px; height: 18px; transition: transform .15s; } .cd-more[open] summary svg { transform: rotate(180deg); }
+.cd .dialog-actions { position: sticky; bottom: 0; z-index: 1; margin-top: 16px; padding-top: 12px; background: #fff; }
+@media (max-width: 767px) { .cd .dialog-actions { padding-bottom: env(safe-area-inset-bottom); } .cd .dialog-actions button { min-height: 48px; } }
+
+/* 확정 완료: 주요 버튼은 "내 회의 보기" 하나, 회의 취소는 더보기 안으로 */
+.done-more { margin: 4px 0 0; padding: 0 24px 24px; text-align: center; }
+.done-more summary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; list-style: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #65748B; }
+.done-more summary::-webkit-details-marker { display: none; }
+.done-more-item { display: block; width: 100%; min-height: 44px; margin-top: 4px; color: var(--nodi-status-error-fg); background: transparent; border: 1px solid #DDE4EF; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+/* 상태 전환 피드백: 새 카드가 나타날 때 가볍게 떠오르고, 움직임을 줄인 환경에서는 끕니다 */
+@keyframes nodi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rcard, .rsc, .cdone, .message.assistant { animation: nodi-fade-in .2s ease-out; }
+.rd-btn:active:not(:disabled), .primary-button:active:not(:disabled), .secondary-button:active:not(:disabled) { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .rcard, .rsc, .cdone, .message.assistant { animation: none; } }

@@ -4,6 +4,7 @@ import { namesLabel, slotLabel } from "../format";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
 import type { AttendanceEvidence, Candidate } from "../types";
 import { CompareBar, CompareTable, type CompareColumn } from "./CompareTable";
+import { recommendationState } from "../recommendationState";
 import { RecommendationCard, type ReasonLine } from "./RecommendationCard";
 
 function formatCheckedAt(iso: string) {
@@ -26,15 +27,6 @@ function CappedItems({ names, render }: { names: string[]; render: (name: string
   return <>{names.slice(0, limit).map(render)}{names.length > limit && <li className="rcard-more"><details><summary>{`외 ${names.length - limit}명 더 보기`}</summary><ul>{names.slice(limit).map(render)}</ul></details></li>}</>;
 }
 const rankLabel = (index: number) => (index === 0 ? "가장 추천" : `대안 ${index}`);
-
-// 캘린더상 비어 있다는 것과 참석 응답은 다른 정보라서, 근거에 맞는 문구를 써요.
-function requiredLine(candidate: Candidate, requiredNames: string[]) {
-  const kinds = (candidate.evidence ?? []).filter((item) => requiredNames.includes(item.attendee)).map((item) => item.evidence);
-  const n = requiredNames.length;
-  if (kinds.length && kinds.every((kind) => kind === "calendar_free")) return `필수 참석자 ${n}명 일정 충돌 없음`;
-  if (kinds.length && kinds.every((kind) => kind === "direct_available")) return `필수 참석자 ${n}명 참석 가능 응답`;
-  return `필수 참석자 ${n}명 확인 완료 (일정 충돌 없음·참석 응답)`;
-}
 
 function toColumn(candidate: Candidate, requiredNames: string[], onSelect: (candidate: Candidate) => void): CompareColumn {
   const optional = (candidate.evidence ?? []).filter((item) => !requiredNames.includes(item.attendee)).map((item) => item.evidence);
@@ -88,15 +80,16 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
           const mine = (list: string[]) => list.filter((name) => requiredNames.includes(name));
           const requiredBad = [...mine(candidate.unavailable), ...mine(candidate.unknown)];
           const ok = candidate.requiredAvailable;
+          // 상태 → 근거 → 불확실성 순서. 필수 조건은 "충족", 선택 참석자의 미응답은 "응답 대기"로 따로 보여줘요.
           const reasons: ReasonLine[] = [
-            ...(requiredCount > 0 ? [{ kind: ok ? "ok" as const : "warn" as const, text: ok ? requiredLine(candidate, requiredNames) : requiredBad.length ? `필수 참석자 ${namesLabel(requiredBad)}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요" }] : []),
-            ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 조건에 적합해요" }] : []),
-            { kind: "plain", text: `전체 ${candidate.total}명 중 ${candidate.available}명 참석 가능` },
-            ...((candidate.calendarFreeCount > 0 || candidate.manualAvailableCount > 0) ? [{ kind: "plain" as const, text: `캘린더 확인 ${candidate.calendarFreeCount}명 · 직접 응답 ${candidate.manualAvailableCount}명` }] : []),
-            ...(waiting > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting}명은 응답 대기 중` }] : []),
+            requiredCount > 0
+              ? { kind: ok ? "ok" : "warn", text: ok ? "필수 참석자 조건 충족" : requiredBad.length ? `필수 참석자 ${namesLabel(requiredBad)}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요" }
+              : { kind: "plain", text: "필수 참석자 지정 없음" },
+            ...(ok && candidate.conflictCount === 0 ? [{ kind: "ok" as const, text: "현재 확인된 일정 충돌 없음" }] : []),
+            ...(waiting > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting}명 응답 대기` }] : []),
             ...(candidate.conflictCount > 0 && requiredBad.length === 0 ? [{ kind: "warn" as const, text: `일정이 겹치는 사람 ${candidate.conflictCount}명` }] : []),
           ];
-          const status = ok ? "선택 가능" : requiredBad.some((name) => candidate.unavailable.includes(name)) ? "선택 불가" : "확인 필요";
+          const state = recommendationState({ requiredOk: ok, requiredConflict: requiredBad.some((name) => candidate.unavailable.includes(name)), optionalConflict: candidate.conflictCount, index });
           return (
             <RecommendationCard
               key={candidate.id}
@@ -104,9 +97,9 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
               label={rankLabel(index)}
               start={candidate.start}
               end={candidate.end}
-              badge={ok ? { kind: "ok", text: requiredCount > 0 ? "필수 참석자 일정 확인" : status } : { kind: "conflict", text: status }}
+              badge={state.badge}
               reasons={reasons}
-              canSelect={ok}
+              canSelect={state.canSelect}
               onSelect={() => onSelect(candidate)}
               compare={isMobile && candidates.length > 1 ? { checked: picked.includes(candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id]) } : undefined}
               details={(
@@ -116,6 +109,8 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
                   <ul>{group(people.filter((name) => !requiredNames.includes(name)))}</ul>
                   <h4>확인 결과</h4>
                   <ul>
+                    <li><span>전체 참석 가능</span><span>{candidate.total}명 중 {candidate.available}명</span></li>
+                    <li><span>캘린더 확인 · 직접 응답</span><span>{candidate.calendarFreeCount}명 · {candidate.manualAvailableCount}명</span></li>
                     <li><span>일정 충돌</span><span>{candidate.conflictCount}명</span></li>
                     <li><span>응답 대기·미정</span><span>{waiting}명</span></li>
                     <li><span>최신 일정 확인</span><span>{formatCheckedAt(candidate.checkedAt)}</span></li>

@@ -21,6 +21,7 @@ import { RoundPanel } from "./RoundPanel";
 import { ProgressHeader, type EditableField, type ProgressInfo } from "./ProgressParts";
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
 import { namesLabel } from "../format";
+import { ConditionsDone } from "./ConditionsDone";
 
 const intro: Message = {
   id: "intro",
@@ -139,9 +140,13 @@ export function ChatScreen({
   const started = messages.length > 1 || Boolean(meeting.title);
   const pendingDecision = !!proposal || !!pickPerson || !!meaning;
   // 긴 대화는 최근 것만 보여주고 이전 대화는 접어요. 현재 결정해야 할 카드가 밀려나지 않게 하려는 거예요.
-  const foldable = messages.length > 10 && !showAllMessages;
-  const visibleMessages = foldable ? [messages[0], ...messages.slice(-6)] : messages;
-  const hiddenCount = foldable ? messages.length - visibleMessages.length : 0;
+  // 조건 설정이 끝났다면 앞선 대화를 한 줄 요약으로 접고 최근 2개만 남겨요(요약을 누르면 다시 펼쳐요).
+  const conditionsDone = reviewed || recommendLoading || recommendationComplete || !!roundToken || !!selected;
+  useEffect(() => { if (conditionsDone) setShowAllMessages(false); }, [conditionsDone]);
+  const doneFold = conditionsDone && messages.length > 3 && !showAllMessages;
+  const foldable = !doneFold && messages.length > 10 && !showAllMessages;
+  const visibleMessages = doneFold ? messages.slice(-2) : foldable ? [messages[0], ...messages.slice(-6)] : messages;
+  const hiddenCount = doneFold || foldable ? messages.length - visibleMessages.length : 0;
   // 진행 헤더 모델: 단계(1~4) · 상태 · 다음 행동을 분리해서 계산해요. 응답 대기는 2단계 안의 상태예요.
   const ready = roundInfo.loaded && (roundInfo.total === 0 || (roundInfo.invited && roundInfo.pending === 0));
   const progress: ProgressInfo = selected
@@ -793,7 +798,9 @@ export function ChatScreen({
           <div className="message-stream" aria-live="polite" ref={streamRef} onScroll={(event) => { const el = event.currentTarget; setShowTop(el.scrollTop > 240); const near = el.scrollHeight - el.scrollTop - el.clientHeight < 160; nearBottomRef.current = near; setAwayFromBottom(!near); }}>
             {!online && <div className="offline-banner" role="status"><WifiOff /><span><strong>인터넷에 연결되지 않았어요</strong> 입력한 내용은 이 기기에 보관하고 있어요.</span></div>}
             {syncStatus === "conflict" && <div className="sync-conflict" role="alert"><span><strong>다른 기기에서 내용이 바뀌었어요</strong> 불러오면 이 화면에서 아직 저장하지 않은 내용은 사라져요.</span><button className="secondary-button" onClick={() => void loadServerDraft()}>새 내용 불러오기</button></div>}
-            {hiddenCount > 0 && <button className="step-fold" onClick={() => setShowAllMessages(true)}>이전 대화 {hiddenCount}개 펼치기</button>}
+            {conditionsDone && messages.length > 3
+              ? <ConditionsDone meeting={meeting} hiddenCount={Math.max(0, messages.length - 2)} open={showAllMessages} onToggle={() => setShowAllMessages((value) => !value)} />
+              : hiddenCount > 0 && <button className="step-fold" onClick={() => setShowAllMessages(true)}>이전 대화 {hiddenCount}개 펼치기</button>}
             {visibleMessages.map((message) => (
               message.id === "intro" ? (
                 started ? null : (

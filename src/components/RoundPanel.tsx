@@ -9,6 +9,7 @@ import { ResponseDecision } from "./ResponseDecision";
 import { Toast } from "./Toast";
 import type { Candidate, MeetingDraft, RoundSummary } from "../types";
 import { namesLabel } from "../format";
+import { recommendationState } from "../recommendationState";
 
 const slot = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 const stamp = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -236,12 +237,13 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           const people = row.people;
           const waiting = [...(people?.tentative ?? []), ...(people?.noResponse ?? [])];
           const ok = row.candidate.requiredAvailable;
+          const state = recommendationState({ requiredOk: ok, requiredConflict: row.candidate.unavailable.length > 0, optionalConflict: row.declined, index: row.rank - 1 });
           const reasons: ReasonLine[] = [
-            { kind: ok ? "ok" : "warn", text: ok ? "필수 참석자 일정에 충돌이 없어요" : "필수 참석자 확인이 필요해요" },
-            ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 조건에 적합해요" }] : []),
+            { kind: ok ? "ok" : "warn", text: ok ? "필수 참석자 조건 충족" : row.candidate.unavailable.length ? `필수 참석자 ${namesLabel(row.candidate.unavailable)}님 일정이 맞지 않아요` : "필수 참석자 확인이 필요해요" },
+            ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 일정 충돌 없음" }] : []),
             ...((people?.accepted.length ?? 0) > 0 ? [{ kind: "ok" as const, text: `${namesLabel(people!.accepted)} 참석 가능 응답` }] : []),
             ...((people?.declined.length ?? 0) > 0 ? [{ kind: "warn" as const, text: `${namesLabel(people!.declined)} 참석 불가 응답` }] : []),
-            ...(waiting.length > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting.length}명은 응답 대기 중` }] : []),
+            ...(waiting.length > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting.length}명 응답 대기` }] : []),
           ];
           return (
             <RecommendationCard
@@ -250,9 +252,9 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
               label={row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}
               start={row.candidate.start}
               end={row.candidate.end}
-              badge={ok ? { kind: "ok", text: "필수 참석자 일정 확인" } : { kind: "conflict", text: "필수 참석자 확인 필요" }}
+              badge={state.badge}
               reasons={reasons}
-              canSelect={ok}
+              canSelect={state.canSelect}
               onSelect={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
               compare={isMobile && round.rows.length > 1 ? { checked: picked.includes(row.candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(row.candidate.id) ? current.filter((id) => id !== row.candidate.id) : [...current, row.candidate.id]) } : undefined}
               details={(

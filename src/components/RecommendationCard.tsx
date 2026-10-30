@@ -7,7 +7,7 @@ export type ReasonLine = { kind: "ok" | "wait" | "warn" | "plain"; text: string 
 const ICON = { ok: Check, wait: Clock, warn: TriangleAlert } as const;
 
 // 추천 카드: 시간(가장 크게) → 상태 → 추천 이유 → 남은 불확실성 → 세부 정보(펼침) → 행동. 웹·모바일이 같은 순서예요.
-export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel = "이 시간으로 확정 검토", compare }: {
+export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel = "이 시간으로 확정 검토", disabledLabel = "확정 검토 불가", compare }: {
   label: string;
   top?: boolean;
   start: string;
@@ -18,6 +18,7 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
   canSelect: boolean;
   onSelect: () => void;
   ctaLabel?: string;
+  disabledLabel?: string;
   compare?: { checked: boolean; disabled: boolean; onToggle: () => void };
 }) {
   return (
@@ -47,7 +48,7 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
           <span className="rcard-check" aria-hidden="true">{compare.checked && <Check />}</span>비교에 추가
         </button>
       )}
-      <button type="button" className="rd-btn rcard-cta" disabled={!canSelect} onClick={onSelect}>{canSelect ? ctaLabel : "선택 불가"}</button>
+      <button type="button" className="rd-btn rcard-cta" disabled={!canSelect} onClick={onSelect}>{canSelect ? ctaLabel : disabledLabel}</button>
     </li>
   );
 }
