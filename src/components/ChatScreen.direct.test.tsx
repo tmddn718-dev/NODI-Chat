@@ -132,6 +132,22 @@ describe("answer-only reply", () => {
   }, 20_000);
 });
 
+describe("answer-only reply while choosing attendees", () => {
+  it("keeps the people already picked", async () => {
+    render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);
+    await waitFor(() => expect(heading()).toBe("어떤 회의를 잡을까요?"));
+    for (const next of ["무엇을 위한 회의인가요?", "얼마나 진행할까요?", "누구와 함께하나요?"]) { pickFirst(); await waitFor(() => expect(heading()).toBe(next)); }
+    fireEvent.click((await screen.findAllByRole("button", { name: /김민지/ }, { timeout: 8000 }))[0]);
+    expect(document.querySelector(".selected-people")?.textContent).toContain("김민지");
+    mocks.chat.mockResolvedValue({ intent: "help", answerOnly: true, assistantMessage: "사용법이에요.", meeting: { timezone: "Asia/Seoul", version: 1 }, changedFields: [], proposedFields: {}, ambiguities: [], nextAction: { type: "ask", field: "attendees" }, issues: [], complete: false, model: "m" });
+    const box = document.getElementById("chat-input") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "어떻게 쓰는 거야?" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText("사용법이에요.", undefined, { timeout: 8000 })).toBeTruthy();
+    await waitFor(() => expect(document.querySelector(".selected-people")?.textContent).toContain("김민지"), { timeout: 8000 });
+  }, 30_000);
+});
+
 describe("understood card", () => {
   it("reverts a single understood field", async () => {
     render(<ChatScreen models={["m"]} onSettings={() => undefined} onShowMeetings={() => undefined} onShowInvited={() => undefined} onShowCalendars={() => undefined} onConfirmed={() => undefined} />);

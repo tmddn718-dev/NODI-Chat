@@ -117,6 +117,8 @@ export function ChatScreen({
   const [understood, setUnderstood] = useState<Understood | null>(null);
   const [proposal, setProposal] = useState<{ field: FieldKey; value: MeetingDraft[FieldKey]; reason?: string; alternatives?: number[] } | null>(null);
   const [preselect, setPreselect] = useState<{ names: string[]; nonce: number }>({ names: [], nonce: 0 });
+  // 참석자 카드에서 고르는 중인 사람. 질문에 대한 답이 오가도 카드가 다시 그려지며 사라지지 않게 여기 보관해요.
+  const [pickerDraft, setPickerDraft] = useState<{ attendees: string[]; required: string[] }>({ attendees: [], required: [] });
   const directoryRef = useRef<Array<{ name: string; email?: string }> | null>(null);
   const [pickPerson, setPickPerson] = useState<Array<{ id: string; label: string }> | null>(null);
   const [meaning, setMeaning] = useState<Extract<NextAction, { type: "resolve_ambiguity" }>["ambiguity"] | null>(null);
@@ -404,6 +406,7 @@ export function ChatScreen({
     setProposal(null);
     setPickPerson(null);
     setMeaning(null);
+    setPickerDraft({ attendees: [], required: [] });
     setCollectMethod("manual");
     setShowAllMessages(false);
     setConfirmError("");
@@ -828,26 +831,30 @@ export function ChatScreen({
               <AttendeePicker
                 language={language}
                 preselect={preselect}
-                onConfirm={(attendees) => selectGuidedChoice({
+                draft={pickerDraft.attendees}
+                onDraft={(attendees) => setPickerDraft((current) => (current.attendees.join("\n") === attendees.join("\n") ? current : { ...current, attendees }))}
+                onConfirm={(attendees) => { setPickerDraft({ attendees: [], required: [] }); selectGuidedChoice({
                   label: namesLabel(attendees),
                   message: language === "ko" ? `참석 요청 대상은 ${namesLabel(attendees)}이야.` : `Invite ${namesLabel(attendees)}.`,
                   patch: { attendees },
-                })}
+                }); }}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}
             {!loading && !recommendationComplete && !pendingDecision && guidedStep?.key === "availabilityRule" && (
               <RequiredAttendeePicker
                 preselect={preselect}
+                draft={pickerDraft.required}
+                onDraft={(required) => setPickerDraft((current) => (current.required.join("\n") === required.join("\n") ? current : { ...current, required }))}
                 attendees={meeting.attendees ?? []}
                 language={language}
-                onConfirm={(requiredAttendees) => selectGuidedChoice({
+                onConfirm={(requiredAttendees) => { setPickerDraft({ attendees: [], required: [] }); selectGuidedChoice({
                   label: namesLabel(requiredAttendees) || (language === "ko" ? "꼭 참석할 사람 없음" : "No required attendees"),
                   message: language === "ko"
                     ? requiredAttendees.length ? `${namesLabel(requiredAttendees)} 모두 꼭 참석해야 해.` : "꼭 참석해야 하는 사람은 없어."
                     : requiredAttendees.length ? `${namesLabel(requiredAttendees)} must all be available.` : "No attendee is required to be available.",
                   patch: { requiredAttendees },
-                })}
+                }); }}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
               />
             )}

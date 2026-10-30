@@ -5,15 +5,18 @@ import { NodiMark } from "./NodiMark";
 
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirectInput, preselect }: {
+export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirectInput, preselect, draft, onDraft }: {
   attendees: string[];
   language: "ko" | "en";
   onConfirm: (requiredAttendees: string[]) => void;
   onDirectInput?: () => void;
   preselect?: { names: string[]; nonce: number };
+  draft?: string[];
+  onDraft?: (names: string[]) => void;
 }) {
   const ko = language === "ko";
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(draft ?? []);
+  useEffect(() => { onDraft?.(selected); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   // 참석자가 많으면(9명 이상) 찾아보기·팀별 묶음·팀 전체 선택을 보여줘요.
   const many = attendees.length > 8;
   const [filter, setFilter] = useState("");

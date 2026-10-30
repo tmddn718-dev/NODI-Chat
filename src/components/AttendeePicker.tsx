@@ -10,11 +10,14 @@ const PAGE = 30;
 const CHIPS_SHOWN = 8;
 
 // 구성원이 수백 명이어도 쓸 수 있게: 검색 중심, 부서·팀 필터, 일부만 불러오고 더 보기, 팀 전체 추가, 선택 요약.
-export function AttendeePicker({ language, onConfirm, onDirectInput, preselect }: {
+export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, draft, onDraft }: {
   language: "ko" | "en";
   onConfirm: (attendees: string[]) => void;
   onDirectInput?: () => void;
   preselect?: { names: string[]; nonce: number };
+  // 질문에 답만 받고 카드가 다시 그려져도 고른 사람이 사라지지 않게 부모가 선택을 보관해요.
+  draft?: string[];
+  onDraft?: (names: string[]) => void;
 }) {
   const ko = language === "ko";
   const [query, setQuery] = useState("");
@@ -24,7 +27,8 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect }
   const [people, setPeople] = useState<PersonSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(draft ?? []);
+  useEffect(() => { onDraft?.(selected); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState("");
   const [undo, setUndo] = useState<string[] | null>(null);
