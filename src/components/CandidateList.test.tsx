@@ -17,18 +17,16 @@ describe("CandidateList evidence", () => {
   it("leads with required-attendee status and sources, hides the score until details are opened", () => {
     render(<CandidateList candidates={[candidate]} requiredNames={["김민지", "박준호"]} onSelect={vi.fn()} />);
     expect(screen.getByText("가장 추천")).toBeTruthy();
-    expect(screen.getByText("필수 참석자 2명 확인 완료 (일정 충돌 없음·참석 응답)")).toBeTruthy(); // 캘린더 확인 1명 + 직접 응답 1명이라 섞어서 표현
+    expect(screen.getByText("필수 참석자 2명 확인 완료 (일정 충돌 없음·참석 응답)")).toBeTruthy();
     expect(screen.getByText("전체 4명 중 3명 참석 가능")).toBeTruthy();
     expect(screen.getByText("캘린더 확인 2명 · 직접 응답 1명")).toBeTruthy();
-    expect(screen.getByText("미응답 1명")).toBeTruthy();
-    expect(screen.queryByText(/82점/)).toBeNull();
-    const toggle = screen.getByRole("button", { name: /추천 근거 자세히 보기/ });
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("선택 참석자 1명은 응답 대기 중")).toBeTruthy();
+    expect(screen.getByText("이 시간을 추천하는 이유")).toBeTruthy();
+    const details = document.querySelector("details.rcard-more") as HTMLDetailsElement;
+    expect(details.open).toBe(false); // 세부 정보는 접혀 있어요
+    details.open = true;
     expect(screen.getByText("참석 가능 응답")).toBeTruthy();
-    expect(screen.getByText("응답 대기")).toBeTruthy();
-    expect(screen.getByText(/82점/)).toBeTruthy();
+    expect(screen.getByText(/82점/)).toBeTruthy(); // 점수는 세부 정보 안에서만
   });
 });
 

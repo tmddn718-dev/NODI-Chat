@@ -1,13 +1,14 @@
-import { Check } from "lucide-react";
-import { useState } from "react";
+import { Check, Clock, TriangleAlert } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { slotLabel } from "../format";
 import type { RoundSummary } from "../types";
+import { StatusBadge } from "./StatusBadge";
 
 type Choice = "wait" | "proceed" | "compare";
-const slotFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long", hour: "numeric", minute: "2-digit" });
 const kstInput = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().slice(0, 16);
 
-// 응답 현황(필수 조건 먼저) + 미응답이 있을 때 "기다릴지 / 지금 확정 검토할지"를 주최자가 고르는 카드.
-export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, onExtend, onCompare, onEditRequired }: {
+// 응답 대기 카드: 상태 → 현재 가장 유력한 시간 → 확인된 조건 → 남은 불확실성 → 선택할 행동. (참석자별 상태는 접어서 아래에)
+export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, onExtend, onCompare, onEditRequired, children }: {
   round: RoundSummary;
   busy: boolean;
   onRemind: () => void;
@@ -16,76 +17,69 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
   onExtend?: (deadlineAt: string) => void;
   onCompare?: () => void;
   onEditRequired?: () => void;
+  children?: ReactNode;
 }) {
-  const [choice, setChoice] = useState<Choice>("wait");
+  const [choice, setChoice] = useState<Choice>(onCompare ? "compare" : "wait");
   const [custom, setCustom] = useState<string | null>(null);
   const pending = round.participants.filter((p) => !p.responded);
   const top = round.rows.find((row) => row.candidate.requiredAvailable);
   const pastDeadline = Date.now() >= Date.parse(round.deadlineAt);
   const canRemind = !!round.invitedAt && round.reminderCount < 1 && !pastDeadline && pending.some((p) => p.delivery === "sent");
-  const names = pending.map((p) => p.attendee).join(", ");
   const deadline = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(round.deadlineAt));
-
   const left = Math.max(0, Date.parse(round.deadlineAt) - Date.now());
   const leftText = `${Math.floor(left / 3_600_000) ? `${Math.floor(left / 3_600_000)}시간 ` : ""}${Math.floor((left % 3_600_000) / 60_000)}분`;
+  const waiting = top ? [...(top.people?.tentative ?? []), ...(top.people?.noResponse ?? [])] : [];
+
+  const options: Array<[Choice, string, string]> = [
+    ...(onCompare ? [["compare", "다른 시간 비교하기", "더 많은 사람이 가능한 후보 확인"] as [Choice, string, string]] : []),
+    ["wait", "응답 더 기다리기", "응답이 오면 추천 결과 갱신"],
+    ["proceed", "현재 조건으로 확정 검토", "남은 불확실성을 확인하고 진행"],
+  ];
+
   return (
-    <section className="rd-status" aria-label="응답 현황">
-      <div className="rd-summary">
-        <div className="rd-summary-row">
-          <strong>필수 참석자</strong>
-          <span className={`rd-badge ${top ? "success" : "warning"}`}>{top ? <><Check />조건 충족</> : "맞는 시간이 없어요"}</span>
+    <section className="rsc" aria-label="응답 현황">
+      <header className="rsc-head">
+        <span className="rsc-eyebrow">참석 가능 여부 확인</span>
+        {pending.length > 0 ? <StatusBadge kind="wait">{pending.length}명 응답 대기</StatusBadge> : <StatusBadge kind="ok">모두 응답</StatusBadge>}
+      </header>
+      <h3 className="rsc-title">{pending.length > 0 ? `${pending.length}명의 응답을 기다리고 있어요` : "모든 응답을 받았어요"}</h3>
+
+      {top && (
+        <div className="rsc-likely">
+          <p className="rsc-likely-label">현재 가장 유력한 시간</p>
+          <p className="rsc-likely-time">{slotLabel(top.candidate.start)}</p>
+          <ul className="rsc-facts">
+            <li className="ok"><Check aria-hidden="true" /><span>필수 참석자 일정 충돌 없음</span></li>
+            {(top.people?.accepted.length ?? 0) > 0 && <li className="ok"><Check aria-hidden="true" /><span>{top.people!.accepted.join(", ")} 참석 가능 응답</span></li>}
+            {(top.people?.declined.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{top.people!.declined.join(", ")} 참석 불가 응답</span></li>}
+            {waiting.length > 0 && <li className="wait"><Clock aria-hidden="true" /><span>선택 참석자 {waiting.length}명 응답 대기</span></li>}
+          </ul>
         </div>
-        <div className="rd-summary-row">
-          <strong>참여하면 좋은 사람</strong>
-          <span className="rd-summary-value">{pending.length ? `${names} · ${pending.length}명 미응답` : "모두 응답했어요"}</span>
-        </div>
-        {top && (
-          <div className="rd-likely">
-            <strong>현재 가장 유력한 시간</strong>
-            <span className="rd-likely-time">{slotFmt.format(new Date(top.candidate.start))}</span>
-            <ul>
-              {top.people?.accepted.map((name) => <li key={`a${name}`}>{name}<em>참석 가능</em></li>)}
-              {top.people?.declined.map((name) => <li key={`d${name}`}>{name}<em>참석 불가</em></li>)}
-              {top.people?.tentative.map((name) => <li key={`t${name}`}>{name}<em>아직 몰라요</em></li>)}
-              {top.people?.noResponse.map((name) => <li key={`n${name}`}>{name}<em>응답 대기</em></li>)}
-            </ul>
-          </div>
-        )}
-        <p className="rd-summary-foot">{pastDeadline ? "응답 마감 시간이 지났어요" : `${deadline} 응답 마감 예정 · 마감까지 ${leftText}`}</p>
-      </div>
+      )}
+      <p className="rsc-foot">{pastDeadline ? "응답 마감 시간이 지났어요" : `${deadline} 응답 마감 예정 · 마감까지 ${leftText}`}</p>
 
       {!top && (
-        <div className="rd-decision">
-          <p className="rd-decision-title">꼭 참석할 사람의 시간이 맞는 후보가 없어요</p>
-          <p className="rd-body">날짜 범위를 넓혀 다른 시간을 찾아볼까요? 입력한 회의 조건은 그대로 유지돼요.</p>
-          <div className="rd-actions">
-            <button className="rd-btn" disabled={busy} onClick={onRefresh}>다른 후보 확인하기</button>
-            {onEditRequired && <button className="rd-btn secondary" disabled={busy} onClick={onEditRequired}>필수 참석자 조건 수정하기</button>}
+        <div className="rsc-block">
+          <p className="rsc-q">꼭 참석할 사람의 시간이 맞는 후보가 없어요</p>
+          <p className="rsc-note">날짜 범위를 넓혀 다른 시간을 찾아볼까요? 입력한 회의 조건은 그대로 유지돼요.</p>
+          <div className="rsc-actions">
+            <button className="rd-btn rsc-cta" disabled={busy} onClick={onRefresh}>다른 후보 확인하기</button>
+            {onEditRequired && <button className="rd-btn secondary rsc-cta" disabled={busy} onClick={onEditRequired}>필수 참석자 조건 수정하기</button>}
           </div>
         </div>
       )}
 
       {top && pending.length > 0 && (
-        <div className="rd-decision">
-          <p className="rd-decision-title">어떻게 진행할까요?</p>
-          <div className="rd-options" role="radiogroup" aria-label="진행 방법">
-            <label className={`rd-option ${choice === "wait" ? "on" : ""}`}>
-              <input type="radio" name="decision" checked={choice === "wait"} onChange={() => setChoice("wait")} />
-              <span className="rd-radio" aria-hidden="true" />
-              <span><strong>응답 기다리기</strong><em>마감을 늘리거나 미응답자에게 다시 알릴 수 있어요. 응답이 오면 추천을 갱신해요.</em></span>
-            </label>
-            <label className={`rd-option ${choice === "proceed" ? "on" : ""}`}>
-              <input type="radio" name="decision" checked={choice === "proceed"} onChange={() => setChoice("proceed")} />
-              <span className="rd-radio" aria-hidden="true" />
-              <span><strong>현재 조건으로 확정 검토</strong><em>미응답은 그대로 두고 마지막 확인 단계로 가요. 거기서 최신 일정을 한 번 더 확인해요.</em></span>
-            </label>
-            {onCompare && (
-              <label className={`rd-option ${choice === "compare" ? "on" : ""}`}>
-                <input type="radio" name="decision" checked={choice === "compare"} onChange={() => setChoice("compare")} />
-                <span className="rd-radio" aria-hidden="true" />
-                <span><strong>다른 시간 비교하기</strong><em>후보마다 가능·불가·응답 대기를 나란히 비교해요. 지금까지의 응답은 그대로 유지돼요.</em></span>
+        <div className="rsc-block">
+          <p className="rsc-q">어떻게 진행할까요?</p>
+          <div className="rsc-options" role="radiogroup" aria-label="진행 방법">
+            {options.map(([value, title, desc]) => (
+              <label key={value} className={`rsc-option ${choice === value ? "on" : ""}`}>
+                <input type="radio" name="decision" checked={choice === value} onChange={() => setChoice(value)} />
+                <span className="rsc-option-copy"><strong>{title}</strong><em>{desc}</em></span>
+                <span className="rsc-radio" aria-hidden="true" />
               </label>
-            )}
+            ))}
           </div>
           {choice === "wait" && onExtend && (
             <div className="rd-extend" role="group" aria-label="응답 마감 연장">
@@ -105,17 +99,19 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
               )}
             </div>
           )}
+          <p className="rsc-caution"><TriangleAlert aria-hidden="true" />미응답자의 참석은 보장되지 않아요</p>
           {choice === "proceed" ? (
-            <button className="rd-btn" disabled={busy} onClick={() => onProceed(top)}>1순위 시간으로 확정 검토하기</button>
+            <button className="rd-btn rsc-cta" disabled={busy} onClick={() => onProceed(top)}>현재 조건으로 확정 검토</button>
           ) : choice === "compare" ? (
-            <button className="rd-btn" onClick={() => onCompare?.()}>후보 비교 보기</button>
+            <button className="rd-btn rsc-cta" onClick={() => onCompare?.()}>다른 후보 비교하기</button>
           ) : (
-            <button className="rd-btn" disabled={busy || !canRemind} onClick={onRemind}>
+            <button className="rd-btn rsc-cta" disabled={busy || !canRemind} onClick={onRemind}>
               {canRemind ? `미응답 ${pending.length}명에게 재알림 보내기` : round.reminderCount ? "재알림은 이미 보냈어요 · 응답을 기다리는 중" : "응답을 기다리는 중이에요"}
             </button>
           )}
         </div>
       )}
+      {children}
     </section>
   );
 }

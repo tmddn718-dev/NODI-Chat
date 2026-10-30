@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CompareTable, type CompareColumn } from "./CompareTable";
+import { CompareBar, CompareTable, type CompareColumn } from "./CompareTable";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -21,14 +21,27 @@ describe("CompareTable responsive", () => {
     expect(select).toHaveBeenCalled();
   });
 
-  it("opens as a full-screen vertical card view on mobile and closes with Escape", () => {
+  it("opens a full-screen compare view on mobile: side-by-side for 2-3 picks, cards beyond that, Escape closes", () => {
     media(true);
     const onClose = vi.fn();
-    render(<CompareTable columns={columns} onClose={onClose} />);
+    const { rerender } = render(<CompareTable columns={columns} onClose={onClose} />);
     expect(screen.getByRole("dialog", { name: "추천 시간 비교" })).toBeTruthy();
-    expect(screen.queryByRole("table")).toBeNull();
-    expect(screen.getAllByRole("region").length).toBe(2);
+    expect(screen.getByRole("table")).toBeTruthy(); // 2개 → 같은 기준으로 나란히
+    expect(screen.getByText("날짜·시간")).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+    const four = [...columns, { ...columns[0], id: "c" }, { ...columns[0], id: "d" }];
+    rerender(<CompareTable columns={four} onClose={onClose} />);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getAllByRole("region").length).toBe(4);
+  });
+
+  it("CompareBar needs two picks before it opens", () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(<CompareBar count={1} onOpen={onOpen} onClear={vi.fn()} />);
+    expect((screen.getByRole("button", { name: "2개 이상 선택해 주세요" }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<CompareBar count={2} onOpen={onOpen} onClear={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "2개 비교하기" }));
+    expect(onOpen).toHaveBeenCalled();
   });
 });

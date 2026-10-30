@@ -23,7 +23,7 @@ describe("ResponseDecision", () => {
   it("lets the organizer pick wait or proceed when someone has not answered", () => {
     const fns = setup(round());
     expect(screen.getByText("어떻게 진행할까요?")).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: /응답 기다리기/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /응답 더 기다리기/ }));
     fireEvent.click(screen.getByRole("button", { name: "미응답 1명에게 재알림 보내기" }));
     expect(fns.onRemind).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "+3시간" }));
@@ -35,7 +35,7 @@ describe("ResponseDecision", () => {
     expect(fns.onExtend).toHaveBeenCalledTimes(2);
     expect(fns.onExtend.mock.calls[1][0]).toBe(new Date(`${when}:00+09:00`).toISOString());
     fireEvent.click(screen.getByRole("radio", { name: /현재 조건으로 확정 검토/ }));
-    fireEvent.click(screen.getByRole("button", { name: "1순위 시간으로 확정 검토하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "현재 조건으로 확정 검토" }));
     expect(fns.onProceed).toHaveBeenCalledTimes(1);
   });
 
@@ -49,15 +49,16 @@ describe("ResponseDecision", () => {
 
   it("shows no decision card once everyone answered", () => {
     setup(round({ responded: 2, participants: [person("가", true), person("나", true)] }));
-    expect(screen.getByText("모두 응답했어요")).toBeTruthy();
+    expect(screen.getByText("모든 응답을 받았어요")).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
   });
 
   it("shows the currently most likely time with each person's response", () => {
     setup(round());
     expect(screen.getByText("현재 가장 유력한 시간")).toBeTruthy();
-    expect(screen.getByText("참석 가능")).toBeTruthy();
-    expect(screen.getByText("응답 대기")).toBeTruthy();
+    expect(screen.getByText("필수 참석자 일정 충돌 없음")).toBeTruthy();
+    expect(screen.getByText("가 참석 가능 응답")).toBeTruthy();
+    expect(screen.getByText("선택 참석자 1명 응답 대기")).toBeTruthy();
   });
 
   it("offers editing the required attendees when no candidate fits", () => {
@@ -65,5 +66,16 @@ describe("ResponseDecision", () => {
     render(<ResponseDecision round={round({}, false)} busy={false} onRemind={vi.fn()} onProceed={vi.fn()} onRefresh={vi.fn()} onEditRequired={onEditRequired} />);
     fireEvent.click(screen.getByRole("button", { name: "필수 참석자 조건 수정하기" }));
     expect(onEditRequired).toHaveBeenCalled();
+  });
+
+  it("defaults to comparing other times, changes the primary action per choice and warns that absentees are not guaranteed", () => {
+    const onCompare = vi.fn();
+    render(<ResponseDecision round={round()} busy={false} onRemind={vi.fn()} onProceed={vi.fn()} onRefresh={vi.fn()} onCompare={onCompare} />);
+    expect((screen.getByRole("radio", { name: /다른 시간 비교하기/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText("미응답자의 참석은 보장되지 않아요")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "다른 후보 비교하기" }));
+    expect(onCompare).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("radio", { name: /현재 조건으로 확정 검토/ }));
+    expect(screen.getByRole("button", { name: "현재 조건으로 확정 검토" })).toBeTruthy();
   });
 });

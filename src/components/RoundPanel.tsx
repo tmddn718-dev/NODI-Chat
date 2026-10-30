@@ -1,7 +1,10 @@
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import { CompareTable } from "./CompareTable";
+import { CompareBar, CompareTable } from "./CompareTable";
+import { RecommendationCard, type ReasonLine } from "./RecommendationCard";
+import { MOBILE_QUERY, useMedia } from "../useMedia";
 import { ResponseDecision } from "./ResponseDecision";
 import { Toast } from "./Toast";
 import type { Candidate, MeetingDraft, RoundSummary } from "../types";
@@ -22,6 +25,8 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
 }) {
   const [round, setRound] = useState<RoundSummary | null>(null);
   const [comparing, setComparing] = useState(false);
+  const isMobile = useMedia(MOBILE_QUERY);
+  const [picked, setPicked] = useState<string[]>([]);
   const topRef = useRef<string | undefined>(undefined);
   const [rankNotice, setRankNotice] = useState("");
   const [choice, setChoice] = useState<number | "custom">(24);
@@ -166,8 +171,8 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           onProceed={(row) => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
         />
       )}
-      <div>
-        <div className="rd-section-head"><h3>참여하면 좋은 사람</h3><span className="rd-caption">{round.responded}/{round.total}명 응답</span></div>
+      <details className="rsc-people" open={!round.invitedAt}>
+        <summary>참석자별 상태 보기 <span className="rd-caption">{round.responded}/{round.total}명 응답</span><ChevronDown aria-hidden="true" /></summary>
         {round.participants.map((p) => {
           const [tone, label] = badge(p);
           return (
@@ -179,7 +184,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           );
         })}
         <p className="rd-caption">데모에서는 실제 메일 대신 서버의 발송함(data/outbox.json)에 기록해요. 메일 주소를 알 수 없는 분은 ‘발송 실패’로 표시하고, 링크를 복사해 직접 전달할 수 있어요.</p>
-      </div>
+      </details>
       {error && <p className="rd-error" role="alert"><TriangleAlert />{error}</p>}
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
       <div className="rd-actions">
@@ -199,39 +204,50 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       {comparing && (
         <CompareTable
           onClose={() => setComparing(false)}
-          columns={round.rows.map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0, onSelect: row.candidate.requiredAvailable ? () => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }) : undefined }))}
+          columns={round.rows.filter((row) => !isMobile || picked.length < 2 || picked.includes(row.candidate.id)).map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0, onSelect: row.candidate.requiredAvailable ? () => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }) : undefined }))}
         />
       )}
-      <ol className="rd-list">
-        {round.rows.map((row) => (
-          <li className={`rd-slot ${row.rank === 1 && row.candidate.requiredAvailable ? "top" : ""}`} key={row.candidate.id}>
-            <div className="rd-slot-top">
-              <span className={`rd-badge ${row.candidate.requiredAvailable ? "success" : "warning"}`}>{row.candidate.requiredAvailable ? <CircleCheck /> : <TriangleAlert />}{row.candidate.requiredAvailable ? "필수 참석자 일정 충돌 없음" : "잠정 · 필수 확인 필요"}</span>
-              <span className={`rd-badge ${row.rank === 1 ? "recommend" : "neutral"}`}>{row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}</span>
-            </div>
-            <p className="rd-slot-time">{slot.format(new Date(row.candidate.start))}</p>
-            {row.rank === 1 && row.candidate.requiredAvailable && <p className="rd-reco-line">필수 참석자 조건을 충족하고, 현재 확인된 정보에서 가장 적합한 후보예요.</p>}
-            <p className="rd-reason">{row.summary}</p>
-            <p className="rd-why">이 시간을 추천하는 이유</p>
-            <ul className="rd-evidence">
-              <li className={row.candidate.requiredAvailable ? "ok" : "warn"}>{row.candidate.requiredAvailable ? <CircleCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}<span>{row.candidate.requiredAvailable ? "필수 참석자 일정 충돌 없음" : "필수 참석자 확인 필요"}</span></li>
-              {(row.people?.accepted.length ?? 0) > 0 && <li className="ok"><CircleCheck aria-hidden="true" /><span>{row.people!.accepted.join(", ")} 참석 가능 응답</span></li>}
-              {(row.people?.declined.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.declined.join(", ")} 참석 불가 응답</span></li>}
-              {(row.people?.tentative.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.tentative.join(", ")} 아직 몰라요</span></li>}
-              {(row.people?.noResponse.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{row.people!.noResponse.join(", ")} 응답 대기</span></li>}
-            </ul>
-            <dl className="rd-stats">
-              <div><dt>가능</dt><dd>{row.accepted}</dd></div>
-              <div><dt>불가</dt><dd>{row.declined}</dd></div>
-              <div><dt>미정</dt><dd>{row.tentative}</dd></div>
-              <div><dt>미응답</dt><dd>{row.noResponse}</dd></div>
-            </dl>
-            {row.reason.includes("정렬") && <p className="rd-caption">응답이 같아 선호 시간대·빠른 시간 순으로 정렬했어요</p>}
-            <p className="rd-caption">{stamp.format(new Date(row.candidate.checkedAt))} 확인 · 캘린더상 빈 시간과 참석 응답은 따로 세요</p>
-            <button className={`rd-btn m ${row.rank === 1 ? "" : "secondary"}`} disabled={!row.candidate.requiredAvailable} onClick={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}><span className="btn-long">이 시간으로 정하기</span><span className="btn-short">정하기</span></button>
-          </li>
-        ))}
+      <ol className="rd-list rcard-list">
+        {round.rows.map((row) => {
+          const people = row.people;
+          const waiting = [...(people?.tentative ?? []), ...(people?.noResponse ?? [])];
+          const ok = row.candidate.requiredAvailable;
+          const reasons: ReasonLine[] = [
+            { kind: ok ? "ok" : "warn", text: ok ? "필수 참석자 일정에 충돌이 없어요" : "필수 참석자 확인이 필요해요" },
+            ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 조건에 적합해요" }] : []),
+            ...((people?.accepted.length ?? 0) > 0 ? [{ kind: "ok" as const, text: `${people!.accepted.join(", ")} 참석 가능 응답` }] : []),
+            ...((people?.declined.length ?? 0) > 0 ? [{ kind: "warn" as const, text: `${people!.declined.join(", ")} 참석 불가 응답` }] : []),
+            ...(waiting.length > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting.length}명은 응답 대기 중` }] : []),
+          ];
+          return (
+            <RecommendationCard
+              key={row.candidate.id}
+              top={row.rank === 1 && ok}
+              label={row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}
+              start={row.candidate.start}
+              end={row.candidate.end}
+              badge={ok ? { kind: "ok", text: "필수 참석자 일정 확인" } : { kind: "conflict", text: "필수 참석자 확인 필요" }}
+              reasons={reasons}
+              canSelect={ok}
+              onSelect={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
+              compare={isMobile && round.rows.length > 1 ? { checked: picked.includes(row.candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(row.candidate.id) ? current.filter((id) => id !== row.candidate.id) : [...current, row.candidate.id]) } : undefined}
+              details={(
+                <>
+                  <dl className="rcard-facts">
+                    <div><dt>참석 가능 응답</dt><dd>{row.accepted}명</dd></div>
+                    <div><dt>참석 불가 응답</dt><dd>{row.declined}명</dd></div>
+                    <div><dt>아직 몰라요</dt><dd>{row.tentative}명</dd></div>
+                    <div><dt>응답 대기</dt><dd>{row.noResponse}명</dd></div>
+                  </dl>
+                  {row.reason.includes("정렬") && <p className="rd-caption">응답이 같아 선호 시간대·빠른 시간 순으로 정렬했어요.</p>}
+                  <p className="rd-caption">{stamp.format(new Date(row.candidate.checkedAt))} 확인 · 캘린더상 빈 시간과 참석 응답은 따로 세요.</p>
+                </>
+              )}
+            />
+          );
+        })}
       </ol>
+      {isMobile && round.rows.length > 1 && <CompareBar count={picked.length} onOpen={() => setComparing(true)} onClear={() => setPicked([])} />}
       </section>
     </>
   );
