@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { slotLabel } from "../format";
 import type { RoundSummary } from "../types";
 import { StatusBadge } from "./StatusBadge";
+import { namesLabel } from "../format";
 
 type Choice = "wait" | "proceed" | "compare";
 const kstInput = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().slice(0, 16);
@@ -50,8 +51,8 @@ export function ResponseDecision({ round, busy, onRemind, onProceed, onRefresh, 
           <p className="rsc-likely-time">{slotLabel(top.candidate.start)}</p>
           <ul className="rsc-facts">
             <li className="ok"><Check aria-hidden="true" /><span>필수 참석자 일정 충돌 없음</span></li>
-            {(top.people?.accepted.length ?? 0) > 0 && <li className="ok"><Check aria-hidden="true" /><span>{top.people!.accepted.join(", ")} 참석 가능 응답</span></li>}
-            {(top.people?.declined.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{top.people!.declined.join(", ")} 참석 불가 응답</span></li>}
+            {(top.people?.accepted.length ?? 0) > 0 && <li className="ok"><Check aria-hidden="true" /><span>{namesLabel(top.people!.accepted)} 참석 가능 응답</span></li>}
+            {(top.people?.declined.length ?? 0) > 0 && <li className="warn"><TriangleAlert aria-hidden="true" /><span>{namesLabel(top.people!.declined)} 참석 불가 응답</span></li>}
             {waiting.length > 0 && <li className="wait"><Clock aria-hidden="true" /><span>선택 참석자 {waiting.length}명 응답 대기</span></li>}
           </ul>
         </div>

@@ -1,5 +1,6 @@
-import { Check, CircleUser, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, CircleUser, Search, ShieldCheck } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { api } from "../api";
 import { NodiMark } from "./NodiMark";
 
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -13,6 +14,26 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
 }) {
   const ko = language === "ko";
   const [selected, setSelected] = useState<string[]>([]);
+  // 참석자가 많으면(9명 이상) 찾아보기·팀별 묶음·팀 전체 선택을 보여줘요.
+  const many = attendees.length > 8;
+  const [filter, setFilter] = useState("");
+  const [teamOf, setTeamOf] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!many) return;
+    api.people({ limit: 500 }).then((result) => setTeamOf(Object.fromEntries(result.people.filter((person) => person.team).map((person) => [person.name, person.team!])))).catch(() => undefined);
+  }, [many]);
+  const groups = useMemo(() => {
+    const target = filter.trim().toLocaleLowerCase("ko-KR");
+    const map = new Map<string, string[]>();
+    for (const name of attendees) {
+      if (target && !name.toLocaleLowerCase("ko-KR").includes(target) && !(teamOf[name] ?? "").includes(target)) continue;
+      const team = many ? (teamOf[name] ?? (ko ? "기타" : "Other")) : "";
+      map.set(team, [...(map.get(team) ?? []), name]);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, "ko"));
+  }, [attendees, filter, teamOf, many, ko]);
+  const teamAll = (names: string[]) => setSelected((current) => names.every((name) => current.includes(name)) ? current.filter((name) => !names.includes(name)) : [...new Set([...current, ...names])]);
+  const short = (names: string[]) => names.length > 6 ? `${names.slice(0, 6).join(", ")} 외 ${names.length - 6}명` : names.join(", ");
   // 채팅에 쓴 이름은 여기서 자동으로 체크돼요.
   useEffect(() => {
     if (preselect?.names.length) setSelected((current) => [...new Set([...current, ...preselect.names])]);
@@ -33,22 +54,35 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
         <div><button onClick={() => setSelected(attendees)}>{ko ? "모두 선택" : "Select all"}</button><button onClick={() => setSelected([])}>{ko ? "선택 해제" : "Clear"}</button></div>
       </div>
 
-      <div className="required-people" role="group" aria-label={ko ? "꼭 참석할 사람" : "Required attendees"}>
-        {attendees.map((attendee) => {
-          const checked = selected.includes(attendee);
-          return (
-            <button key={attendee} className={checked ? "selected" : ""} onClick={() => toggle(attendee)} aria-pressed={checked}>
-              <span className="person-avatar" aria-hidden="true">{attendee.includes("@") ? "@" : initials(attendee)}</span>
-              <span><strong>{attendee}</strong><small>{checked ? (ko ? "꼭 참석해요 · 이 사람이 가능한 시간만 추천해요" : "Availability required") : (ko ? "참여하면 좋은 사람 · 눌러서 꼭 참석으로 바꿔요" : "Select to make required")}</small></span>
-              <i aria-hidden="true">{checked ? <Check /> : <CircleUser />}</i>
-            </button>
-          );
-        })}
+      {many && (
+        <div className="people-search">
+          <Search aria-hidden="true" />
+          <label className="sr-only" htmlFor="required-filter">{ko ? "참석자 중에서 찾기" : "Find among attendees"}</label>
+          <input id="required-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={ko ? "참석자 중에서 이름·팀으로 찾기" : "Find by name or team"} autoComplete="off" />
+        </div>
+      )}
+      <div className={`required-people ${many ? "required-many" : ""}`} role="group" aria-label={ko ? "꼭 참석할 사람" : "Required attendees"}>
+        {groups.map(([team, names]) => (
+          <Fragment key={team || "all"}>
+            {many && <div className="required-group-head"><span>{team} <small>{names.length}{ko ? "명" : ""}</small></span><button onClick={() => teamAll(names)}>{names.every((name) => selected.includes(name)) ? (ko ? "팀 선택 해제" : "Clear team") : (ko ? "팀 전체 꼭 참석" : "Require team")}</button></div>}
+            {names.map((attendee) => {
+              const checked = selected.includes(attendee);
+              return (
+                <button key={attendee} className={checked ? "selected" : ""} onClick={() => toggle(attendee)} aria-pressed={checked}>
+                  <span className="person-avatar" aria-hidden="true">{attendee.includes("@") ? "@" : initials(attendee)}</span>
+                  <span><strong>{attendee}</strong><small>{checked ? (ko ? "꼭 참석해요 · 이 사람이 가능한 시간만 추천해요" : "Availability required") : (ko ? "참여하면 좋은 사람 · 눌러서 꼭 참석으로 바꿔요" : "Select to make required")}</small></span>
+                  <i aria-hidden="true">{checked ? <Check /> : <CircleUser />}</i>
+                </button>
+              );
+            })}
+          </Fragment>
+        ))}
+        {many && !groups.length && <p className="rd-caption">{ko ? "일치하는 참석자가 없어요." : "No matching attendee."}</p>}
       </div>
 
       <div className="required-selection-summary" aria-live="polite">
         <span>{selected.length ? <ShieldCheck /> : <CircleUser />}</span>
-        <p><strong>{selected.length ? (ko ? `${selected.length}명이 꼭 참석해요` : `${selected.length} required`) : (ko ? "꼭 참석할 사람은 없어요" : "No required attendees")}</strong><small>{selected.length ? selected.join(", ") : (ko ? "답변과 캘린더를 바탕으로 시간을 찾아드려요." : "Recommendations will use confirmed availability only.")}</small></p>
+        <p><strong>{selected.length ? (ko ? `${selected.length}명이 꼭 참석해요` : `${selected.length} required`) : (ko ? "꼭 참석할 사람은 없어요" : "No required attendees")}</strong><small>{selected.length ? short(selected) : (ko ? "답변과 캘린더를 바탕으로 시간을 찾아드려요." : "Recommendations will use confirmed availability only.")}</small></p>
       </div>
 
       <button className="primary-button required-confirm" onClick={() => onConfirm(selected)}>{selected.length ? (ko ? "이대로 계속" : "Continue with this rule") : (ko ? "건너뛰기" : "Continue without a required attendee")}</button>

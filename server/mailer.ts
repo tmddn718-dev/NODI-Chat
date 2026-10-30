@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { demoPeople } from "./demo-data.ts";
+import { orgPeople } from "./org-data.ts";
 import type { ChangeNotification, MeetingDraft, MeetingEvent, RoundRecord } from "./types.ts";
 import type { RoundStore } from "./round.ts";
 
@@ -37,7 +37,7 @@ const norm = (value: string) => value.trim().toLocaleLowerCase("ko-KR").replaceA
 // 이름만으로 주소를 추측하지 않는다. 메일 주소이거나 등록된 사람일 때만 보낸다.
 export function emailFor(attendee: string) {
   if (/^\S+@\S+\.\S+$/.test(attendee.trim())) return attendee.trim();
-  return demoPeople.find((person) => [person.name, person.id, person.email].some((value) => norm(value) === norm(attendee)))?.email;
+  return orgPeople.find((person) => [person.name, person.id, person.email].some((value) => norm(value) === norm(attendee)))?.email;
 }
 
 const when = (iso: string) => new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(iso));

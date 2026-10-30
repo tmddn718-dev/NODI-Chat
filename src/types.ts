@@ -14,7 +14,7 @@ export type MeetingDraft = {
   priority?: string;
 };
 
-export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable";
+export type AttendanceEvidence = "calendar_free" | "calendar_conflict" | "direct_available" | "direct_unavailable" | "tentative" | "no_response" | "calendar_unavailable" | "out_of_office";
 
 export type VerifyResult = { status: "ok" | "conflict" | "stale"; checkedAt: string; message: string; candidate?: Candidate };
 
@@ -90,7 +90,13 @@ export type PersonSummary = {
   lastMetAt?: string;
   title?: string;
   team?: string;
+  department?: string;
 };
+
+// 한 회의의 참석자 상한(서버 dialogue.ts와 같은 값).
+export const MAX_ATTENDEES = 50;
+
+export type OrgTree = { total: number; departments: Array<{ name: string; count: number; teams: Array<{ name: string; count: number }> }> };
 
 export type DraftPayload = {
   meeting: MeetingDraft;
@@ -144,7 +150,7 @@ export type RoundSummary = {
   reminderCount: number;
   rows: RoundRow[];
   invitedAt?: string;
-  participants: Array<{ attendee: string; urlToken: string; responded: boolean; delivery: "not_sent" | "sent" | "failed"; deliveryError?: string }>;
+  participants: Array<{ attendee: string; team?: string; urlToken: string; responded: boolean; delivery: "not_sent" | "sent" | "failed"; deliveryError?: string }>;
   updatedAt: string;
 };
 

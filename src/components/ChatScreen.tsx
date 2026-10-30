@@ -20,6 +20,7 @@ import { RequiredAttendeePicker } from "./RequiredAttendeePicker";
 import { RoundPanel } from "./RoundPanel";
 import { ProgressHeader, type EditableField, type ProgressInfo } from "./ProgressParts";
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
+import { namesLabel } from "../format";
 
 const intro: Message = {
   id: "intro",
@@ -542,7 +543,7 @@ export function ChatScreen({
     let pool: Array<{ name: string; email?: string }>;
     if (key === "availabilityRule") pool = (meeting.attendees ?? []).map((name) => ({ name }));
     else {
-      if (!directoryRef.current) directoryRef.current = await api.people("").then((result) => result.people.map((person) => ({ name: person.name, email: person.email }))).catch(() => []);
+      if (!directoryRef.current) directoryRef.current = await api.people({ limit: 500 }).then((result) => result.people.map((person) => ({ name: person.name, email: person.email }))).catch(() => []);
       pool = directoryRef.current;
     }
     const { matched, ambiguous, emails } = matchNames(typed, pool);
@@ -751,7 +752,7 @@ export function ChatScreen({
             <button onClick={onShowCalendars}><Plug /> 캘린더 연결</button>
           </nav>
           <div className="connection-box">
-            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 일정 5명 연결</small></span></div>
+            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 조직 구성원 일정 연결</small></span></div>
             <p>실제 캘린더에는 반영되지 않아요.</p>
           </div>
         </aside>
@@ -820,8 +821,8 @@ export function ChatScreen({
                 language={language}
                 preselect={preselect}
                 onConfirm={(attendees) => selectGuidedChoice({
-                  label: attendees.join(", "),
-                  message: language === "ko" ? `참석 요청 대상은 ${attendees.join(", ")}이야.` : `Invite ${attendees.join(", ")}.`,
+                  label: namesLabel(attendees),
+                  message: language === "ko" ? `참석 요청 대상은 ${namesLabel(attendees)}이야.` : `Invite ${namesLabel(attendees)}.`,
                   patch: { attendees },
                 })}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}
@@ -833,10 +834,10 @@ export function ChatScreen({
                 attendees={meeting.attendees ?? []}
                 language={language}
                 onConfirm={(requiredAttendees) => selectGuidedChoice({
-                  label: requiredAttendees.join(", ") || (language === "ko" ? "꼭 참석할 사람 없음" : "No required attendees"),
+                  label: namesLabel(requiredAttendees) || (language === "ko" ? "꼭 참석할 사람 없음" : "No required attendees"),
                   message: language === "ko"
-                    ? requiredAttendees.length ? `${requiredAttendees.join(", ")} 모두 꼭 참석해야 해.` : "꼭 참석해야 하는 사람은 없어."
-                    : requiredAttendees.length ? `${requiredAttendees.join(", ")} must all be available.` : "No attendee is required to be available.",
+                    ? requiredAttendees.length ? `${namesLabel(requiredAttendees)} 모두 꼭 참석해야 해.` : "꼭 참석해야 하는 사람은 없어."
+                    : requiredAttendees.length ? `${namesLabel(requiredAttendees)} must all be available.` : "No attendee is required to be available.",
                   patch: { requiredAttendees },
                 })}
                 onDirectInput={() => startDirectInput(guidedStep.inputPlaceholder)}

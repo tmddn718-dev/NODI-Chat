@@ -3,14 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
-import { demoPeople } from "./demo-data.ts";
+import { orgPeople as directory } from "./org-data.ts";
 import { rateLimit, securityHeaders } from "./security.ts";
 import { applyInterpretation } from "./dialogue.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
 import { DraftConflictError, DraftStore } from "./draft-store.ts";
 import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
 import { InvitationStore } from "./invitation-store.ts";
-import { searchPeople } from "./people.ts";
+import { orgTree, searchDirectory } from "./people.ts";
 import { dispatch, notifyChange, OutboxMailer } from "./mailer.ts";
 import { RoundClosedError, RoundStaleError, RoundStore, requiredFirstCandidates, splitAttendees, summarize } from "./round.ts";
 import { recommendSlots, validateMeeting } from "./recommendation.ts";
@@ -226,7 +226,7 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
       typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
     );
     // 해석 → 검증 → 상태 병합 → 다음 행동 계산. nextAction은 AI가 아니라 서버가 정해요.
-    const applied = applyInterpretation(meeting, interpretation, demoPeople, new Date());
+    const applied = applyInterpretation(meeting, interpretation, directory, new Date());
     res.json({
       intent: interpretation.intent,
       assistantMessage: interpretation.assistantMessage,
@@ -239,12 +239,19 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
   }
 });
 
-app.get("/api/demo/people", (_req, res) => res.json({ people: demoPeople, label: "데모 데이터" }));
+app.get("/api/directory", requireSession, (_req, res) => res.json(orgTree(directory)));
 
 app.get("/api/people", requireSession, async (req, res, next) => {
   try {
-    const query = typeof req.query.query === "string" ? req.query.query.slice(0, 100) : "";
-    res.json({ people: searchPeople(demoPeople, await provider.listEvents(), query), mode: "demo" });
+    const text = (value: unknown, max = 100) => (typeof value === "string" ? value.slice(0, max) : undefined);
+    const result = searchDirectory(directory, await provider.listEvents(), {
+      query: text(req.query.query),
+      department: text(req.query.department),
+      team: text(req.query.team),
+      limit: Number(req.query.limit) || 30,
+      offset: Number(req.query.offset) || 0,
+    });
+    res.json({ ...result, mode: "demo" });
   } catch (error) {
     next(error);
   }
@@ -294,6 +301,8 @@ app.get("/api/invitations/:token", async (req, res, next) => {
   }
 });
 
+const teamByName = new Map(directory.map((person) => [person.name, person.team]));
+
 function organizerView(record: NonNullable<Awaited<ReturnType<RoundStore["get"]>>>) {
   return {
     token: record.token,
@@ -303,7 +312,7 @@ function organizerView(record: NonNullable<Awaited<ReturnType<RoundStore["get"]>
     updatedAt: record.updatedAt,
     ...summarize(record),
     invitedAt: record.invitedAt,
-    participants: record.participants.map((p) => ({ attendee: p.attendee, urlToken: p.token, responded: Boolean(p.respondedAt), delivery: p.delivery ?? "not_sent", deliveryError: p.deliveryError })),
+    participants: record.participants.map((p) => ({ attendee: p.attendee, team: teamByName.get(p.attendee), urlToken: p.token, responded: Boolean(p.respondedAt), delivery: p.delivery ?? "not_sent", deliveryError: p.deliveryError })),
   };
 }
 

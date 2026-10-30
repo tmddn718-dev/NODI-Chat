@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ draft: vi.fn(), saveDraft: vi.fn(), people: vi.fn(), chat: vi.fn() }));
 vi.mock("../api", () => ({
   ApiError: class ApiError extends Error { constructor(message: string, readonly status: number, readonly code?: string) { super(message); } },
-  api: { draft: mocks.draft, saveDraft: mocks.saveDraft, people: mocks.people, chat: mocks.chat, deleteDraft: vi.fn().mockResolvedValue(undefined), invitationAvailability: vi.fn() },
+  api: { draft: mocks.draft, saveDraft: mocks.saveDraft, people: mocks.people, directory: vi.fn().mockResolvedValue({ total: 0, departments: [] }), chat: mocks.chat, deleteDraft: vi.fn().mockResolvedValue(undefined), invitationAvailability: vi.fn() },
 }));
 import { ChatScreen } from "./ChatScreen";
 

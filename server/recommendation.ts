@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { demoPeople } from "./demo-data.ts";
+import { orgPeople } from "./org-data.ts";
 import type { AvailabilityResponse, Candidate, DemoPerson, MeetingDraft } from "./types.ts";
 
 const DAY_MS = 86_400_000;
@@ -9,18 +9,35 @@ function normalize(value: string) {
   return value.trim().toLocaleLowerCase("ko-KR");
 }
 
+// 구성원이 수백 명이어도 후보 시간마다 처음부터 찾지 않도록, 이름 조회 결과와 일정 블록(밀리초)을 한 번만 계산해 둬요.
+const lookupCache = new WeakMap<DemoPerson[], Map<string, DemoPerson | undefined>>();
 function findPerson(value: string, people: DemoPerson[]) {
   const target = normalize(value);
-  return people.find((person) =>
+  let cache = lookupCache.get(people);
+  if (!cache) lookupCache.set(people, (cache = new Map()));
+  if (cache.has(target)) return cache.get(target);
+  const found = people.find((person) =>
     [person.id, person.name, person.email, person.email.split("@")[0]].some((candidate) => {
       const normalized = normalize(candidate);
       return normalized === target || (target.length >= 2 && normalized.endsWith(target));
     }),
   );
+  cache.set(target, found);
+  return found;
 }
 
-function overlaps(start: Date, end: Date, blockStart: string, blockEnd: string) {
-  return start < new Date(blockEnd) && end > new Date(blockStart);
+const blockCache = new WeakMap<DemoPerson, Array<[number, number]>>();
+function busyBetween(person: DemoPerson, start: number, end: number) {
+  let blocks = blockCache.get(person);
+  if (!blocks) blockCache.set(person, (blocks = person.blocks.map((item): [number, number] => [Date.parse(item.start), Date.parse(item.end)])));
+  return blocks.some(([from, to]) => start < to && end > from);
+}
+
+// 휴가이거나 근무 시간 밖이면 일정이 비어 보여도 참석할 수 없다고 봐요.
+function awayAt(person: DemoPerson, date: string, startMinutes: number, duration: number) {
+  if (person.leave?.includes(date)) return true;
+  const hours = person.workHours;
+  return Boolean(hours) && (startMinutes < hours!.start * 60 || startMinutes + duration > hours!.end * 60);
 }
 
 function kstDateAt(date: string, hours: number, minutes: number) {
@@ -50,7 +67,7 @@ export function validateMeeting(meeting: MeetingDraft) {
   return missing;
 }
 
-export function recommendSlots(meeting: MeetingDraft, people = demoPeople, responses?: AvailabilityResponse[], spread = false, notBefore = 0): Candidate[] {
+export function recommendSlots(meeting: MeetingDraft, people = orgPeople, responses?: AvailabilityResponse[], spread = false, notBefore = 0): Candidate[] {
   const missing = validateMeeting(meeting);
   if (missing.length) throw new Error(`필수 정보가 필요합니다: ${missing.join(", ")}`);
 
@@ -116,10 +133,11 @@ export function recommendSlots(meeting: MeetingDraft, people = demoPeople, respo
           if (isRequired) requiredAvailable = false;
           continue;
         }
-        const busy = person.blocks.some((item) => overlaps(start, end, item.start, item.end));
+        const away = awayAt(person, date, minutes, duration);
+        const busy = away || busyBetween(person, start.getTime(), end.getTime());
         if (busy) {
           unavailable.push(person.name);
-          evidence.push({ attendee, evidence: "calendar_conflict" });
+          evidence.push({ attendee, evidence: away ? "out_of_office" : "calendar_conflict" });
           if (isRequired || required.has(normalize(person.name)) || required.has(normalize(person.email))) {
             requiredAvailable = false;
           }

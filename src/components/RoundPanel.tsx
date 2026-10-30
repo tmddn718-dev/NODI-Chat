@@ -8,6 +8,7 @@ import { MOBILE_QUERY, useMedia } from "../useMedia";
 import { ResponseDecision } from "./ResponseDecision";
 import { Toast } from "./Toast";
 import type { Candidate, MeetingDraft, RoundSummary } from "../types";
+import { namesLabel } from "../format";
 
 const slot = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 const stamp = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -24,6 +25,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
   onPhase?: (info: { loaded: boolean; invited: boolean; pending: number; total: number }) => void;
 }) {
   const [round, setRound] = useState<RoundSummary | null>(null);
+  const [onlyPending, setOnlyPending] = useState(false);
   const [comparing, setComparing] = useState(false);
   const isMobile = useMedia(MOBILE_QUERY);
   const [picked, setPicked] = useState<string[]>([]);
@@ -108,6 +110,17 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
   const pending = round.participants.filter((p) => !p.responded);
   const unsent = round.participants.filter((p) => p.delivery !== "sent");
   const failed = round.participants.filter((p) => p.delivery === "failed");
+  // 참석자가 많으면(9명 이상) 팀별로 묶고, 미응답만 골라 볼 수 있어요.
+  const manyPeople = round.participants.length > 8;
+  const peopleGroups = (() => {
+    const map = new Map<string, RoundSummary["participants"]>();
+    for (const p of round.participants) {
+      if (manyPeople && onlyPending && p.responded) continue;
+      const team = manyPeople ? (p.team ?? "기타") : "";
+      map.set(team, [...(map.get(team) ?? []), p]);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, "ko"));
+  })();
   const badge = (p: RoundSummary["participants"][number]) =>
     p.responded ? ["success", "확인 완료"] : p.delivery === "sent" ? ["info", "응답 대기"] : p.delivery === "failed" ? ["error", "발송 실패"] : ["neutral", "발송 전"];
   return (
@@ -173,16 +186,27 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       )}
       <details className="rsc-people" open={!round.invitedAt}>
         <summary>참석자별 상태 보기 <span className="rd-caption">{round.responded}/{round.total}명 응답</span><ChevronDown aria-hidden="true" /></summary>
-        {round.participants.map((p) => {
-          const [tone, label] = badge(p);
-          return (
-            <div className="rd-person" key={p.attendee}>
-              <span className="rd-avatar" aria-hidden="true">{p.attendee.slice(0, 1)}</span>
-              <span className="rd-person-text"><strong>{p.attendee}</strong><span className={`rd-badge ${tone}`}>{label}</span>{p.delivery === "failed" && p.deliveryError && <span className="rd-caption">{p.deliveryError}</span>}</span>
-              <button className="rd-icon-btn" aria-label={`${p.attendee} 응답 링크 복사`} onClick={() => void copyLink(p.attendee, p.urlToken)}><Copy /></button>
-            </div>
-          );
-        })}
+        {manyPeople && (
+          <div className="rsc-people-tools">
+            <label><input type="checkbox" checked={onlyPending} onChange={(event) => setOnlyPending(event.target.checked)} /> 미응답만 보기 ({pending.length}명)</label>
+          </div>
+        )}
+        {peopleGroups.map(([team, members]) => (
+          <div className="rsc-team" key={team || "all"}>
+            {manyPeople && <p className="rsc-team-head">{team} <span>{members.filter((p) => p.responded).length}/{members.length}명 응답</span></p>}
+            {members.map((p) => {
+              const [tone, label] = badge(p);
+              return (
+                <div className="rd-person" key={p.attendee}>
+                  <span className="rd-avatar" aria-hidden="true">{p.attendee.slice(0, 1)}</span>
+                  <span className="rd-person-text"><strong>{p.attendee}</strong><span className={`rd-badge ${tone}`}>{label}</span>{p.delivery === "failed" && p.deliveryError && <span className="rd-caption">{p.deliveryError}</span>}</span>
+                  <button className="rd-icon-btn" aria-label={`${p.attendee} 응답 링크 복사`} onClick={() => void copyLink(p.attendee, p.urlToken)}><Copy /></button>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        {manyPeople && onlyPending && !pending.length && <p className="rd-caption">미응답인 사람이 없어요.</p>}
         <p className="rd-caption">데모에서는 실제 메일 대신 서버의 발송함(data/outbox.json)에 기록해요. 메일 주소를 알 수 없는 분은 ‘발송 실패’로 표시하고, 링크를 복사해 직접 전달할 수 있어요.</p>
       </details>
       {error && <p className="rd-error" role="alert"><TriangleAlert />{error}</p>}
@@ -215,8 +239,8 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           const reasons: ReasonLine[] = [
             { kind: ok ? "ok" : "warn", text: ok ? "필수 참석자 일정에 충돌이 없어요" : "필수 참석자 확인이 필요해요" },
             ...(ok ? [{ kind: "ok" as const, text: "현재 확인된 조건에 적합해요" }] : []),
-            ...((people?.accepted.length ?? 0) > 0 ? [{ kind: "ok" as const, text: `${people!.accepted.join(", ")} 참석 가능 응답` }] : []),
-            ...((people?.declined.length ?? 0) > 0 ? [{ kind: "warn" as const, text: `${people!.declined.join(", ")} 참석 불가 응답` }] : []),
+            ...((people?.accepted.length ?? 0) > 0 ? [{ kind: "ok" as const, text: `${namesLabel(people!.accepted)} 참석 가능 응답` }] : []),
+            ...((people?.declined.length ?? 0) > 0 ? [{ kind: "warn" as const, text: `${namesLabel(people!.declined)} 참석 불가 응답` }] : []),
             ...(waiting.length > 0 ? [{ kind: "wait" as const, text: `선택 참석자 ${waiting.length}명은 응답 대기 중` }] : []),
           ];
           return (
