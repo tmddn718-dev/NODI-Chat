@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
@@ -8,7 +10,9 @@ import { rateLimit, securityHeaders } from "./security.ts";
 import { applyInterpretation } from "./dialogue.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
 import { DraftConflictError, DraftStore } from "./draft-store.ts";
-import { chatWithGroq, listModels, UpstreamError } from "./groq.ts";
+import { listModels, UpstreamError } from "./groq.ts";
+import { appMode, interpreterFor } from "./interpreter.ts";
+import { MemoryMeetingStore } from "./store.ts";
 import { InvitationStore } from "./invitation-store.ts";
 import { searchPeople } from "./people.ts";
 import { dispatch, notifyChange, OutboxMailer } from "./mailer.ts";
@@ -20,8 +24,18 @@ const app = express();
 const port = Number(process.env.PORT) || 3001;
 const sessionCookie = "nodi_session";
 const sessionTtl = 4 * 60 * 60 * 1000;
-const sessions = new Map<string, { apiKey: string; models: string[]; touchedAt: number; workspaceId: string }>();
+type Session = { apiKey: string; models: string[]; touchedAt: number; workspaceId: string; mode: "groq" | "demo"; provider?: DemoCalendarProvider };
+const sessions = new Map<string, Session>();
+const demoMode = appMode === "demo";
+const MAX_DEMO_SESSIONS = 300;
+// 체험 모드는 저장 파일을 저장소가 아닌 임시 폴더에만 두고, 서버가 꺼지면 모두 사라져요.
+if (demoMode) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nodi-demo-"));
+  for (const [name, file] of [["NODI_DATA_PATH", "meetings"], ["NODI_DRAFT_DATA_PATH", "drafts"], ["NODI_INVITATION_DATA_PATH", "invitations"], ["NODI_ROUND_DATA_PATH", "rounds"], ["NODI_OUTBOX_PATH", "outbox"]]) process.env[name] = path.join(dir, `${file}.json`);
+}
 const provider = new DemoCalendarProvider();
+// 체험 모드의 회의 목록은 방문자마다 따로 둬요(서로의 회의가 보이지 않게).
+const providerOf = (req: Request) => getSession(req).session?.provider ?? provider;
 const invitationStore = new InvitationStore();
 const draftStore = new DraftStore();
 const roundStore = new RoundStore();
@@ -43,7 +57,7 @@ function getSession(req: Request) {
 
 function requireSession(req: Request, res: Response, next: NextFunction) {
   if (!getSession(req).session) {
-    res.status(401).json({ error: "Groq 연결이 필요합니다.", code: "session_required" });
+    res.status(401).json({ error: demoMode ? "체험을 시작해 주세요." : "Groq 연결이 필요합니다.", code: "session_required" });
     return;
   }
   next();
@@ -114,16 +128,30 @@ async function resolveAvailability(body: Record<string, unknown>) {
   return invitation.availability;
 }
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, mode: "demo" }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, mode: appMode }));
 
 app.get("/api/session", (req, res) => {
   const { session } = getSession(req);
-  res.json({ connected: Boolean(session), models: session?.models ?? [] });
+  res.json({ connected: Boolean(session), models: session?.models ?? [], mode: appMode });
+});
+
+// 키 없이 시작하는 체험 세션. 방문자마다 별도 작업 공간을 받고, 외부 API는 호출하지 않아요.
+app.post("/api/session/demo", rateLimit(10, 60_000), (req, res) => {
+  if (!demoMode) return res.status(404).json({ error: "체험 모드가 아니에요.", code: "not_found" });
+  if (sessions.size >= MAX_DEMO_SESSIONS) return res.status(503).json({ error: "지금은 체험하는 분이 많아요. 잠시 뒤에 다시 시도해 주세요.", code: "busy" });
+  const previous = getSession(req).id;
+  if (previous) sessions.delete(previous);
+  const id = crypto.randomBytes(32).toString("hex");
+  const models = ["demo-scenario"];
+  sessions.set(id, { apiKey: "", models, touchedAt: Date.now(), workspaceId: crypto.randomBytes(16).toString("hex"), mode: "demo", provider: new DemoCalendarProvider(new MemoryMeetingStore()) });
+  res.cookie(sessionCookie, id, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", maxAge: sessionTtl });
+  res.json({ connected: true, models, mode: appMode });
 });
 
 const sessionKey = (req: Request) => (req.cookies[sessionCookie] as string | undefined) ?? req.ip ?? "anon";
 app.post("/api/session/connect", rateLimit(10, 60_000), async (req, res, next) => {
   try {
+    if (demoMode) return res.status(403).json({ error: "체험 버전에서는 API Key를 쓰지 않아요.", code: "demo_mode" });
     const apiKey = typeof req.body.apiKey === "string" ? req.body.apiKey.trim() : "";
     if (!apiKey || apiKey.length > 300) {
       res.status(400).json({ error: "API Key를 입력해 주세요.", code: "invalid_input" });
@@ -135,7 +163,7 @@ app.post("/api/session/connect", rateLimit(10, 60_000), async (req, res, next) =
     if (previous) sessions.delete(previous);
     const id = crypto.randomBytes(32).toString("hex");
     const workspaceId = crypto.createHash("sha256").update(apiKey).digest("hex");
-    sessions.set(id, { apiKey, models, touchedAt: Date.now(), workspaceId });
+    sessions.set(id, { apiKey, models, touchedAt: Date.now(), workspaceId, mode: "groq" });
     res.cookie(sessionCookie, id, {
       httpOnly: true,
       sameSite: "strict",
@@ -187,7 +215,7 @@ app.delete("/api/draft", requireSession, async (req, res, next) => {
 app.get("/api/models", requireSession, async (req, res, next) => {
   try {
     const { session } = getSession(req);
-    const models = await listModels(session!.apiKey);
+    const models = session!.mode === "demo" ? session!.models : await listModels(session!.apiKey);
     session!.models = models;
     res.json({ models });
   } catch (error) {
@@ -217,14 +245,14 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
       : session!.models.includes("llama-3.3-70b-versatile")
         ? "llama-3.3-70b-versatile"
         : session!.models[0];
-    const interpretation = await chatWithGroq(
-      session!.apiKey,
+    const interpretation = await interpreterFor(session!.mode).interpret({
+      apiKey: session!.apiKey,
       model,
       messages,
       meeting,
-      req.body.language === "en" ? "en" : "ko",
-      typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
-    );
+      language: req.body.language === "en" ? "en" : "ko",
+      currentField: typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
+    });
     // 해석 → 검증 → 상태 병합 → 다음 행동 계산. nextAction은 AI가 아니라 서버가 정해요.
     const applied = applyInterpretation(meeting, interpretation, demoPeople, new Date());
     res.json({
@@ -244,7 +272,7 @@ app.get("/api/demo/people", (_req, res) => res.json({ people: demoPeople, label:
 app.get("/api/people", requireSession, async (req, res, next) => {
   try {
     const query = typeof req.query.query === "string" ? req.query.query.slice(0, 100) : "";
-    res.json({ people: searchPeople(demoPeople, await provider.listEvents(), query), mode: "demo" });
+    res.json({ people: searchPeople(demoPeople, await providerOf(req).listEvents(), query), mode: "demo" });
   } catch (error) {
     next(error);
   }
@@ -413,7 +441,7 @@ app.post("/api/rounds/:token/confirm", requireSession, async (req, res, next) =>
         ? { attendee, status: "available", start: fresh.start, end: fresh.end }
         : { attendee, status: status ? statusMap[status] : "no_response" };
     });
-    const event = await provider.createRoundEvent(record.meeting, candidate, availability, requestId);
+    const event = await providerOf(req).createRoundEvent(record.meeting, candidate, availability, requestId);
     await roundStore.markConfirmed(record.token, { start: fresh.start, end: fresh.end });
     res.status(201).json({ event, mode: "demo", invitationSent: false });
   } catch (error) {
@@ -459,6 +487,28 @@ app.post("/api/rounds/respond/:token", rateLimit(60, 60_000), async (req, res, n
   }
 });
 
+// 체험 전용: 요청을 받은 가상 참석자들이 후보 시간에 답한 것처럼 정해진 응답을 채워요(마지막 한 명은 남겨 "응답 대기"도 볼 수 있게).
+app.post("/api/rounds/:token/demo-responses", requireSession, async (req, res, next) => {
+  try {
+    if (!demoMode) return res.status(404).json({ error: "체험 모드가 아니에요.", code: "not_found" });
+    const record = await requireRound(req, res);
+    if (!record) return;
+    if (record.confirmed) return res.status(409).json({ error: "이미 확정된 회의예요.", code: "round_closed" });
+    const waiting = record.participants.filter((p) => !p.respondedAt);
+    const batch = waiting.length > 1 ? waiting.slice(0, -1) : waiting;
+    const order = record.participants;
+    for (const participant of batch) {
+      const i = order.indexOf(participant);
+      const responses = Object.fromEntries(record.candidates.map((candidate, j) => [candidate.id, (i + j) % 3 === 2 ? "declined" : i % 2 === 1 && j === 0 ? "tentative" : "accepted"]));
+      await roundStore.respond(participant.token, record.version, responses);
+    }
+    const next = await roundStore.get(record.token);
+    res.json({ round: organizerView(next!) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/invitations/:token/availability", requireSession, async (req, res, next) => {
   try {
     const token = readInvitationToken(req.params.token);
@@ -492,7 +542,7 @@ app.post("/api/invitations/:token/responses", rateLimit(60, 60_000), async (req,
 app.post("/api/recommendations", requireSession, async (req, res, next) => {
   try {
     const availability = await resolveAvailability(req.body as Record<string, unknown>);
-    const candidates = await provider.getFreeBusy((req.body.meeting ?? {}) as MeetingDraft, availability);
+    const candidates = await providerOf(req).getFreeBusy((req.body.meeting ?? {}) as MeetingDraft, availability);
     res.json({ candidates, availability, mode: "manual", checkedAt: new Date().toISOString() });
   } catch (error) {
     next(error);
@@ -533,9 +583,9 @@ app.post("/api/rounds/:token/verify", requireSession, async (req, res, next) => 
   }
 });
 
-app.get("/api/events", requireSession, async (_req, res, next) => {
+app.get("/api/events", requireSession, async (req, res, next) => {
   try {
-    res.json({ events: await provider.listEvents() });
+    res.json({ events: await providerOf(req).listEvents() });
   } catch (error) {
     next(error);
   }
@@ -543,7 +593,7 @@ app.get("/api/events", requireSession, async (_req, res, next) => {
 
 app.get("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    const event = (await provider.listEvents()).find((item) => item.id === String(req.params.id));
+    const event = (await providerOf(req).listEvents()).find((item) => item.id === String(req.params.id));
     if (!event) return res.status(404).json({ error: "회의를 찾을 수 없습니다.", code: "not_found" });
     res.json({ event });
   } catch (error) {
@@ -555,7 +605,7 @@ app.post("/api/events", requireSession, async (req, res, next) => {
   try {
     const requestId = typeof req.body.requestId === "string" ? req.body.requestId.trim().slice(0, 100) : "";
     if (!requestId) return res.status(400).json({ error: "확정 요청 식별자가 필요합니다.", code: "invalid_input" });
-    const event = await provider.createEvent(
+    const event = await providerOf(req).createEvent(
       req.body.meeting as MeetingDraft,
       req.body.candidate as Candidate,
       await resolveAvailability(req.body as Record<string, unknown>),
@@ -569,7 +619,7 @@ app.post("/api/events", requireSession, async (req, res, next) => {
 
 app.patch("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    let event = await provider.updateEvent(String(req.params.id), req.body.meeting as MeetingDraft);
+    let event = await providerOf(req).updateEvent(String(req.params.id), req.body.meeting as MeetingDraft);
     const changedFields = event.revisions?.at(-1)?.version === event.version;
     // 알림은 주최자가 고른 대로만 보내요. "저장만"이면 아무에게도 보내지 않고 직접 공유하도록 표시해요.
     if (changedFields) {
@@ -577,7 +627,7 @@ app.patch("/api/events/:id", requireSession, async (req, res, next) => {
       const results = req.body.notify === "now"
         ? await notifyChange(mailer, event)
         : (event.meeting.attendees ?? []).map((attendee) => ({ attendee, status: "skipped" as const, reason: "저장만 했어요 · 직접 공유가 필요해요", version: event.version, at }));
-      event = await provider.recordNotifications(event.id, results);
+      event = await providerOf(req).recordNotifications(event.id, results);
     }
     res.json({ event, mode: "demo" });
   } catch (error) {
@@ -587,12 +637,12 @@ app.patch("/api/events/:id", requireSession, async (req, res, next) => {
 
 app.post("/api/events/:id/notify", requireSession, rateLimit(20, 60_000, sessionKey), async (req, res, next) => {
   try {
-    const event = (await provider.listEvents()).find((item) => item.id === String(req.params.id));
+    const event = (await providerOf(req).listEvents()).find((item) => item.id === String(req.params.id));
     if (!event || event.status === "cancelled") return res.status(404).json({ error: "회의를 찾을 수 없습니다.", code: "not_found" });
     // 재시도는 이번 변경에서 아직 기록되지 않은 사람에게만 보내요.
     const pending = (event.notifications ?? []).filter((item) => item.version === event.version && item.status !== "recorded").map((item) => item.attendee);
     const results = pending.length ? await notifyChange(mailer, event, pending) : [];
-    res.json({ event: results.length ? await provider.recordNotifications(event.id, results) : event, mode: "demo" });
+    res.json({ event: results.length ? await providerOf(req).recordNotifications(event.id, results) : event, mode: "demo" });
   } catch (error) {
     next(error);
   }
@@ -600,7 +650,7 @@ app.post("/api/events/:id/notify", requireSession, rateLimit(20, 60_000, session
 
 app.delete("/api/events/:id", requireSession, async (req, res, next) => {
   try {
-    await provider.deleteEvent(String(req.params.id));
+    await providerOf(req).deleteEvent(String(req.params.id));
     res.json({ cancelled: true, mode: "demo" });
   } catch (error) {
     next(error);

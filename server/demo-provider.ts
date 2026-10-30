@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CalendarProvider } from "./calendar.ts";
-import { FileMeetingStore } from "./store.ts";
+import { FileMeetingStore, type MeetingStore } from "./store.ts";
 import { recommendSlots } from "./recommendation.ts";
 import type { AvailabilityResponse, Candidate, ChangeNotification, MeetingDraft } from "./types.ts";
 
@@ -8,7 +8,7 @@ export class DemoCalendarProvider implements CalendarProvider {
   readonly id = "demo" as const;
   readonly writable = true;
 
-  constructor(private readonly store = new FileMeetingStore()) {}
+  constructor(private readonly store: MeetingStore = new FileMeetingStore()) {}
 
   async getFreeBusy(meeting: MeetingDraft, responses?: AvailabilityResponse[]) {
     return recommendSlots(meeting, undefined, responses);

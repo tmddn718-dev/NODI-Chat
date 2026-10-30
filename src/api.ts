@@ -32,7 +32,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  session: () => request<{ connected: boolean; models: string[] }>("/api/session"),
+  session: () => request<{ connected: boolean; models: string[]; mode?: "groq" | "demo" }>("/api/session"),
+  startDemo: () => request<{ connected: boolean; models: string[] }>("/api/session/demo", { method: "POST" }),
+  demoResponses: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/demo-responses`, { method: "POST" }),
   connect: (apiKey: string) =>
     request<{ connected: boolean; models: string[] }>("/api/session/connect", {
       method: "POST",

@@ -1,0 +1,20 @@
+# 외부 공유용 데모 서비스. 기존 개발 서비스(main/ver.2 배포)와 별개의 서비스로 만든다.
+# 이 파일은 `demo` 브랜치에만 둔다. Render 대시보드: New + > Blueprint > 이 저장소 > 브랜치 `demo`.
+services:
+  - type: web
+    name: nodi-demo
+    runtime: node
+    plan: free
+    branch: demo
+    autoDeploy: true
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODI_MODE
+        value: demo
+      - key: NODE_ENV
+        value: production
+      # 배포된 주소를 알고 나면 대시보드에서 값을 넣으세요(예: https://nodi-demo.onrender.com). 시크릿은 필요 없어요.
+      - key: NODI_PUBLIC_URL
+        sync: false

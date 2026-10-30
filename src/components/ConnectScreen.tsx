@@ -1,13 +1,15 @@
-import { Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LockKeyhole, PlayCircle, ShieldCheck } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Brand } from "./Brand";
 
 type Props = {
   onConnect: (key: string) => Promise<void>;
+  // 체험(데모) 서버에서만 넘겨져요. 있으면 API Key 대신 체험 시작 버튼을 보여줘요.
+  onStartDemo?: () => Promise<void>;
   notice?: string;
 };
 
-export function ConnectScreen({ onConnect, notice }: Props) {
+export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -28,6 +30,17 @@ export function ConnectScreen({ onConnect, notice }: Props) {
     }
   }
 
+  async function startDemo() {
+    setStatus("loading");
+    setError("");
+    try {
+      await onStartDemo!();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "체험을 시작하지 못했어요.");
+      setStatus("error");
+    }
+  }
+
   return (
     <main id="main-content" className="connect-shell">
       <section className="connect-intro">
@@ -39,11 +52,28 @@ export function ConnectScreen({ onConnect, notice }: Props) {
         </div>
         <div className="trust-note">
           <ShieldCheck size={24} />
-          <span>API Key는 브라우저나 데이터베이스에 저장하지 않아요.</span>
+          <span>{onStartDemo ? "체험에는 API Key가 필요 없어요. 입력한 내용은 이 체험 안에서만 쓰여요." : "API Key는 브라우저나 데이터베이스에 저장하지 않아요."}</span>
         </div>
       </section>
 
       <section className="connect-panel" aria-labelledby="connect-title">
+        {onStartDemo ? (
+          <div className="connect-card">
+            <span className="key-icon"><PlayCircle size={26} /></span>
+            <h2 id="connect-title">바로 체험해 보세요</h2>
+            <p className="muted">가상 캘린더와 가상 직원 5명으로 회의 시간을 찾는 과정을 체험할 수 있어요.</p>
+            {notice && <p className="connect-notice" role="status">{notice}</p>}
+            <ul className="demo-points">
+              <li>실제 일정이나 메일은 만들어지지 않아요.</li>
+              <li>선택지를 누르거나 직접 입력해 보세요. 데모는 정해진 규칙으로 말을 이해해서 모든 문장을 알아듣지는 못해요.</li>
+              <li>서버가 다시 켜지면 체험 기록이 지워져요.</li>
+            </ul>
+            <button className="primary-button connect-button" onClick={() => void startDemo()} disabled={status === "loading"}>
+              {status === "loading" ? "준비하고 있어요..." : "데모 체험 시작하기"}
+            </button>
+            {error && <p className="error-text" role="alert">{error}</p>}
+          </div>
+        ) : (
         <div className="connect-card">
           <span className="key-icon"><KeyRound size={26} /></span>
           <h2 id="connect-title">Groq를 연결해 주세요</h2>
@@ -77,6 +107,7 @@ export function ConnectScreen({ onConnect, notice }: Props) {
           <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-link">API Key가 없어요</a>
           <p className="demo-note">데모 서비스예요. 서버가 다시 켜지면 저장된 회의와 응답이 지워질 수 있어요.</p>
         </div>
+        )}
       </section>
     </main>
   );

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { ChatScreen } from "./components/ChatScreen";
+import { DemoRibbon } from "./components/DemoRibbon";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
 import { CalendarConnections } from "./components/CalendarConnections";
 import { InvitedMeetings } from "./components/InvitedMeetings";
+import { demo } from "./demo";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -14,6 +16,10 @@ import type { MeetingDraft, MeetingEvent } from "./types";
 type View = "loading" | "connect" | "chat" | "meetings" | "event" | "invited" | "calendars";
 
 export default function App() {
+  return <><DemoRibbon /><Screens /></>;
+}
+
+function Screens() {
   const inviteToken = window.location.pathname.match(/^\/invite\/([a-f0-9]{48})\/?$/)?.[1];
   const roundToken = window.location.pathname.match(/^\/respond\/([a-f0-9]{48})\/?$/)?.[1];
   const [view, setView] = useState<View>("loading");
@@ -46,6 +52,8 @@ export default function App() {
     if (inviteToken || roundToken) return;
     api.session()
       .then(async (session) => {
+        demo.on = session.mode === "demo";
+        window.dispatchEvent(new Event("nodi:demo"));
         setModels(session.models);
         if (session.connected) setEvents((await api.events()).events);
         setView(session.connected ? "chat" : "connect");
@@ -55,6 +63,14 @@ export default function App() {
 
   async function connect(key: string) {
     const session = await api.connect(key);
+    setModels(session.models);
+    setEvents((await api.events()).events);
+    setNotice("");
+    setView("chat");
+  }
+
+  async function startDemo() {
+    const session = await api.startDemo();
     setModels(session.models);
     setEvents((await api.events()).events);
     setNotice("");
@@ -96,7 +112,7 @@ export default function App() {
   if (view === "loading") {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" />{slowBoot && <p className="boot-hint" role="status">서버를 깨우고 있어요. 처음에는 최대 1분 정도 걸릴 수 있어요.</p>}</main>;
   }
-  if (view === "connect") return <ConnectScreen onConnect={connect} notice={notice} />;
+  if (view === "connect") return <ConnectScreen onConnect={connect} onStartDemo={demo.on ? startDemo : undefined} notice={notice} />;
   if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} />;
   if (view === "calendars") return <CalendarConnections onBack={() => setView("chat")} />;
   if (view === "meetings") {

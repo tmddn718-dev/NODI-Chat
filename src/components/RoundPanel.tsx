@@ -1,3 +1,4 @@
+import { demo } from "../demo";
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -183,13 +184,14 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
             </div>
           );
         })}
-        <p className="rd-caption">데모에서는 실제 메일 대신 서버의 발송함(data/outbox.json)에 기록해요. 메일 주소를 알 수 없는 분은 ‘발송 실패’로 표시하고, 링크를 복사해 직접 전달할 수 있어요.</p>
+        <p className="rd-caption">{demo.on ? "데모에서는 실제 메일을 보내지 않아요. 발송 기록만 남겨요." : "데모에서는 실제 메일 대신 서버의 발송함(data/outbox.json)에 기록해요."} 메일 주소를 알 수 없는 분은 ‘발송 실패’로 표시하고, 링크를 복사해 직접 전달할 수 있어요.</p>
       </details>
       {error && <p className="rd-error" role="alert"><TriangleAlert />{error}</p>}
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
       <div className="rd-actions">
         {round.invitedAt && failed.length > 0 && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>발송 실패 {failed.length}명 다시 보내기</button>}
         <button className="rd-btn m ghost" disabled={busy} onClick={() => void run(() => api.refreshRound(token))}>후보 새로 찾기</button>
+        {demo.on && round.invitedAt && pending.length > 0 && !unsent.length && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.demoResponses(token))}>가상 참석자 응답 받기 (데모)</button>}
         <button className="rd-btn m ghost" disabled={busy || !round.invitedAt || round.reminderCount >= 1 || round.phase === "final" || !pending.length || pending.length === unsent.length} onClick={() => void run(() => api.remindRound(token))}>{round.reminderCount ? "재알림 보냄" : `미응답 ${pending.length}명 재알림`}</button>
       </div>
       </section>
