@@ -62,3 +62,8 @@ AI 챗봇으로 회의 일정을 조율하는 서비스. 반응형 웹 + 모바�
 ## 대화 엔진
 - 사용자에게 보이는 설명·비교·응답 현황·확정/취소 안내 문구는 `server/conversation.ts`에서 **실제 데이터로** 만든다. AI(`groq.ts`)의 문장을 그대로 믿고 보여주지 않는다. 새 의도는 `UserIntent`/`normalizeIntent`/프롬프트를 함께 고친다.
 - 채팅으로는 회의를 확정·취소하지 않는다(확인 화면 승인 필수). 근거 데이터가 없으면 없다고 말하고, 조회하지 않았으면 조회했다고 말하지 않는다.
+
+## 공개 프로토타입(`NODI_MODE=public`)
+- 서버 비밀값(`GROQ_API_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`OPS_TOKEN`)은 서버 환경변수에서만 읽고 `VITE_`·클라이언트·로그·문서에 쓰지 않는다. 확인: `bash scripts/check-secrets.sh`.
+- 분석 이벤트는 `src/analytics.ts`의 허용 목록(SCHEMA)에 속성을 추가해야 나간다. 이름·문장·일정·자유 의견 원문은 절대 속성으로 보내지 않는다. 동의 전에는 어떤 요청도 보내지 않는다.
+- 문서는 `docs/public-prototype/`. 흐름이 바뀌면 `src/prototype.ts`의 `flowVersion`을 올린다.

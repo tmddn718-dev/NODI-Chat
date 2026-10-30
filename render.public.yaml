@@ -1,0 +1,41 @@
+# 공개 프로토타입 테스트 서비스(NODI_MODE=public). 기존 nodi-demo(render.yaml)·개발 서비스와 별개의 서비스예요.
+# Render 대시보드: New + > Blueprint > 이 저장소 > Blueprint Path에 render.public.yaml 입력 > 브랜치 선택.
+# sync: false 값은 Render가 만들 때 물어봐요. 비밀값은 이 파일에 쓰지 않고 대시보드에서만 입력하세요.
+services:
+  - type: web
+    name: nodi-public
+    runtime: node
+    plan: free
+    branch: feat/public-prototype-test
+    autoDeploy: false          # 공개 서비스는 확인한 뒤 수동으로 배포해요
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - { key: NODI_MODE, value: public }
+      - { key: NODE_ENV, value: production }
+      - { key: TRUST_PROXY_HOPS, value: "1" }
+      # 서버 전용 비밀값 — 대시보드에서 입력
+      - { key: GROQ_API_KEY, sync: false }
+      - { key: OPS_TOKEN, sync: false }
+      - { key: SUPABASE_URL, sync: false }              # 선택: 결과 저장소
+      - { key: SUPABASE_SERVICE_ROLE_KEY, sync: false } # 선택: 결과 저장소
+      # 서버 설정(조정 가능)
+      - { key: NODI_PUBLIC_URL, sync: false }           # 예: https://nodi-public.onrender.com
+      - { key: GROQ_MODEL, value: llama-3.3-70b-versatile }
+      - { key: GROQ_MAX_OUTPUT_TOKENS, value: "600" }
+      - { key: GROQ_REQUEST_TIMEOUT_MS, value: "15000" }
+      - { key: PUBLIC_DEMO_ENABLED, value: "true" }     # false면 AI 호출 즉시 중단(킬 스위치)
+      - { key: RATE_LIMIT_PER_MINUTE, value: "10" }
+      - { key: RATE_LIMIT_PER_DAY_PER_SESSION, value: "60" }
+      - { key: RATE_LIMIT_PER_DAY_PER_IP, value: "120" }
+      - { key: MAX_INPUT_CHARS, value: "500" }
+      - { key: MAX_CONVERSATION_TURNS, value: "12" }
+      - { key: DAILY_GLOBAL_REQUEST_BUDGET, value: "1500" }
+      - { key: MAX_CONCURRENT_AI_REQUESTS, value: "4" }
+      # 클라이언트 공개 값(VITE_ — 빌드 시점에 번들에 들어가요. 바꾸면 다시 배포해야 해요)
+      - { key: VITE_POSTHOG_KEY, sync: false }          # PostHog 프로젝트 키(공개용)
+      - { key: VITE_POSTHOG_HOST, value: "https://us.i.posthog.com" }
+      - { key: VITE_ANALYTICS_ENV, value: production }
+      - { key: VITE_PRIVACY_CONTACT, sync: false }
+      - { key: VITE_DATA_RETENTION_DAYS, sync: false }

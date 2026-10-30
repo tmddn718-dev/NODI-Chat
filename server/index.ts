@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { orgPeople as directory } from "./org-data.ts";
-import { rateLimit, securityHeaders } from "./security.ts";
+import { getConfig } from "./config.ts";
+import { jsonOnly, originGuard, rateLimit, securityHeaders } from "./security.ts";
+import { UsageGuard } from "./usage-guard.ts";
+import { createPrototypeStore, parseFeedback, parseRun } from "./prototype-store.ts";
 import { applyInterpretation } from "./dialogue.ts";
 import { buildReply, normalizeIntent, viewOfCandidate, viewOfRow, type CandidateView, type RsvpInput } from "./conversation.ts";
 import { DemoCalendarProvider } from "./demo-provider.ts";
@@ -26,12 +29,17 @@ const app = express();
 const port = Number(process.env.PORT) || 3001;
 const sessionCookie = "nodi_session";
 const sessionTtl = 4 * 60 * 60 * 1000;
-type Session = { apiKey: string; models: string[]; touchedAt: number; workspaceId: string; mode: "groq" | "demo"; provider?: DemoCalendarProvider };
+type Session = { apiKey: string; models: string[]; touchedAt: number; workspaceId: string; mode: "groq" | "demo" | "public"; provider?: DemoCalendarProvider };
 const sessions = new Map<string, Session>();
 const demoMode = appMode === "demo";
+const publicMode = appMode === "public";
+// 데모와 공개 테스트는 키 없이 시작하고, 가상 캘린더·방문자별 메모리 저장을 써요.
+const keyless = demoMode || publicMode;
 const MAX_DEMO_SESSIONS = 300;
+const usageGuard = new UsageGuard(getConfig());
+const prototypeStore = createPrototypeStore();
 // 체험 모드는 저장 파일을 저장소가 아닌 임시 폴더에만 두고, 서버가 꺼지면 모두 사라져요.
-if (demoMode) {
+if (keyless) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nodi-demo-"));
   for (const [name, file] of [["NODI_DATA_PATH", "meetings"], ["NODI_DRAFT_DATA_PATH", "drafts"], ["NODI_INVITATION_DATA_PATH", "invitations"], ["NODI_ROUND_DATA_PATH", "rounds"], ["NODI_OUTBOX_PATH", "outbox"]]) process.env[name] = path.join(dir, `${file}.json`);
 }
@@ -45,8 +53,10 @@ const mailer = new OutboxMailer();
 const baseUrlOf = (req: Request) => process.env.NODI_PUBLIC_URL ?? (req.get("origin") ?? `${req.protocol}://${req.get("host")}`);
 
 app.disable("x-powered-by");
-app.set("trust proxy", 1);
+// Render는 프록시 1단 뒤에 있어서 req.ip가 실제 클라이언트 IP예요. 앞에 CDN 등을 더 두면 TRUST_PROXY_HOPS를 그 단수로 올려요(잘못 올리면 IP 한도를 우회당할 수 있어요).
+app.set("trust proxy", Math.min(5, Math.max(0, Number(process.env.TRUST_PROXY_HOPS ?? 1) || 0)));
 app.use(securityHeaders);
+app.use("/api", originGuard({ allowed: getConfig().allowedOrigins, production: process.env.NODE_ENV === "production" }), jsonOnly);
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 
@@ -59,7 +69,7 @@ function getSession(req: Request) {
 
 function requireSession(req: Request, res: Response, next: NextFunction) {
   if (!getSession(req).session) {
-    res.status(401).json({ error: demoMode ? "체험을 시작해 주세요." : "Groq 연결이 필요합니다.", code: "session_required" });
+    res.status(401).json({ error: keyless ? "체험을 시작해 주세요." : "Groq 연결이 필요합니다.", code: "session_required" });
     return;
   }
   next();
@@ -130,7 +140,43 @@ async function resolveAvailability(body: Record<string, unknown>) {
   return invitation.availability;
 }
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, mode: appMode }));
+// 비밀값 없이 상태만 알려요(키가 설정됐는지 여부만, 값은 절대 노출하지 않아요).
+app.get("/api/health", (_req, res) => res.json({ ok: true, mode: appMode, ...(publicMode ? { aiConfigured: Boolean(process.env.GROQ_API_KEY?.trim()), publicDemoEnabled: getConfig().publicDemoEnabled } : {}) }));
+
+// 공개 테스트의 피드백·흐름 요약 수집. 서버가 형식을 검증하고(코드형 값·길이 제한), 한 실행당 피드백은 1건만 받아요.
+// 조회 API는 만들지 않아요(공개 클라이언트에서 전체 데이터를 읽을 수 없게).
+app.post("/api/feedback", rateLimit(5, 60_000), async (req, res, next) => {
+  try {
+    if (!publicMode) return res.status(404).json({ error: "찾을 수 없어요.", code: "not_found" });
+    const feedback = parseFeedback(req.body);
+    if (!feedback) return res.status(400).json({ error: "의견 내용을 확인해 주세요. 점수는 1~5점, 자유 의견은 300자까지예요.", code: "invalid_input" });
+    if ((await prototypeStore.saveFeedback(feedback)) === "duplicate") return res.status(409).json({ error: "이미 의견을 보내 주셨어요. 고마워요!", code: "already_submitted" });
+    res.status(201).json({ saved: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/prototype/run", rateLimit(30, 60_000), async (req, res, next) => {
+  try {
+    if (!publicMode) return res.status(404).json({ error: "찾을 수 없어요.", code: "not_found" });
+    const run = parseRun(req.body);
+    if (!run) return res.status(400).json({ error: "요청을 확인해 주세요.", code: "invalid_input" });
+    await prototypeStore.saveRun(run);
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 운영자 전용 사용량 확인(숫자만, 사용자 입력 없음). OPS_TOKEN이 없으면 이 경로는 없는 것처럼 동작해요.
+app.get("/api/ops/usage", (req, res) => {
+  const token = process.env.OPS_TOKEN ?? "";
+  const given = Buffer.from(String(req.get("x-ops-token") ?? ""));
+  const expected = Buffer.from(token);
+  if (!publicMode || !token || given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return res.status(404).json({ error: "찾을 수 없어요.", code: "not_found" });
+  res.json(usageGuard.snapshot());
+});
 
 app.get("/api/session", (req, res) => {
   const { session } = getSession(req);
@@ -139,13 +185,14 @@ app.get("/api/session", (req, res) => {
 
 // 키 없이 시작하는 체험 세션. 방문자마다 별도 작업 공간을 받고, 외부 API는 호출하지 않아요.
 app.post("/api/session/demo", rateLimit(10, 60_000), (req, res) => {
-  if (!demoMode) return res.status(404).json({ error: "체험 모드가 아니에요.", code: "not_found" });
+  if (!keyless) return res.status(404).json({ error: "체험 모드가 아니에요.", code: "not_found" });
+  if (publicMode && !getConfig().publicDemoEnabled) return res.status(503).json({ error: "지금은 테스트를 잠시 쉬고 있어요. 나중에 다시 와 주세요.", code: "demo_disabled" });
   if (sessions.size >= MAX_DEMO_SESSIONS) return res.status(503).json({ error: "지금은 체험하는 분이 많아요. 잠시 뒤에 다시 시도해 주세요.", code: "busy" });
   const previous = getSession(req).id;
   if (previous) sessions.delete(previous);
   const id = crypto.randomBytes(32).toString("hex");
-  const models = ["demo-scenario"];
-  sessions.set(id, { apiKey: "", models, touchedAt: Date.now(), workspaceId: crypto.randomBytes(16).toString("hex"), mode: "demo", provider: new DemoCalendarProvider(new MemoryMeetingStore()) });
+  const models = [publicMode ? "nodi-assistant" : "demo-scenario"];
+  sessions.set(id, { apiKey: "", models, touchedAt: Date.now(), workspaceId: crypto.randomBytes(16).toString("hex"), mode: appMode, provider: new DemoCalendarProvider(new MemoryMeetingStore()) });
   res.cookie(sessionCookie, id, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", maxAge: sessionTtl });
   res.json({ connected: true, models, mode: appMode });
 });
@@ -153,7 +200,7 @@ app.post("/api/session/demo", rateLimit(10, 60_000), (req, res) => {
 const sessionKey = (req: Request) => (req.cookies[sessionCookie] as string | undefined) ?? req.ip ?? "anon";
 app.post("/api/session/connect", rateLimit(10, 60_000), async (req, res, next) => {
   try {
-    if (demoMode) return res.status(403).json({ error: "체험 버전에서는 API Key를 쓰지 않아요.", code: "demo_mode" });
+    if (keyless) return res.status(403).json({ error: "이 버전에서는 API Key를 쓰지 않아요.", code: "demo_mode" });
     const apiKey = typeof req.body.apiKey === "string" ? req.body.apiKey.trim() : "";
     if (!apiKey || apiKey.length > 300) {
       res.status(400).json({ error: "API Key를 입력해 주세요.", code: "invalid_input" });
@@ -217,7 +264,7 @@ app.delete("/api/draft", requireSession, async (req, res, next) => {
 app.get("/api/models", requireSession, async (req, res, next) => {
   try {
     const { session } = getSession(req);
-    const models = session!.mode === "demo" ? session!.models : await listModels(session!.apiKey);
+    const models = session!.mode !== "groq" ? session!.models : await listModels(session!.apiKey);
     session!.models = models;
     res.json({ models });
   } catch (error) {
@@ -228,6 +275,8 @@ app.get("/api/models", requireSession, async (req, res, next) => {
 app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (req, res, next) => {
   try {
     const { session } = getSession(req);
+    const config = getConfig();
+    if (Array.isArray(req.body.messages) && req.body.messages.length > 200) return res.status(400).json({ error: "대화가 너무 길어요. ‘새 대화’로 다시 시작해 주세요.", code: "conversation_too_long" });
     const messages = Array.isArray(req.body.messages)
       ? req.body.messages
           .filter((item: unknown) => {
@@ -235,26 +284,43 @@ app.post("/api/chat", requireSession, rateLimit(30, 60_000, sessionKey), async (
             const value = item as { role?: unknown; content?: unknown };
             return (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
           })
-          .map((item: { role: "user" | "assistant"; content: string }) => ({ ...item, content: item.content.slice(0, 4000) }))
+          .map((item: { role: "user" | "assistant"; content: string }) => ({ role: item.role, content: item.content.slice(0, 4000) }))
+          // 공개 테스트는 AI에 보내는 대화를 최근 N턴으로 제한해요.
+          .slice(publicMode ? -config.maxConversationTurns * 2 : 0)
       : [];
     const last = messages[messages.length - 1];
     if (!last || last.role !== "user" || !last.content.trim()) return res.status(400).json({ error: "메시지를 입력해 주세요.", code: "invalid_input" });
-    if (last.content.length > 2000) return res.status(400).json({ error: "한 번에 2,000자까지 입력할 수 있어요.", code: "input_too_long" });
+    const maxInput = publicMode ? config.maxInputChars : 2000;
+    if (last.content.length > maxInput) return res.status(400).json({ error: `한 번에 ${maxInput.toLocaleString("ko-KR")}자까지 입력할 수 있어요.`, code: "input_too_long" });
     const meeting = (req.body.meeting ?? {}) as MeetingDraft;
+    // 공개 테스트에서는 모델을 서버 설정이 정해요(클라이언트가 보낸 모델은 무시).
     const requestedModel = typeof req.body.model === "string" ? req.body.model : "llama-3.3-70b-versatile";
-    const model = session!.models.includes(requestedModel)
-      ? requestedModel
-      : session!.models.includes("llama-3.3-70b-versatile")
-        ? "llama-3.3-70b-versatile"
-        : session!.models[0];
-    const interpretation = await interpreterFor(session!.mode).interpret({
-      apiKey: session!.apiKey,
-      model,
-      messages,
-      meeting,
-      language: req.body.language === "en" ? "en" : "ko",
-      currentField: typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
-    });
+    const model = publicMode
+      ? config.groqModel
+      : session!.models.includes(requestedModel)
+        ? requestedModel
+        : session!.models.includes("llama-3.3-70b-versatile")
+          ? "llama-3.3-70b-versatile"
+          : session!.models[0];
+    // 서버 키로 AI를 부르는 공개 테스트만 사용량 보호를 적용해요(데모 해석기는 외부 호출이 없어요).
+    const usage = publicMode ? usageGuard.acquire({ sessionKey: sessionKey(req), ip: req.ip ?? "unknown", inputChars: last.content.length }) : undefined;
+    if (usage && !usage.ok) {
+      res.set("Retry-After", String(usage.retryAfterSec));
+      return res.status(usage.status).json({ error: usage.message, code: usage.code, retryAfterSec: usage.retryAfterSec });
+    }
+    let interpretation;
+    try {
+      interpretation = await interpreterFor(session!.mode).interpret({
+        apiKey: session!.apiKey,
+        model,
+        messages,
+        meeting,
+        language: req.body.language === "en" ? "en" : "ko",
+        currentField: typeof req.body.currentField === "string" ? req.body.currentField.slice(0, 40) : undefined,
+      });
+    } finally {
+      if (usage?.ok) usage.release();
+    }
     // 해석 → 검증 → 상태 병합 → 다음 행동 계산. nextAction은 AI가 아니라 서버가 정해요.
     const applied = applyInterpretation(meeting, interpretation, directory, new Date());
     const intent = normalizeIntent(interpretation.intent);
@@ -709,12 +775,19 @@ app.delete("/api/events/:id", requireSession, async (req, res, next) => {
   }
 });
 
+// 오류 응답에는 사용자에게 보여줄 한국어 문구만 담아요(스택·파일 경로·업스트림 원문·JSON 조각이 새지 않게).
+// 로그에도 오류 종류만 남기고 요청 내용은 남기지 않아요.
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const known = error instanceof UpstreamError;
-  const message = error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
   const conflict = error instanceof DraftConflictError;
   const stale = error instanceof RoundStaleError;
-  res.status(known ? error.status : conflict || stale ? 409 : 400).json({ error: message, code: known ? error.code : conflict ? "draft_conflict" : stale ? "stale_invitation" : "request_failed" });
+  // 공개 테스트에서 서버 키 문제(401)는 사용자가 고칠 수 없으니 일반 안내로 바꿔요.
+  const keyProblem = publicMode && known && error.status === 401;
+  const raw = error instanceof Error ? error.message : "";
+  const message = keyProblem ? "AI 연결에 문제가 있어요. 운영자가 확인하고 있어요." : /[가-힣]/.test(raw) ? raw : "요청을 처리하지 못했어요. 잠시 뒤에 다시 해 주세요.";
+  const status = keyProblem ? 503 : known ? error.status : conflict || stale ? 409 : (error as { status?: number })?.status === 413 ? 413 : 400;
+  if (status >= 500) console.error(`[nodi:error] ${known ? error.code : error instanceof Error ? error.name : "unknown"}`);
+  res.status(status).json({ error: message, code: keyProblem ? "ai_unavailable" : known ? error.code : conflict ? "draft_conflict" : stale ? "stale_invitation" : "request_failed" });
 });
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));

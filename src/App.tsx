@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { ChatScreen } from "./components/ChatScreen";
 import { DemoRibbon } from "./components/DemoRibbon";
@@ -7,7 +7,13 @@ import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
 import { CalendarConnections } from "./components/CalendarConnections";
 import { InvitedMeetings } from "./components/InvitedMeetings";
+import { capture } from "./analytics";
+import { ConsentNotice } from "./components/ConsentNotice";
+import { FeedbackDialog } from "./components/FeedbackDialog";
+import { readConsent, writeConsent } from "./consent";
 import { demo } from "./demo";
+import { flowAbandoned } from "./flow";
+import { PROTOTYPE } from "./prototype";
 import { MeetingManager } from "./components/MeetingManager";
 import { MeetingsList } from "./components/MeetingsList";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -29,12 +35,44 @@ function Screens() {
   const [events, setEvents] = useState<MeetingEvent[]>([]);
   const [notice, setNotice] = useState("");
   const [slowBoot, setSlowBoot] = useState(false);
+  const [consent, setConsent] = useState(readConsent);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const viewedRef = useRef(false);
+
+  // 분석 동의: 처음 한 번 정하고, 설정에서 철회할 수 있어요. 철회하면 마지막 상태 이벤트 한 번만 보내고 수집을 멈춰요.
+  function decide(analytics: boolean) {
+    setConsent(writeConsent(analytics));
+    if (analytics) capture("analytics_consent_updated", { consent_status: "granted", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent" });
+  }
+  function toggleAnalytics(analytics: boolean) {
+    if (!analytics) capture("analytics_consent_updated", { consent_status: "withdrawn", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent", force: true });
+    setConsent(writeConsent(analytics));
+    if (analytics) capture("analytics_consent_updated", { consent_status: "granted", policy_version: PROTOTYPE.consentPolicyVersion }, { step: "consent" });
+  }
+
+  // 공개 테스트 첫 진입(동의한 경우에만). 같은 페이지 로드에서 한 번만 보내요.
+  useEffect(() => {
+    if (demo.mode !== "public" || consent?.analytics !== true || view === "loading" || viewedRef.current) return;
+    viewedRef.current = true;
+    let entry = "direct";
+    try { if (document.referrer) entry = new URL(document.referrer).origin === window.location.origin ? "internal" : "external"; } catch { entry = "direct"; }
+    capture("prototype_viewed", { entry }, { step: "consent" });
+  }, [consent, view]);
+
+  // 시작했지만 확정하지 못한 채 페이지가 닫히면 이탈로 기록해요(근사치).
+  useEffect(() => {
+    const onHide = () => flowAbandoned("page_hidden");
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, []);
 
   // 서버가 다시 켜졌거나 세션이 끝나면 연결 화면으로 돌아가고, 이유와 보관 상태를 알려줘요.
   useEffect(() => {
     const onExpired = () => {
       setSettings(false);
-      setNotice("연결이 끊겼어요. 서버가 다시 시작됐거나 오래 쉬었을 수 있어요. 입력하던 회의는 이 기기에 보관돼 있으니, 같은 키로 다시 연결하면 이어서 할 수 있어요.");
+      setNotice(demo.on
+        ? "체험이 끝났어요. 서버가 다시 시작됐거나 오래 쉬었을 수 있어요. 아래 버튼으로 새로 시작해 주세요."
+        : "연결이 끊겼어요. 서버가 다시 시작됐거나 오래 쉬었을 수 있어요. 입력하던 회의는 이 기기에 보관돼 있으니, 같은 키로 다시 연결하면 이어서 할 수 있어요.");
       setView("connect");
     };
     window.addEventListener("nodi:session-expired", onExpired);
@@ -52,7 +90,8 @@ function Screens() {
     if (inviteToken || roundToken) return;
     api.session()
       .then(async (session) => {
-        demo.on = session.mode === "demo";
+        demo.mode = session.mode ?? "groq";
+        demo.on = demo.mode !== "groq";
         window.dispatchEvent(new Event("nodi:demo"));
         setModels(session.models);
         if (session.connected) setEvents((await api.events()).events);
@@ -109,6 +148,7 @@ function Screens() {
 
   if (roundToken) return <CandidateInviteScreen token={roundToken} />;
   if (inviteToken) return <InviteResponseScreen token={inviteToken} />;
+  const content = (() => {
   if (view === "loading") {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" />{slowBoot && <p className="boot-hint" role="status">서버를 깨우고 있어요. 처음에는 최대 1분 정도 걸릴 수 있어요.</p>}</main>;
   }
@@ -119,12 +159,20 @@ function Screens() {
     return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} />;
   }
   if (view === "event" && event) {
-    return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} />;
+    return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} onFeedback={demo.mode === "public" ? () => setFeedbackOpen(true) : undefined} />;
   }
   return (
     <>
       <ChatScreen models={models} onSettings={() => setSettings(true)} onShowMeetings={() => setView("meetings")} onShowInvited={() => setView("invited")} onShowCalendars={() => setView("calendars")} onConfirmed={(confirmed) => { setEvent(confirmed); setEvents((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]); setView("event"); }} />
-      {settings && <SettingsDialog onClose={() => setSettings(false)} onDisconnect={disconnect} />}
+      {settings && <SettingsDialog onClose={() => setSettings(false)} onDisconnect={disconnect} analyticsOn={consent?.analytics === true} onToggleAnalytics={toggleAnalytics} onFeedback={() => { setSettings(false); setFeedbackOpen(true); }} />}
     </>
   );
+  })();
+  const overlays = (
+    <>
+      {demo.mode === "public" && view !== "loading" && consent === null && <ConsentNotice onDecide={decide} />}
+      {feedbackOpen && <FeedbackDialog onClose={() => setFeedbackOpen(false)} />}
+    </>
+  );
+  return <>{content}{overlays}</>;
 }

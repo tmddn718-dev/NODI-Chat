@@ -2412,3 +2412,42 @@ body.demo-on { --demo-h: 32px; }
 .rcard, .rsc, .cdone, .message.assistant { animation: nodi-fade-in .2s ease-out; }
 .rd-btn:active:not(:disabled), .primary-button:active:not(:disabled), .secondary-button:active:not(:disabled) { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) { .rcard, .rsc, .cdone, .message.assistant { animation: none; } }
+
+/* 공개 테스트: 동의 안내 · 피드백 · 확정 완료의 의견 카드 */
+.consent-backdrop { z-index: 120; }
+.consent { max-width: 520px; }
+.consent h2 { margin: 0 0 16px; font-size: 20px; font-weight: 700; line-height: 28px; color: #18243A; }
+.consent-points { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.consent-points li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; font-size: 14px; line-height: 22px; color: #47566D; }
+.consent-points svg { width: 22px; height: 22px; margin-top: 1px; color: #3654D4; }
+.consent-points strong { display: block; color: #18243A; font-weight: 700; }
+.consent-details { margin-top: 16px; padding: 12px 16px; border-radius: 12px; background: #F5F7FB; }
+.consent-details summary { min-height: 32px; cursor: pointer; font-size: 13px; font-weight: 600; color: #3654D4; }
+.consent-details dl { display: grid; gap: 10px; margin: 8px 0 0; }
+.consent-details dt { font-size: 12px; font-weight: 700; color: #65748B; }
+.consent-details dd { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: #18243A; }
+.consent-actions { display: grid; gap: 8px; margin-top: 20px; }
+.consent-actions button { min-height: 48px; }
+.feedback { max-width: 520px; }
+.feedback h2 { margin: 0; font-size: 20px; font-weight: 700; line-height: 28px; color: #18243A; }
+.fb-lead { margin: 4px 0 16px; font-size: 14px; line-height: 22px; color: #65748B; }
+.fb-scale, .fb-tags { margin: 0 0 16px; padding: 0; border: 0; }
+.fb-scale legend, .fb-tags legend, .fb-comment { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; line-height: 22px; color: #18243A; }
+.fb-scale [role="radiogroup"] { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.fb-scale button { min-height: 44px; font-size: 16px; font-weight: 600; color: #47566D; background: #fff; border: 1px solid #DDE4EF; border-radius: 12px; cursor: pointer; }
+.fb-scale button.on { color: #3654D4; background: #E9EEFF; border-color: #3654D4; }
+.fb-scale p { display: flex; justify-content: space-between; margin: 6px 2px 0; font-size: 12px; color: #65748B; }
+.fb-tags > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.fb-tags button { min-height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; color: #47566D; background: #fff; border: 1px solid #DDE4EF; border-radius: 999px; cursor: pointer; }
+.fb-tags button.on { color: #3654D4; background: #E9EEFF; border-color: #D1DCFF; }
+.fb-comment { display: block; }
+.feedback textarea { width: 100%; padding: 12px 14px; font: inherit; font-size: 14px; line-height: 22px; color: #18243A; background: #F6F7F8; border: 1px solid transparent; border-radius: 12px; resize: vertical; }
+.feedback textarea:focus-visible { outline: 0; background: #fff; border-color: #A7B0CC; box-shadow: 0 0 0 3px rgb(54 84 212 / .09); }
+.fb-hint { display: flex; justify-content: space-between; gap: 12px; margin: 6px 0 0; font-size: 12px; line-height: 18px; color: #65748B; }
+.fb-done { display: grid; gap: 12px; padding: 12px 0 4px; text-align: center; }
+.fb-done p { margin: 0; font-size: 14px; color: #47566D; }
+.done-feedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 24px 0; padding: 14px 16px; border-radius: 16px; background: #F4F6FF; }
+.done-feedback strong { display: block; font-size: 14px; font-weight: 700; color: #18243A; }
+.done-feedback p { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: #47566D; }
+.done-feedback button { flex: none; min-height: 44px; }
+@media (max-width: 767px) { .done-feedback { flex-direction: column; align-items: stretch; margin-inline: 16px; } }

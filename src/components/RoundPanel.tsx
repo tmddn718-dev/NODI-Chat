@@ -1,4 +1,5 @@
 import { demo } from "../demo";
+import { flowError, recommendationRegenerated, recommendationSelected, recommendationsViewed } from "../flow";
 import { CircleCheck, Copy, Send, TriangleAlert } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -38,6 +39,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const searchStartedRef = useRef(0);
 
   useEffect(() => {
     if (!token) { setRound(null); return; }
@@ -58,6 +60,12 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
     topRef.current = top.candidate.id;
   }, [round]);
 
+  // 후보가 화면에 처음 보일 때(후보 세트가 바뀔 때마다) 분석 이벤트를 한 번만 보내요. 후보 id를 합친 값으로 중복을 막아요.
+  useEffect(() => {
+    if (!round?.rows.length) return;
+    recommendationsViewed(round.rows.length, `${round.token}:${round.version}:${round.rows.map((row) => row.candidate.id).join(",")}`, searchStartedRef.current ? Date.now() - searchStartedRef.current : 0);
+  }, [round?.token, round?.version, round?.rows.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 요청을 보내기 전(2단계)과 후(3단계)를 화면 상단 단계 표시에 알려줘요.
   useEffect(() => { onPhase?.({ loaded: Boolean(round), invited: Boolean(round?.invitedAt), pending: round ? round.participants.filter((p) => !p.responded).length : 0, total: round?.total ?? 0 }); }, [round?.invitedAt, round?.responded, round?.total]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -68,6 +76,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       setRound(next);
       if (adopt) onTokenChange(next.token);
     } catch (reason) {
+      flowError(reason, "search");
       setError(reason instanceof Error ? reason.message : "요청을 처리하지 못했어요.");
     } finally {
       setBusy(false);
@@ -104,7 +113,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           <p className="rd-caption">{ready ? `${stamp.format(new Date(deadlineMs))}까지 응답을 받아요 (한국 표준시). 이 시간 이후에 시작하는 후보만 찾아요.` : "지금보다 뒤의 시간을 골라 주세요"}</p>
         </fieldset>
         {error && <p className="rd-error" role="alert"><TriangleAlert />{error}</p>}
-        <button className="rd-btn rd-cta" disabled={busy || !ready} onClick={() => void run(() => api.createRound(meeting, requestId, new Date(deadlineMs).toISOString()), true)}>{busy ? "후보를 찾고 있어요..." : "후보 찾기"}</button>
+        <button className="rd-btn rd-cta" disabled={busy || !ready} onClick={() => { searchStartedRef.current = Date.now(); void run(() => api.createRound(meeting, requestId, new Date(deadlineMs).toISOString()), true); }}>{busy ? "후보를 찾고 있어요..." : "후보 찾기"}</button>
       </section>
     );
   }
@@ -179,11 +188,11 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           round={round}
           busy={busy}
           onRemind={() => void run(() => api.remindRound(token))}
-          onRefresh={() => void run(() => api.refreshRound(token))}
+          onRefresh={() => { recommendationRegenerated("no_candidates"); void run(() => api.refreshRound(token)); }}
           onExtend={(deadlineAt) => void run(() => api.extendRound(token, deadlineAt))}
           onCompare={() => setComparing(true)}
           onEditRequired={onEditRequired}
-          onProceed={(row) => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
+          onProceed={(row) => { recommendationSelected(row.rank); onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }); }}
         />
       )}
       <details className="rsc-people" open={!round.invitedAt}>
@@ -215,7 +224,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
       <div className="rd-actions">
         {round.invitedAt && failed.length > 0 && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.sendRound(token))}>발송 실패 {failed.length}명 다시 보내기</button>}
-        <button className="rd-btn m ghost" disabled={busy} onClick={() => void run(() => api.refreshRound(token))}>후보 새로 찾기</button>
+        <button className="rd-btn m ghost" disabled={busy} onClick={() => { recommendationRegenerated("refresh"); void run(() => api.refreshRound(token)); }}>후보 새로 찾기</button>
         {demo.on && round.invitedAt && pending.length > 0 && !unsent.length && <button className="rd-btn m secondary" disabled={busy} onClick={() => void run(() => api.demoResponses(token))}>가상 참석자 응답 받기 (데모)</button>}
         <button className="rd-btn m ghost" disabled={busy || !round.invitedAt || round.reminderCount >= 1 || round.phase === "final" || !pending.length || pending.length === unsent.length} onClick={() => void run(() => api.remindRound(token))}>{round.reminderCount ? "재알림 보냄" : `미응답 ${pending.length}명 재알림`}</button>
       </div>
@@ -231,7 +240,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       {comparing && (
         <CompareTable
           onClose={() => setComparing(false)}
-          columns={round.rows.filter((row) => !isMobile || picked.length < 2 || picked.includes(row.candidate.id)).map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0, onSelect: row.candidate.requiredAvailable ? () => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }) : undefined }))}
+          columns={round.rows.filter((row) => !isMobile || picked.length < 2 || picked.includes(row.candidate.id)).map((row) => ({ id: row.candidate.id, label: slot.format(new Date(row.candidate.start)), required: row.candidate.requiredAvailable ? "충돌 없음" : "확인 필요", possible: row.accepted, impossible: row.declined, waiting: row.noResponse + row.tentative, unknown: 0, onSelect: row.candidate.requiredAvailable ? () => { recommendationSelected(row.rank); onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }); } : undefined }))}
         />
       )}
       <ol className="rd-list rcard-list">
@@ -257,7 +266,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
               badge={state.badge}
               reasons={reasons}
               canSelect={state.canSelect}
-              onSelect={() => onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse })}
+              onSelect={() => { recommendationSelected(row.rank); onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }); }}
               compare={isMobile && round.rows.length > 1 ? { checked: picked.includes(row.candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(row.candidate.id) ? current.filter((id) => id !== row.candidate.id) : [...current, row.candidate.id]) } : undefined}
               details={(
                 <>

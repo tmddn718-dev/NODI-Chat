@@ -80,7 +80,7 @@ export const demoPeople: DemoPerson[] = [
 ];
 
 // 체험 모드는 오래 열려 있어도 충돌 일정이 보이도록, 샘플 일정을 앞으로 올 두 주에 걸쳐 같은 요일로 옮겨요.
-if (process.env.NODI_MODE === "demo") {
+if (process.env.NODI_MODE === "demo" || process.env.NODI_MODE === "public") {
   const base = Date.parse("2026-10-28T00:00:00Z");
   const today = Date.parse(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date())}T00:00:00Z`);
   const weeks = Math.max(0, Math.ceil((today - base) / (7 * 86_400_000)));

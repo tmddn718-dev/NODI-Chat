@@ -10,6 +10,7 @@ export function MeetingManager({
   onCancel,
   onBack,
   onNew,
+  onFeedback,
 }: {
   event: MeetingEvent;
   onUpdate: (patch: Partial<MeetingDraft>, notify: "now" | "none") => Promise<void>;
@@ -17,6 +18,7 @@ export function MeetingManager({
   onCancel: () => Promise<void>;
   onBack: () => void;
   onNew: () => void;
+  onFeedback?: () => void; // 공개 테스트에서만 넘겨져요
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(event.meeting.title ?? "");
@@ -185,6 +187,12 @@ export function MeetingManager({
         {error && <p className="dialog-error" role="alert">{error}</p>}
         {!editing && (
           <>
+            {onFeedback && (
+              <section className="done-feedback" aria-label="의견 남기기">
+                <div><strong>테스트는 어떠셨나요?</strong><p>1분이면 돼요. 이름·연락처는 쓰지 않아도 돼요.</p></div>
+                <button className="secondary-button" onClick={onFeedback}>의견 남기기</button>
+              </section>
+            )}
             <div className="done-actions">
               <button className="secondary-button" onClick={onNew}>새 회의 만들기</button>
               <button className="primary-button" onClick={onBack}>내 회의 보기</button>

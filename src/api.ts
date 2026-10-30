@@ -32,7 +32,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  session: () => request<{ connected: boolean; models: string[]; mode?: "groq" | "demo" }>("/api/session"),
+  session: () => request<{ connected: boolean; models: string[]; mode?: "groq" | "demo" | "public" }>("/api/session"),
+  // 공개 테스트 피드백. 형식은 서버가 다시 검증하고, 한 실행당 1건만 받아요.
+  feedback: (body: object) => request<{ saved: boolean }>("/api/feedback", { method: "POST", body: JSON.stringify(body) }),
   startDemo: () => request<{ connected: boolean; models: string[] }>("/api/session/demo", { method: "POST" }),
   demoResponses: (token: string) => request<{ round: import("./types").RoundSummary }>(`/api/rounds/${token}/demo-responses`, { method: "POST" }),
   connect: (apiKey: string) =>

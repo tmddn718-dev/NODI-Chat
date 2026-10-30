@@ -26,7 +26,7 @@ export async function withRetry<T>(run: () => Promise<T>, waitMs = 800): Promise
   }
 }
 
-async function groqFetch(apiKey: string, path: string, init?: RequestInit) {
+async function groqFetch(apiKey: string, path: string, init?: RequestInit, timeoutMs = 20_000) {
   let response: Response;
   try {
     response = await fetch(`${GROQ_BASE}${path}`, {
@@ -36,19 +36,19 @@ async function groqFetch(apiKey: string, path: string, init?: RequestInit) {
         "Content-Type": "application/json",
         ...init?.headers,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new UpstreamError("Groq API에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.", 502, "network_error");
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+    // 업스트림이 보낸 오류 문구는 그대로 전달하지 않아요(영어 문구·내부 정보가 화면에 새지 않게).
     const message =
       response.status === 401
         ? "API Key가 올바르지 않습니다."
         : response.status === 429
-          ? "Groq 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
-          : body?.error?.message ?? "Groq 요청에 실패했습니다.";
+          ? "AI 사용량 한도에 도달했어요. 잠시 후 다시 시도해 주세요."
+          : "AI 요청에 실패했어요. 잠시 뒤에 다시 해 주세요.";
     throw new UpstreamError(message, response.status === 401 ? 401 : 502, response.status === 429 ? "rate_limited" : "groq_error");
   }
   return response.json();
@@ -68,6 +68,7 @@ export async function chatWithGroq(
   meeting: MeetingDraft,
   language: "ko" | "en",
   currentField?: string,
+  options: { maxTokens?: number; timeoutMs?: number } = {},
 ): Promise<Interpretation> {
   const now = new Date();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(now);
@@ -93,9 +94,10 @@ Write assistantMessage in ${language === "ko" ? "natural Korean" : "English"}. C
       model,
       temperature: 0.1,
       response_format: { type: "json_object" },
+      ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
       messages: [{ role: "system", content: system }, ...messages.slice(-12)],
     }),
-  })) as { choices?: Array<{ message?: { content?: string } }> };
+  }, options.timeoutMs)) as { choices?: Array<{ message?: { content?: string } }> };
   const content = payload.choices?.[0]?.message?.content;
   if (!content) throw new UpstreamError("Groq 응답이 비어 있습니다.", 502, "empty_response");
   try {

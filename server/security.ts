@@ -32,3 +32,29 @@ export function rateLimit(limit: number, windowMs: number, keyOf: (req: Request)
     next();
   };
 }
+
+// 브라우저가 보낸 상태 변경 요청(POST/PUT/PATCH/DELETE)은 같은 출처이거나 허용 목록의 출처일 때만 받아요.
+// 개발 환경에서만 localhost를 허용해요. Origin이 없는 요청(서버끼리·curl)은 브라우저 CSRF가 아니라서 통과시켜요.
+export function originGuard({ allowed, production }: { allowed: string[]; production: boolean }) {
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next();
+    const origin = req.get("origin");
+    if (!origin) return next();
+    let host = "";
+    try { host = new URL(origin).host; } catch { /* 잘못된 Origin은 아래에서 거절 */ }
+    const normalized = origin.replace(/\/$/, "");
+    if ((host && host === req.get("host")) || allowed.includes(normalized) || (!production && local.test(normalized))) return next();
+    res.status(403).json({ error: "허용되지 않은 요청 출처예요.", code: "origin_not_allowed" });
+  };
+}
+
+// 본문이 있는 API 요청은 JSON만 받아요(다른 형식으로 우회하는 범용 프록시 사용을 막아요).
+export function jsonOnly(req: Request, res: Response, next: NextFunction) {
+  const hasBody = Number(req.get("content-length") ?? 0) > 0 || Boolean(req.get("transfer-encoding"));
+  if (["POST", "PUT", "PATCH"].includes(req.method) && hasBody && !req.is("application/json")) {
+    res.status(415).json({ error: "JSON 형식의 요청만 받아요.", code: "unsupported_media_type" });
+    return;
+  }
+  next();
+}

@@ -312,3 +312,15 @@ NODI-Chat/
 - 상태 전환 피드백: 카드 등장 애니메이션(움직임 줄임 설정 시 끔), 버튼 눌림.
 - **참고 레퍼런스(유아이볼, 모바일 앱 화면만 있음)**: 달다방·차란의 바텀시트(제목+X, 스크롤 본문, 하단 고정 CTA·CTA에 금액/수량 포함), 차란·미니스탁·오일나우의 완료 화면(보조 버튼 + 주요 버튼 2개). 웹 레퍼런스는 없어 디자인 시스템 규격으로 대체. Slack/Linear/Google Calendar 등은 명세의 패턴 설명만 참고(화면 복제 없음).
 - **미확인**: 실기기 키보드에서 시트 동작, 태블릿(768~1199px) 화면, 사용성 테스트(과업 성공률·이해도 등 효과는 가설).
+
+## 12. 공개 프로토타입 테스트 환경 (브랜치 `feat/public-prototype-test`, `demo`에서 분기, 커밋 전)
+상세 문서는 `docs/public-prototype/`(README + 02~08). 요약:
+- **새 모드 `NODI_MODE=public`**: 키 없이 시작(`/api/session/demo` 재사용)·방문자별 메모리 저장·가상 캘린더는 demo와 같고, AI 해석은 **서버 환경변수 `GROQ_API_KEY`**로만 Groq 호출(`server/interpreter.ts`의 `publicInterpreter`). 모델·출력 토큰·타임아웃은 서버 설정(`server/config.ts`), 클라이언트가 보낸 모델은 무시. 키 없으면 503 `ai_not_configured`(변수명·값 노출 없음).
+- **사용량 보호** `server/usage-guard.ts`: 킬 스위치(`PUBLIC_DEMO_ENABLED`) → 전체 일일 예산 → 동시 요청 → 분당 세션·IP → 일일 세션·IP. 429/503 + 한국어 + `Retry-After`. 메모리 기준(재시작·다중 인스턴스 한계 문서화). `/api/ops/usage`는 `OPS_TOKEN`이 있어야 열림.
+- **서버 보안**: Origin 검증(`originGuard`), JSON만 허용(`jsonOnly`), 오류 응답 정리(업스트림·파싱 문구·스택 비노출), 로그에 대화·키 없음(테스트), `TRUST_PROXY_HOPS`.
+- **분석**: `posthog-js` 없이 `/capture/` 전송(자동 캡처·리플레이·identify 없음). 동의 후에만(`src/consent.ts`), 허용 목록 속성·코드형 값만(`src/analytics.ts`), 퍼널 시점·중복 방지(`src/flow.ts`), 기기·버전·실험군(`src/device.ts`, `src/prototype.ts`, `src/experiment.ts`). 철회 시 마지막 상태 이벤트 1회 후 중단·익명 ID 삭제.
+- **동의 UI·피드백**: `ConsentNotice`(첫 진입), `FeedbackDialog`(점수 2개·태그·자유 의견 300자, 확정 완료 화면·설정에서 진입), 설정에 철회·테스트 데이터 초기화.
+- **저장**: 기존 DB 없음(JSON 파일은 Render에서 휘발) → `server/prototype-store.ts`: Supabase(`SUPABASE_URL`+서비스 키, RLS 켠 테이블, `supabase/migrations/0001_prototype_tables.sql`) 또는 로컬 파일. 피드백은 run 하나당 1건.
+- **배포**: `render.public.yaml`(서비스 `nodi-public`, 수동 배포). 기존 `nodi-demo`(`render.yaml`)와 별개.
+- **세션 리플레이는 구현하지 않음**(기본 OFF, 마스킹 보장 어려움 → 문서에 도입 조건).
+- **미확인/사용자 결정**: 실제 Groq 키로 자유 입력 품질·한도 동작, PostHog 실제 프로젝트의 대시보드 설정, Supabase 실제 연결, 보존 기간·문의처, Render 실배포. 검증은 가짜 Groq/로컬 수신 서버로 했음.

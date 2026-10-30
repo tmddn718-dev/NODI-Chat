@@ -22,6 +22,7 @@ import { ProgressHeader, type EditableField, type ProgressInfo } from "./Progres
 import { AmbiguityResolver, fieldText, ProposalConfirmCard, UnderstoodConditionsCard, type FieldKey, type Understood } from "./UnderstoodCards";
 import { namesLabel } from "../format";
 import { ConditionsDone } from "./ConditionsDone";
+import { detailsCompleted, flowAbandoned, flowError, flowStarted, isRunConfirmed, meetingConfirmed, newRun, participantsConfigured, recommendationRegenerated, recommendationSelected, recommendationsViewed } from "../flow";
 
 const intro: Message = {
   id: "intro",
@@ -131,6 +132,11 @@ export function ChatScreen({
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [serverReady, setServerReady] = useState(false);
+  // 분석용: 이번 흐름에서 선택지와 직접 입력을 어떻게 썼는지(내용이 아니라 방식만 기억해요).
+  const inputMethodRef = useRef({ guided: false, typed: false });
+  const inputMethod = () => { const m = inputMethodRef.current; return m.guided && m.typed ? "mixed" as const : m.typed ? "typed" as const : "guided" as const; };
+  // 확정을 마친 뒤 새 회의를 시작하면 새 실행(run)으로 시작해요.
+  useEffect(() => { if (isRunConfirmed()) newRun(); }, []);
   const epochRef = useRef(0); // 새 대화를 누르면 올라가요. 그 전에 보낸 요청의 늦은 응답은 버려요.
   const [syncStatus, setSyncStatus] = useState<"loading" | "saving" | "saved" | "conflict" | "error">("loading");
   const draftVersionRef = useRef(0);
@@ -380,6 +386,9 @@ export function ChatScreen({
   }
 
   function restart() {
+    flowAbandoned("restart");
+    newRun();
+    inputMethodRef.current = { guided: false, typed: false };
     setConfirmRestart(false);
     setUndo({ meeting, messages, history, reviewed, label: "처음부터 다시 시작했어요" });
     setHistory([]);
@@ -440,14 +449,18 @@ export function ChatScreen({
     setRecommendLoading(true);
     setError("");
     const epoch = epochRef.current;
+    const searchStartedAt = Date.now();
+    if (candidates.length || recommendationComplete) recommendationRegenerated("refresh");
     try {
       const recommendation = await api.recommendations(nextMeeting, responses, (collectMethod === "invite" && invitationToken) || undefined);
       if (epoch !== epochRef.current) return;
+      recommendationsViewed(recommendation.candidates.length, recommendation.candidates.map((candidate) => candidate.id).join(","), Date.now() - searchStartedAt);
       setAvailability(recommendation.availability);
       setCandidates(recommendation.candidates);
       setRecommendationComplete(true);
       setLastAction(null);
     } catch (reason) {
+      flowError(reason, "search");
       setError(reason instanceof Error ? reason.message : "맞는 시간을 찾지 못했어요.");
       setLastAction("recommendations");
     } finally {
@@ -469,6 +482,8 @@ export function ChatScreen({
     setCustomPlaceholder("");
     setLoading(true);
     setError("");
+    inputMethodRef.current.typed = true;
+    flowStarted("typed");
     const epoch = epochRef.current;
     try {
       const result = await api.chat({
@@ -506,6 +521,8 @@ export function ChatScreen({
       if (nothing && nearest) setRecommended(nearest.label);
       setHistory((current) => [...current, { meeting, messages }].slice(-30));
       setMeeting(nextMeeting);
+      if (changed.includes("attendees") && nextMeeting.attendees?.length) participantsConfigured(nextMeeting.attendees.length);
+      if (result.complete) detailsCompleted(inputMethod());
       setReviewed(false);
       setInvitationToken("");
     setRoundToken("");
@@ -528,6 +545,7 @@ export function ChatScreen({
       setLastAction(null);
     } catch (reason) {
       if (epoch !== epochRef.current) return;
+      flowError(reason, "conditions");
       // 입력은 대화에 남아 있어요. 기술 오류보다 먼저, 현재 질문에 맞는 목록에서 고르게 안내해요.
       const nearest = guidedStep ? matchChoice(guidedStep, content).choice : undefined;
       if (nearest) setRecommended(nearest.label);
@@ -584,6 +602,10 @@ export function ChatScreen({
   function selectGuidedChoice(choice: GuidedChoice) {
     const nextMeeting = { ...meeting, ...choice.patch, version: (meeting.version ?? 1) + 1 };
     const nextStep = getGuidedStep(nextMeeting, language);
+    inputMethodRef.current.guided = true;
+    flowStarted("guided");
+    if (choice.patch.attendees?.length) participantsConfigured(choice.patch.attendees.length);
+    if (!nextStep) detailsCompleted(inputMethod());
     const assistantMessage = nextStep
       ? language === "ko"
         ? `${choice.label}, 좋아요. ${nextStep.question}`
@@ -702,6 +724,8 @@ export function ChatScreen({
 
   // 시간을 고르면 바로 확정하지 않고, 서버가 최신 일정을 자동으로 다시 확인한 뒤에만 최종 승인 카드가 열려요.
   async function chooseCandidate(candidate: Candidate) {
+    // 후보 응답 수집(라운드) 흐름은 RoundPanel이 순위를 알고 있어서 거기서 이벤트를 보내요.
+    if (!roundToken) recommendationSelected(Math.max(1, candidates.findIndex((item) => item.id === candidate.id) + 1));
     setSelected(candidate);
     setConfirmRequestId(crypto.randomUUID());
     setConfirmError("");
@@ -733,8 +757,10 @@ export function ChatScreen({
       localStorage.removeItem(draftStorageKey);
       localStorage.removeItem(historyStorageKey);
       await api.deleteDraft().catch(() => undefined);
+      meetingConfirmed();
       onConfirmed(result.event);
     } catch (reason) {
+      flowError(reason, "confirm");
       setConfirmError(reason instanceof Error ? reason.message : "회의 시간을 정하지 못했어요.");
     } finally {
       setConfirmLoading(false);

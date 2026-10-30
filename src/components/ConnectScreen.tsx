@@ -1,5 +1,6 @@
 import { Eye, EyeOff, KeyRound, LockKeyhole, PlayCircle, ShieldCheck } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { demo } from "../demo";
 import { Brand } from "./Brand";
 
 type Props = {
@@ -52,7 +53,7 @@ export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
         </div>
         <div className="trust-note">
           <ShieldCheck size={24} />
-          <span>{onStartDemo ? "체험에는 API Key가 필요 없어요. 입력한 내용은 이 체험 안에서만 쓰여요." : "API Key는 브라우저나 데이터베이스에 저장하지 않아요."}</span>
+          <span>{onStartDemo ? (demo.mode === "public" ? "API Key는 필요 없어요. 입력한 문장은 AI가 이해하도록 서버로 보내지니 개인정보는 쓰지 말아 주세요." : "체험에는 API Key가 필요 없어요. 입력한 내용은 이 체험 안에서만 쓰여요.") : "API Key는 브라우저나 데이터베이스에 저장하지 않아요."}</span>
         </div>
       </section>
 
@@ -60,16 +61,17 @@ export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
         {onStartDemo ? (
           <div className="connect-card">
             <span className="key-icon"><PlayCircle size={26} /></span>
-            <h2 id="connect-title">바로 체험해 보세요</h2>
-            <p className="muted">가상 캘린더와 가상 조직(약 260명)으로 회의 시간을 찾는 과정을 체험할 수 있어요.</p>
+            <h2 id="connect-title">{demo.mode === "public" ? "NODI 테스트에 참여해 보세요" : "바로 체험해 보세요"}</h2>
+            <p className="muted">{demo.mode === "public" ? "가상 캘린더로 회의 시간을 찾는 과정을 써 보고, 느낀 점을 알려 주세요. API Key는 필요 없어요." : "가상 캘린더와 가상 조직(약 260명)으로 회의 시간을 찾는 과정을 체험할 수 있어요."}</p>
             {notice && <p className="connect-notice" role="status">{notice}</p>}
             <ul className="demo-points">
               <li>실제 일정이나 메일은 만들어지지 않아요.</li>
-              <li>선택지를 누르거나 직접 입력해 보세요. 데모는 정해진 규칙으로 말을 이해해서 모든 문장을 알아듣지는 못해요.</li>
-              <li>서버가 다시 켜지면 체험 기록이 지워져요.</li>
+              {demo.mode === "public"
+                ? <><li>선택지를 누르거나 직접 입력해 보세요. 이름·연락처 같은 개인정보는 입력하지 마세요.</li><li>서버가 다시 켜지면 테스트 기록이 지워져요.</li></>
+                : <><li>선택지를 누르거나 직접 입력해 보세요. 데모는 정해진 규칙으로 말을 이해해서 모든 문장을 알아듣지는 못해요.</li><li>서버가 다시 켜지면 체험 기록이 지워져요.</li></>}
             </ul>
             <button className="primary-button connect-button" onClick={() => void startDemo()} disabled={status === "loading"}>
-              {status === "loading" ? "준비하고 있어요..." : "데모 체험 시작하기"}
+              {status === "loading" ? "준비하고 있어요..." : demo.mode === "public" ? "테스트 시작하기" : "데모 체험 시작하기"}
             </button>
             {error && <p className="error-text" role="alert">{error}</p>}
           </div>

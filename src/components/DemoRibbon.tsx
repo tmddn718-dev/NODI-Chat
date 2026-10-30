@@ -18,7 +18,7 @@ export function DemoRibbon() {
   return (
     <div className="demo-ribbon" role="note">
       <Info aria-hidden="true" size={14} />
-      <span>체험용 데모 · 가상 데이터예요. 실제 일정은 등록되지 않아요.</span>
+      <span>{demo.mode === "public" ? "테스트용 가상 일정이며 실제 캘린더에는 반영되지 않아요." : "체험용 데모 · 가상 데이터예요. 실제 일정은 등록되지 않아요."}</span>
     </div>
   );
 }

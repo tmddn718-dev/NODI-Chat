@@ -6,3 +6,6 @@ dist
 .DS_Store
 data/*.json
 data/*.tmp
+data/prototype-results.jsonl
+.env.local
+.env.*.local
