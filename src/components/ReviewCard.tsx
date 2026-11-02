@@ -22,7 +22,8 @@ export function reviewItems(meeting: MeetingDraft) {
 
 const md = (date?: string) => (date ? date.slice(5).replace("-", ".") : "");
 
-export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDraft; onEdit: () => void; onProceed: () => void }) {
+// needsAvailability: 눌렀을 때 참석 가능 시간을 먼저 입력해야 하면 버튼 문구로 미리 알려줘요.
+export function ReviewCard({ meeting, needsAvailability = false, onEdit, onProceed }: { meeting: MeetingDraft; needsAvailability?: boolean; onEdit: () => void; onProceed: () => void }) {
   const items = reviewItems(meeting);
   const done = items.filter((item) => item.ok).length;
   const complete = done === items.length;
@@ -37,8 +38,8 @@ export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDra
     <section className="guided-card review-card" aria-labelledby="review-title">
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
-        <div><p>회의 조건 정하기 · 확인</p><h2 id="review-title">이 조건으로 가능한 시간을 찾아볼까요?</h2></div>
-        <strong className="review-count">{done}/{items.length} 완료</strong>
+        <div><p>회의 조건 입력 · 확인</p><h2 id="review-title">{needsAvailability ? "이 조건으로 참석 가능 시간을 받을까요?" : "이 조건으로 가능한 시간을 찾아볼까요?"}</h2></div>
+        <strong className="review-count">{complete ? "모든 조건 입력됨" : `조건 ${done}/${items.length} 입력됨`}</strong>
       </div>
       <p className="cd-sub">잘못 이해한 내용이 있다면 수정해 주세요. 확인되면 캘린더를 먼저 살펴 가능한 후보를 찾고, 필요한 참석자에게만 가능 여부를 물어볼게요.</p>
 
@@ -69,7 +70,7 @@ export function ReviewCard({ meeting, onEdit, onProceed }: { meeting: MeetingDra
       <p className="cd-note"><Info /> 추천 시간 검색은 회의 확정이 아니에요. 확인 가능한 일정 정보를 바탕으로 후보를 제안해요. 시간대는 {meeting.timezone ?? "Asia/Seoul"} 기준이에요.</p>
       <div className="review-actions">
         <button className="secondary-button" onClick={onEdit}>조건 수정하기</button>
-        <button className="primary-button" onClick={onProceed} disabled={!complete}>가능한 시간 찾기</button>
+        <button className="primary-button" onClick={onProceed} disabled={!complete}>{needsAvailability ? "참석 가능 시간 입력하기" : "가능한 시간 찾기"}</button>
       </div>
     </section>
   );

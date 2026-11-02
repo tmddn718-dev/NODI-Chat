@@ -29,6 +29,25 @@ describe("AttendeePicker", () => {
     expect(onConfirm).toHaveBeenCalledWith(["김민지"]);
   }, 20000);
 
+  it("opens on my own department and team, and lets me widen to everyone", async () => {
+    vi.mocked(api.directory).mockResolvedValue({ ...tree, me: { name: "김민지", department: "제품본부", team: "프로덕트팀" } });
+    vi.mocked(api.people).mockResolvedValue({ people, mode: "demo" });
+    render(<AttendeePicker language="ko" onConfirm={vi.fn()} />);
+    expect(await screen.findByText("내 팀 · 프로덕트팀", {}, { timeout: 8000 })).toBeTruthy();
+    expect(await screen.findByText("(나)", {}, { timeout: 8000 })).toBeTruthy();
+    await waitFor(() => expect(vi.mocked(api.people).mock.calls[0]?.[0]).toMatchObject({ department: "제품본부", team: "프로덕트팀" }), { timeout: 8000 });
+    fireEvent.change(screen.getByLabelText("부서"), { target: { value: "" } });
+    await waitFor(() => expect(vi.mocked(api.people).mock.calls.at(-1)?.[0]).toMatchObject({ department: "", team: "" }), { timeout: 8000 });
+  }, 20000);
+
+  it("starts on my department when I am the only one on my team", async () => {
+    vi.mocked(api.directory).mockResolvedValue({ total: 3, me: { name: "김민지", department: "제품본부", team: "프로덕트팀" }, departments: [{ name: "제품본부", count: 3, teams: [{ name: "프로덕트팀", count: 1 }, { name: "제품기획팀", count: 2 }] }] });
+    vi.mocked(api.people).mockResolvedValue({ people, mode: "demo" });
+    render(<AttendeePicker language="ko" onConfirm={vi.fn()} />);
+    expect(await screen.findByText("내 소속 · 제품본부", {}, { timeout: 8000 })).toBeTruthy();
+    await waitFor(() => expect(vi.mocked(api.people).mock.calls[0]?.[0]).toMatchObject({ department: "제품본부", team: "" }), { timeout: 8000 });
+  }, 20000);
+
   it("hands direct typing off to the chat composer", async () => {
     vi.mocked(api.directory).mockResolvedValue(tree);
     vi.mocked(api.people).mockResolvedValue({ people, mode: "demo" });

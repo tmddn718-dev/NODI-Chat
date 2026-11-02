@@ -10,7 +10,7 @@ npx tsc -b && npx vitest run && npm run build && bash scripts/check-secrets.sh
 ## B. 브라우저 네트워크 패널 수동 검증 (개발자 도구 → Network)
 1. [ ] **Groq 직접 요청이 없다**: 필터 `groq` → 요청 0건. 자유 입력을 보내도 `/api/chat`(자기 도메인)만 보여요.
 2. [ ] **응답·소스·번들에 키가 없다**: Sources에서 `GROQ`, `gsk_`, `service_role`을 검색 → 없음. `/api/health` 응답에는 `aiConfigured`(true/false)만.
-3. [ ] **동의 전 Amplitude 요청이 없다**: 저장소를 지우고(Application → Clear site data) 첫 진입 → 동의 안내만 보이고 `amplitude`/`/2/httpapi` 요청 0건(SDK 파일 요청도 없음). "동의하지 않고 사용"을 눌러도 0건.
+3. [ ] **동의 전 Amplitude 요청이 없다**: 저장소를 지우고(Application → Clear site data) 첫 진입 → 동의 안내만 보이고 `amplitude`/`/2/httpapi` 요청 0건(SDK 파일 요청도 없음). "익명 데이터 수집 없이 시작"을 눌러도 0건.
 4. [ ] **이벤트 payload에 민감정보가 없다**: 동의하고 한 흐름을 마친 뒤 `/2/httpapi` 요청 본문 확인 → `event_properties`에 코드형 값만(이름·문장·일정 제목 없음). `user_id` 없음, 자동 이벤트(`[Amplitude] …`) 없음.
 5. [ ] **철회 후 수집 중단**: 설정 → 철회하기 → 이후 조작해도 Amplitude 요청이 없다. `localStorage.nodi_anon_id`와 `AMP_*`가 사라짐. 다시 동의하면 새 Device ID.
 6. [ ] **세션 리플레이·PostHog 없음**: 리플레이 관련 요청이 없고 `posthog`·`ph_` 요청·저장소가 없다.

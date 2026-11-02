@@ -40,7 +40,9 @@ describe("directory API", () => {
   });
 
   it("serves the org tree and requires a session", async () => {
-    const tree = await get<{ total: number; departments: unknown[] }>("/api/directory");
+    const tree = await get<{ total: number; departments: unknown[]; me?: { name: string; team?: string } }>("/api/directory");
+    expect(tree.me?.name).toBeTruthy();
+    expect(tree.me?.team).toBeTruthy();
     expect(tree.total).toBeGreaterThanOrEqual(100);
     expect(tree.departments.length).toBeGreaterThan(5);
     expect((await realFetch(`${base}/api/directory`)).status).toBe(401);

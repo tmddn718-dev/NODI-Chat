@@ -8,7 +8,8 @@ export type EditableField = "title" | "purpose" | "durationMinutes" | "attendees
 // 진행 헤더: 단계(Step) · 처리 상태(Status) · 다음 행동(Action)을 따로 관리해요. 큰 4단계 카드 대신 한 줄로 줄이고, 자세한 단계는 펼쳐서 봐요.
 // 웹은 헤더 아래로 펼치고, 모바일은 바텀시트로 열어요. 응답 대기는 별도 단계가 아니라 2단계 안의 상태예요.
 export type Stage = 1 | 2 | 3 | 4;
-export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string };
+// sub: 현재 단계 안의 하위 진행(예: "질문 3/8 · 회의 시간"). 전체 단계(1/4)와 분리해서 보여줘요.
+export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string; sub?: string };
 
 export function ProgressHeader({ info }: { info: ProgressInfo }) {
   const [open, setOpen] = useState(false);
@@ -47,6 +48,7 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
         <span className="progress-segments" aria-hidden="true">
           {STAGE_TITLES.map((title, index) => <i key={title} className={stateOf(index)} />)}
         </span>
+        {info.sub && <span className="progress-sub">{info.sub}</span>}
         <span className="progress-helper">{info.helper}</span>
         <ChevronDown aria-hidden="true" className={`progress-chevron ${open ? "up" : ""}`} />
       </button>

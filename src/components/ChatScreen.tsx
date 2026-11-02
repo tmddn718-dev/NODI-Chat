@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { matchNames } from "../typedNames";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
-import { getGuidedStep, matchChoice, type GuidedChoice } from "../guided";
+import { getGuidedStep, matchChoice, STEP_TOTAL, type GuidedChoice } from "../guided";
 import type { AvailabilityResponse, Candidate, NextAction, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
 import { NodiMark } from "./NodiMark";
@@ -160,6 +160,8 @@ export function ChatScreen({
   const visibleMessages = doneFold ? messages.slice(-2) : foldable ? [messages[0], ...messages.slice(-6)] : messages;
   const hiddenCount = doneFold || foldable ? messages.length - visibleMessages.length : 0;
   // 진행 헤더 모델: 단계(1~4) · 상태 · 다음 행동을 분리해서 계산해요. 응답 대기는 2단계 안의 상태예요.
+  const requiredCount = meeting.requiredAttendees?.length ?? 0;
+  const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
   const ready = roundInfo.loaded && (roundInfo.total === 0 || (roundInfo.invited && roundInfo.pending === 0));
   const progress: ProgressInfo = selected
     ? { stage: 4, status: "확정 검토", title: "확정 전 일정을 다시 확인해요", helper: "최신 일정을 확인한 뒤 확정해요", next: "확정 조건 확인하기" }
@@ -168,15 +170,14 @@ export function ChatScreen({
       : roundInfo.invited ? { stage: 2, status: "응답 대기", title: "참석 가능 여부를 확인 중이에요", helper: `${roundInfo.pending}명이 아직 응답하지 않았어요`, next: "현재 후보 먼저 확인하기" }
       : { stage: 2, status: "후보 확인 가능", title: "가능한 시간을 찾았어요", helper: "후보를 확인하고, 필요하면 참석 가능 여부를 요청해요", next: "탐색 결과 확인하기" })
     : recommendationComplete ? { stage: 3, status: "확인 필요", title: "추천 시간을 비교해 보세요", helper: "추천 근거를 확인하고 시간을 골라 주세요", next: "추천 근거 확인하기" }
-    : reviewed || recommendLoading ? { stage: 2, status: "탐색 중", title: "가능한 시간을 찾고 있어요", helper: "캘린더를 확인하고 있어요", next: "탐색 결과 확인하기" }
-    : { stage: 1, status: "입력 중", title: "회의 조건을 정하고 있어요", helper: guidedStep ? `다음 질문 · ${guidedStep.title}` : "조건을 확인해 주세요", next: guidedStep ? `${guidedStep.title} 정하기` : "가능한 시간 찾기" };
+    // "탐색 중"은 실제로 추천 시간을 계산하는 동안에만 써요. 조건 확인 뒤 입력을 기다릴 때는 "입력 필요"예요.
+    : recommendLoading ? { stage: 2, status: "탐색 중", title: "가능한 시간을 찾고 있어요", helper: "캘린더를 확인하고 있어요", next: "탐색 결과 확인하기" }
+    : reviewed ? { stage: 2, status: "입력 필요", title: "참석 가능 시간을 입력해 주세요", helper: hasRound ? "필요한 참석자에게 가능 여부를 물어볼 수 있어요" : "참석자별 가능 시간을 입력하면 추천 후보를 계산해요", next: hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기" }
+    : { stage: 1, status: "입력 중", title: "회의 조건을 입력하고 있어요", helper: guidedStep ? `다음 질문 · ${guidedStep.title}` : "조건을 확인해 주세요", next: guidedStep ? `${guidedStep.title} 정하기` : hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기", sub: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} · ${guidedStep.title}` : `질문 ${STEP_TOTAL}/${STEP_TOTAL} · 조건 확인` };
   // 모바일에서 선택·추천 작업 중에는 입력창이 주요 버튼과 경쟁하지 않게 한 줄로 줄이고, 눌러야 펼쳐요.
   const selectionTask = guidedStep?.key === "attendees" || guidedStep?.key === "availabilityRule" || guidedStep?.key === "dateStart" || guidedStep?.key === "dateEnd" || Boolean(roundToken) || recommendationComplete;
   const compactComposer = isMobile && selectionTask && !composerOpen && !input && !loading;
   const summaryStatus = selected ? "확정 검토 중" : roundToken && !recommendationComplete ? "참석 응답 확인 중" : recommendationComplete ? "추천 확인 중" : !guidedStep ? "추천 준비 완료" : undefined;
-  const requiredCount = meeting.requiredAttendees?.length ?? 0;
-  const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
-
   useEffect(() => {
     const attendees = meeting.attendees ?? [];
     setAvailability((current) => attendees.map((attendee) =>
@@ -926,7 +927,7 @@ export function ChatScreen({
               />
             )}
             {!loading && !guidedStep && !reviewed && !recommendationComplete && (
-              <ReviewCard meeting={meeting} onEdit={() => setSummaryOpen(true)} onProceed={() => setReviewed(true)} />
+              <ReviewCard meeting={meeting} needsAvailability={!hasRound} onEdit={() => setSummaryOpen(true)} onProceed={() => setReviewed(true)} />
             )}
             {!loading && !guidedStep && reviewed && hasRound && (
               <RoundPanel meeting={meeting} token={roundToken} requestId={invitationRequestId} onTokenChange={setRoundToken} onSelect={(candidate) => void chooseCandidate(candidate)} onEditRequired={editRequired} onPhase={setRoundInfo} />

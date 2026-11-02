@@ -41,7 +41,10 @@ export function searchDirectory(people: DemoPerson[], events: MeetingEvent[], { 
   return { people: ranked.slice(from, from + size), total: ranked.length, hasMore: from + size < ranked.length };
 }
 
+// 로그인이 없는 체험 환경에서 "나"로 쓰는 가상 사용자예요(첫 번째 샘플 구성원). 참석자 선택은 이 사람의 팀부터 보여줘요.
+// ponytail: 실제 로그인이 생기면 세션의 사용자로 바꿔요.
 export function orgTree(people: DemoPerson[]) {
+  const self = people[0];
   const departments = new Map<string, Map<string, number>>();
   for (const person of people) {
     const teams = departments.get(person.department ?? "기타") ?? new Map<string, number>();
@@ -50,6 +53,7 @@ export function orgTree(people: DemoPerson[]) {
   }
   return {
     total: people.length,
+    me: self ? { name: self.name, department: self.department, team: self.team } : undefined,
     departments: [...departments.entries()].sort(([a], [b]) => a.localeCompare(b, "ko")).map(([name, teams]) => ({
       name,
       count: [...teams.values()].reduce((sum, value) => sum + value, 0),

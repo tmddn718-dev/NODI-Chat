@@ -16,14 +16,14 @@ describe("ReviewCard", () => {
   it("counts completed conditions and enables the CTA only when all are set", () => {
     const onProceed = vi.fn();
     render(<ReviewCard meeting={full} onEdit={() => undefined} onProceed={onProceed} />);
-    expect(screen.getByText("6/6 완료")).toBeTruthy();
+    expect(screen.getByText("모든 조건 입력됨")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "가능한 시간 찾기" }));
     expect(onProceed).toHaveBeenCalledOnce();
   });
 
   it("disables the CTA and flags missing items", () => {
     render(<ReviewCard meeting={{ ...full, preferredTime: undefined }} onEdit={() => undefined} onProceed={() => undefined} />);
-    expect(screen.getByText("5/6 완료")).toBeTruthy();
+    expect(screen.getByText("조건 5/6 입력됨")).toBeTruthy();
     expect((screen.getByRole("button", { name: "가능한 시간 찾기" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getAllByText("아직 정하지 않았어요")).toHaveLength(1);
   });

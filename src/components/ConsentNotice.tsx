@@ -10,9 +10,9 @@ export function ConsentNotice({ onDecide }: { onDecide: (analytics: boolean) => 
       <section className="dialog consent" role="dialog" aria-modal="true" aria-labelledby="consent-title">
         <h2 id="consent-title">NODI 테스트에 오신 걸 환영해요</h2>
         <ul className="consent-points">
-          <li><CalendarCheck aria-hidden="true" /><span><strong>가상 일정이에요</strong>테스트용 가상 일정이며 실제 캘린더에는 반영되지 않아요. 메일이나 초대도 가지 않아요.</span></li>
-          <li><ShieldCheck aria-hidden="true" /><span><strong>개인정보는 입력하지 마세요</strong>입력한 문장은 AI(Groq)가 이해하도록 서버로 보내져요. 이름·연락처 같은 실제 정보는 쓰지 말아 주세요.</span></li>
-          <li><ChartNoAxesColumn aria-hidden="true" /><span><strong>익명 사용 데이터(선택)</strong>더 나은 화면을 만들기 위해 어디서 막히는지만 익명으로 살펴봐요. 동의하지 않아도 똑같이 쓸 수 있어요.</span></li>
+          <li><CalendarCheck aria-hidden="true" /><span><strong>실제 캘린더와 초대에는 반영되지 않아요</strong>테스트용 가상 일정이라 메일이나 초대도 가지 않아요.</span></li>
+          <li><ShieldCheck aria-hidden="true" /><span><strong>개인정보는 입력하지 마세요</strong>입력한 문장은 외부 AI 서버(Groq)로 전달돼요.</span></li>
+          <li><ChartNoAxesColumn aria-hidden="true" /><span><strong>익명 사용 데이터는 선택이에요</strong>서비스 개선을 위해 어디서 막히는지만 익명으로 살펴봐요. 수집 없이도 똑같이 쓸 수 있어요.</span></li>
         </ul>
         <details className="consent-details">
           <summary>무엇을 어떻게 수집하나요?</summary>
@@ -28,7 +28,7 @@ export function ConsentNotice({ onDecide }: { onDecide: (analytics: boolean) => 
         </details>
         <div className="consent-actions">
           <button className="primary-button" onClick={() => onDecide(true)}>동의하고 시작</button>
-          <button className="secondary-button" onClick={() => onDecide(false)}>동의하지 않고 사용</button>
+          <button className="secondary-button" onClick={() => onDecide(false)}>익명 데이터 수집 없이 시작</button>
         </div>
       </section>
     </div>

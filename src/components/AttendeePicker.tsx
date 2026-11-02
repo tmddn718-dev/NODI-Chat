@@ -10,6 +10,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 const PAGE = 30;
 const CHIPS_SHOWN = 8;
+const RECENT_SHOWN = 6; // 최근 함께한 사람은 먼저 6명만 보여주고 나머지는 접어요
 
 // 구성원이 수백 명이어도 쓸 수 있게: 검색 중심, 부서·팀 필터, 일부만 불러오고 더 보기, 팀 전체 추가, 선택 요약.
 export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, draft, onDraft }: {
@@ -32,9 +33,12 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   const [selected, setSelected] = useState<string[]>(draft ?? []);
   useEffect(() => { onDraft?.(selected); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   const [expanded, setExpanded] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [undo, setUndo] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(true);
+  // 처음에는 "내 소속·내 팀"으로 필터를 맞춰 두고 목록을 불러와요(조직 정보를 받은 뒤에 한 번만).
+  const [ready, setReady] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   // 모바일에서는 목록을 전체 화면 시트로 열어요: 위에 검색·필터, 가운데 스크롤 목록, 아래에 인원과 확인 버튼.
@@ -60,9 +64,23 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
     if (preselect?.names.length) setSelected((current) => [...new Set([...current, ...preselect.names])].slice(0, MAX_ATTENDEES));
   }, [preselect?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { api.directory().then(setTree).catch(() => setTree(null)); }, []);
+  useEffect(() => {
+    api.directory()
+      .then((result) => {
+        setTree(result);
+        const me = result.me;
+        if (!me?.department) return;
+        setDepartment(me.department);
+        // 내 팀에 다른 팀원이 있을 때만 팀까지 좁혀요(나 혼자뿐인 팀이면 소속 전체를 보여줘요).
+        const mine = result.departments.find((item) => item.name === me.department)?.teams.find((item) => item.name === me.team);
+        setTeam(me.team && (mine?.count ?? 0) > 1 ? me.team : "");
+      })
+      .catch(() => setTree(null))
+      .finally(() => setReady(true));
+  }, []);
 
   useEffect(() => {
+    if (!ready) return;
     let active = true;
     setLoading(true);
     const timer = window.setTimeout(() => {
@@ -72,7 +90,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
         .finally(() => active && setLoading(false));
     }, query ? 220 : 0);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [query, department, team]);
+  }, [ready, query, department, team]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -88,7 +106,11 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   }
 
   const filtering = Boolean(query || department || team);
+  const myScope = !query && tree?.me?.department === department ? (team && team === tree.me.team ? "team" : !team ? "department" : "") : "";
   const recent = useMemo(() => (filtering ? [] : people.filter((person) => person.recent)), [people, filtering]);
+  const recentShown = recentOpen ? recent : recent.slice(0, RECENT_SHOWN);
+  // 최근 목록에 이미 보이는 사람은 아래 구성원 목록에서 빼서 같은 사람이 두 번 나오지 않게 해요(선택 상태는 이름으로 함께 바뀌어요).
+  const listed = useMemo(() => { const seen = new Set(recentShown.map((person) => person.id)); return people.filter((person) => !seen.has(person.id)); }, [people, recentShown]);
   const teamsOfDepartment = tree?.departments.find((item) => item.name === department)?.teams ?? [];
   const teamCount = teamsOfDepartment.find((item) => item.name === team)?.count;
   const exactEmail = people.some((person) => person.email.toLocaleLowerCase() === query.trim().toLocaleLowerCase());
@@ -126,7 +148,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
     return (
       <button className={`person-row ${added ? "selected" : ""}`} onClick={() => toggle(person.name)} aria-pressed={added}>
         <span className="person-avatar" aria-hidden="true">{initials(person.name)}</span>
-        <span className="person-copy"><strong>{person.name}</strong><small>{[person.title, place].filter(Boolean).join(" · ") || person.email}</small></span>
+        <span className="person-copy"><strong>{person.name}{person.name === tree?.me?.name && <em className="person-me">{ko ? " (나)" : " (me)"}</em>}</strong><small>{[person.title, place].filter(Boolean).join(" · ") || person.email}</small></span>
         <span className="person-add-icon" aria-hidden="true">{added ? <Check /> : <Plus />}</span>
       </button>
     );
@@ -138,7 +160,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   const heading = (
     <div className="guided-heading">
       <span className="heading-logo"><NodiMark /></span>
-      <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
+      <div><p>{ko ? "회의 조건 입력" : "Meeting details"}</p><h2 id="attendee-picker-title">{ko ? "누구와 함께하나요?" : "Who should attend?"}</h2></div>
     </div>
   );
 
@@ -160,12 +182,14 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
               {tree.departments.map((item) => <option key={item.name} value={item.name}>{`${item.name} (${item.count}명)`}</option>)}
             </select>
           </label>
-          <label><span className="sr-only">{ko ? "팀" : "Team"}</span>
-            <select value={team} onChange={(event) => setTeam(event.target.value)} disabled={!department}>
-              <option value="">{department ? (ko ? "전체 팀" : "All teams") : (ko ? "부서를 먼저 고르세요" : "Pick a department")}</option>
-              {teamsOfDepartment.map((item) => <option key={item.name} value={item.name}>{`${item.name} (${item.count}명)`}</option>)}
-            </select>
-          </label>
+          {department && (
+            <label><span className="sr-only">{ko ? "팀" : "Team"}</span>
+              <select value={team} onChange={(event) => setTeam(event.target.value)}>
+                <option value="">{ko ? "전체 팀" : "All teams"}</option>
+                {teamsOfDepartment.map((item) => <option key={item.name} value={item.name}>{`${item.name} (${item.count}명)`}</option>)}
+              </select>
+            </label>
+          )}
         </div>
       )}
 
@@ -197,7 +221,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
         {recent.length > 0 && (
           <div className="people-section">
             <div className="people-section-title"><span><History /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{recent.length}{ko ? "명" : ""}</small></div>
-            <div className="recent-chips">{recent.map((person) => {
+            <div className="recent-chips">{recentShown.map((person) => {
               const added = selected.includes(person.name);
               return (
                 <button className={`pick-chip ${added ? "on" : ""}`} key={person.id} onClick={() => toggle(person.name)} aria-pressed={added} aria-label={`${person.name}${person.title ? ` ${person.title}` : ""}`}>
@@ -207,13 +231,14 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
                 </button>
               );
             })}</div>
+            {recent.length > RECENT_SHOWN && <button type="button" className="recent-more" aria-expanded={recentOpen} onClick={() => setRecentOpen((value) => !value)}>{recentOpen ? (ko ? "최근 참석자 접기" : "Show fewer") : (ko ? `최근 참석자 더 보기 (${recent.length - RECENT_SHOWN}명)` : `Show ${recent.length - RECENT_SHOWN} more recent`)}</button>}
           </div>
         )}
         <div className="people-section directory-section">
-          <div className="people-section-title"><span><UserPlus /> {filtering ? (ko ? "검색 결과" : "Results") : (ko ? "구성원" : "Directory")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : ko ? `전체 ${total}명 중 ${people.length}명 표시` : `${people.length} of ${total}`}</small></div>
+          <div className="people-section-title"><span><UserPlus /> {myScope === "team" ? (ko ? `내 팀 · ${team}` : `My team · ${team}`) : myScope === "department" ? (ko ? `내 소속 · ${department}` : `My department · ${department}`) : filtering ? (ko ? "검색 결과" : "Results") : (ko ? "구성원" : "Directory")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : ko ? `전체 ${total}명 중 ${people.length}명 표시` : `${people.length} of ${total}`}</small></div>
           {loading ? <div className="people-skeleton" role="status"><span /><span /><span /></div> : people.length ? (
             <div className="people-list">
-              {people.map((person) => <PersonRow person={person} key={person.id} />)}
+              {listed.map((person) => <PersonRow person={person} key={person.id} />)}
               {hasMore && <button className="people-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? (ko ? "불러오는 중..." : "Loading...") : ko ? `더 보기 (${total - people.length}명 남음)` : `Show more (${total - people.length} left)`}</button>}
             </div>
           ) : !externalEmail && <div className="people-empty"><strong>{ko ? "일치하는 구성원이 없어요" : "No matching person"}</strong><span>{ko ? "검색어를 줄이거나 부서·팀 필터를 바꿔 보세요. 이메일 주소를 입력하면 외부 참석자로 추가할 수 있어요." : "Try a shorter search or another filter. Enter an email to add an external attendee."}</span></div>}

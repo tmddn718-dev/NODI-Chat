@@ -49,7 +49,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
     <section className="required-picker" aria-labelledby="required-picker-title">
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
-        <div><p>{ko ? "회의 조건 정하기" : "Meeting details"}</p><h2 id="required-picker-title">{ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required?"}</h2></div>
+        <div><p>{ko ? "회의 조건 입력" : "Meeting details"}</p><h2 id="required-picker-title">{ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required?"}</h2></div>
       </div>
 
       <div className="required-toolbar">

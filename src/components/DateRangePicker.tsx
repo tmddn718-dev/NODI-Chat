@@ -99,7 +99,7 @@ export function DateRangePicker({
       <div className="guided-heading">
         <span className="heading-logo"><NodiMark /></span>
         <div>
-          <p>{ko ? "회의 조건 정하기" : "Meeting details"}</p>
+          <p>{ko ? "회의 조건 입력" : "Meeting details"}</p>
           <h2 id="date-range-title">{ko ? "언제부터 언제까지 찾아볼까요?" : "What date range should NODI search?"}</h2>
         </div>
       </div>

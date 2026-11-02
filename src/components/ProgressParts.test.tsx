@@ -12,14 +12,14 @@ describe("progress parts", () => {
   it("keeps step, status and helper in one compact line and expands the four stages on web", () => {
     media(false);
     render(<ProgressHeader info={info} />);
-    expect(screen.getByText("2/4 · 가능한 시간 찾기")).toBeTruthy();
+    expect(screen.getByText("2/4 · 참석 가능 시간 수집")).toBeTruthy();
     expect(screen.getByText("응답 대기")).toBeTruthy();
     expect(screen.getByText("2명이 아직 응답하지 않았어요")).toBeTruthy();
-    expect(screen.queryByText("추천 시간 결정하기")).toBeNull(); // 4개 단계명은 펼칠 때만
+    expect(screen.queryByText("추천 후보 비교")).toBeNull(); // 4개 단계명은 펼칠 때만
     fireEvent.click(screen.getByRole("button", { expanded: false }));
     expect(screen.getAllByRole("listitem")).toHaveLength(4);
-    expect(screen.getByText("회의 조건 정하기").closest("li")?.textContent).toContain("완료");
-    expect(screen.getByText("추천 시간 결정하기").closest("li")?.textContent).toContain("예정");
+    expect(screen.getByText("회의 조건 입력").closest("li")?.textContent).toContain("완료");
+    expect(screen.getByText("추천 후보 비교").closest("li")?.textContent).toContain("예정");
     expect(screen.getByText(/다음 행동 · 현재 후보 먼저 확인하기/)).toBeTruthy();
   });
 

@@ -96,7 +96,7 @@ export type PersonSummary = {
 // 한 회의의 참석자 상한(서버 dialogue.ts와 같은 값).
 export const MAX_ATTENDEES = 50;
 
-export type OrgTree = { total: number; departments: Array<{ name: string; count: number; teams: Array<{ name: string; count: number }> }> };
+export type OrgTree = { total: number; me?: { name: string; department?: string; team?: string }; departments: Array<{ name: string; count: number; teams: Array<{ name: string; count: number }> }> };
 
 export type DraftPayload = {
   meeting: MeetingDraft;

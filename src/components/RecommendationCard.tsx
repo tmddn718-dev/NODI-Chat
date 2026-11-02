@@ -1,5 +1,5 @@
 import { ChevronDown, Check, Clock, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { clockLabel, minutesBetween, slotLabel } from "../format";
 import { StatusBadge, type BadgeKind } from "./StatusBadge";
 
@@ -7,7 +7,7 @@ export type ReasonLine = { kind: "ok" | "wait" | "warn" | "plain"; text: string 
 const ICON = { ok: Check, wait: Clock, warn: TriangleAlert } as const;
 
 // 추천 카드: 시간(가장 크게) → 상태 → 추천 이유 → 남은 불확실성 → 세부 정보(펼침) → 행동. 웹·모바일이 같은 순서예요.
-export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel = "이 시간으로 확정 검토", disabledLabel = "확정 검토 불가", compare }: {
+export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel = "이 시간으로 확정 검토", disabledLabel = "확정 검토 불가", compare, compact }: {
   label: string;
   top?: boolean;
   start: string;
@@ -20,9 +20,24 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
   ctaLabel?: string;
   disabledLabel?: string;
   compare?: { checked: boolean; disabled: boolean; onToggle: () => void };
+  // 모바일 압축 리스트: 처음에는 순위·시간·한 줄 요약만 보여주고, 눌러야 추천 이유·세부 정보·행동이 펼쳐져요.
+  compact?: { summary: string };
 }) {
+  const [open, setOpen] = useState(false);
+  if (compact && !open) {
+    return (
+      <li className={`rcard rcard-compact ${top ? "top" : ""}`}>
+        <button type="button" className="rcard-row" aria-expanded="false" onClick={() => setOpen(true)}>
+          <span className={`rcard-rank ${top ? "best" : ""}`}>{label}</span>
+          <span className="rcard-row-copy"><strong>{slotLabel(start)}</strong><small>{minutesBetween(start, end)}분 · {compact.summary}</small></span>
+          <ChevronDown aria-hidden="true" />
+        </button>
+      </li>
+    );
+  }
   return (
     <li className={`rcard ${top ? "top" : ""}`}>
+      {compact && <button type="button" className="rcard-collapse" aria-expanded="true" onClick={() => setOpen(false)}>접기<ChevronDown aria-hidden="true" className="up" /></button>}
       <div className="rcard-top">
         <StatusBadge kind={badge.kind}>{badge.text}</StatusBadge>
         <span className={`rcard-rank ${top ? "best" : ""}`}>{label}</span>

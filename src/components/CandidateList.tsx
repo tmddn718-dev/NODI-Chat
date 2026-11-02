@@ -100,6 +100,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
               badge={state.badge}
               reasons={reasons}
               canSelect={state.canSelect}
+              compact={isMobile ? { summary: `${state.badge.text} · 참석 가능 ${candidate.available}명` } : undefined}
               onSelect={() => onSelect(candidate)}
               compare={isMobile && candidates.length > 1 ? { checked: picked.includes(candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id]) } : undefined}
               details={(
@@ -124,7 +125,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
           );
         })}
       </ol>
-      {isMobile && candidates.length > 1 && <CompareBar count={picked.length} onOpen={() => setComparing(true)} onClear={() => setPicked([])} />}
+      {isMobile && picked.length >= 2 && <CompareBar count={picked.length} onOpen={() => setComparing(true)} onClear={() => setPicked([])} />}
       {candidates.length > 3 && <button className="secondary-button candidate-more" onClick={() => setShowAll((value) => !value)}>{showAll ? "접기" : `후보 ${candidates.length - 3}개 더 보기`}</button>}
     </section>
   );

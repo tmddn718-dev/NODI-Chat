@@ -41,7 +41,7 @@ describe("first-entry notice and consent", () => {
   it("explains the fictional calendar, AI processing and anonymous analytics, with honest placeholders", () => {
     render(<ConsentNotice onDecide={vi.fn()} />);
     expect(screen.getByRole("dialog", { name: /NODI 테스트/ })).toBeTruthy();
-    expect(screen.getByText(/실제 캘린더에는 반영되지 않아요/)).toBeTruthy();
+    expect(screen.getByText(/실제 캘린더와 초대에는 반영되지 않아요/)).toBeTruthy();
     expect(screen.getByText(/개인정보는 입력하지 마세요/)).toBeTruthy();
     expect(screen.getAllByText("운영자가 별도로 안내해요").length).toBeGreaterThanOrEqual(2); // 보존 기간·문의는 지어내지 않아요
     expect(screen.getByText(/세션 리플레이/)).toBeTruthy();
@@ -54,7 +54,7 @@ describe("first-entry notice and consent", () => {
     expect(await screen.findByRole("dialog", { name: /NODI 테스트/ })).toBeTruthy();
     expect(sent).toHaveLength(0);
     expect(loadCount).toBe(0); // 동의 전에는 SDK를 불러오지도 않아요
-    fireEvent.click(screen.getByRole("button", { name: "동의하지 않고 사용" }));
+    fireEvent.click(screen.getByRole("button", { name: "익명 데이터 수집 없이 시작" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: /NODI 테스트/ })).toBeNull());
     expect(readConsent()?.analytics).toBe(false);
     expect(screen.getByRole("button", { name: "테스트 시작하기" })).toBeTruthy();

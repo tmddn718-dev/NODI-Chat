@@ -2,7 +2,8 @@ import type { MeetingDraft } from "./types";
 
 export type GuidedChoice = { label: string; message: string; patch: Partial<MeetingDraft> };
 export const STAGE_TOTAL = 4;
-export const STAGE_TITLES = ["회의 조건 정하기", "가능한 시간 찾기", "추천 시간 결정하기", "회의 확정 및 관리"];
+export const STEP_TOTAL = 8; // 하위 질문 수(회의 종류 ~ 종료일)
+export const STAGE_TITLES = ["회의 조건 입력", "참석 가능 시간 수집", "추천 후보 비교", "회의 확정"];
 // 입력 단계는 모두 사용자에게는 "회의 조건 정하기" 한 단계예요.
 export const stageOf = (_key: string) => 1;
 
@@ -67,7 +68,8 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
     key: "title", number: 1, total: 8,
     title: ko ? "회의 종류" : "Meeting type",
     question: ko ? "어떤 회의를 잡을까요?" : "What kind of meeting are you planning?",
-    inputPlaceholder: ko ? "예: 신규 서비스 출시 준비 회의" : "e.g. New service launch planning",
+    inputPlaceholder: ko ? "예: 다음 주 오후에 권서안 님과 30분 정기 회의 잡아줘" : "e.g. A 30-minute team sync with Minji next week afternoon",
+    hint: ko ? "한 문장으로 여러 조건을 말해도 돼요. 예: 다음 주 오후에 권서안 님과 30분 정기 회의 잡아줘" : "You can give several conditions in one sentence. e.g. A 30-minute team sync with Minji next week afternoon",
     choices: ["팀 정기 회의", "프로젝트 킥오프", "업무 리뷰", "1:1 미팅"].map((label) => ({
       label: ko ? label : ({ "팀 정기 회의": "Team sync", "프로젝트 킥오프": "Project kickoff", "업무 리뷰": "Work review", "1:1 미팅": "1:1 meeting" }[label]!),
       message: ko ? `회의 종류는 ${label}야.` : `The meeting type is ${{ "팀 정기 회의": "team sync", "프로젝트 킥오프": "project kickoff", "업무 리뷰": "work review", "1:1 미팅": "1:1 meeting" }[label]}.`,
