@@ -267,7 +267,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
               badge={state.badge}
               reasons={reasons}
               canSelect={state.canSelect}
-              compact={isMobile ? { summary: `${state.badge.text} · 참석 가능 응답 ${row.accepted}명` } : undefined}
+              compact={isMobile ? { summary: state.badge.text, detail: `참석 가능 응답 ${row.accepted}명 · 응답 대기 ${row.tentative + row.noResponse}명` } : undefined}
               onSelect={() => { recommendationSelected(row.rank); onSelect({ ...row.candidate, acceptedCount: row.accepted, unknownCount: row.tentative + row.noResponse }); }}
               compare={isMobile && round.rows.length > 1 ? { checked: picked.includes(row.candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(row.candidate.id) ? current.filter((id) => id !== row.candidate.id) : [...current, row.candidate.id]) } : undefined}
               details={(

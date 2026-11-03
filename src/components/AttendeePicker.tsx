@@ -155,7 +155,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
   }
 
   const shownChips = expanded ? selected : selected.slice(0, CHIPS_SHOWN);
-  const confirmLabel = selected.length ? (ko ? `참석자 ${selected.length}명 추가하기` : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "함께할 사람을 선택해 주세요" : "Select attendees");
+  const confirmLabel = selected.length ? (ko ? `참석자 ${selected.length}명 추가하기` : `Add ${selected.length} attendee${selected.length > 1 ? "s" : ""}`) : (ko ? "참석자를 선택해 주세요" : "Select attendees");
 
   const heading = (
     <div className="guided-heading">
@@ -170,7 +170,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
       <div className="people-search">
         <Search aria-hidden="true" />
         <label className="sr-only" htmlFor="attendee-search">{ko ? "참석자 검색" : "Search attendees"}</label>
-        <input id="attendee-search" value={query} onChange={(event) => { setQuery(event.target.value); setError(""); }} placeholder={ko ? "이름, 팀, 직무 또는 이메일로 검색" : "Search by name, team, role or email"} autoComplete="off" />
+        <input id="attendee-search" value={query} onChange={(event) => { setQuery(event.target.value); setError(""); }} placeholder={ko ? "이름, 팀, 직무, 이메일 검색" : "Search by name, team, role or email"} autoComplete="off" />
         {query && <button onClick={() => setQuery("")} aria-label={ko ? "검색어 지우기" : "Clear search"}><X /></button>}
       </div>
 

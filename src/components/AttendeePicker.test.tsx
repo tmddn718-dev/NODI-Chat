@@ -104,7 +104,7 @@ describe("AttendeePicker on a phone", () => {
       fireEvent.click(screen.getByRole("button", { name: "참석자 선택하기" }));
       const sheet = screen.getByRole("dialog", { name: "참석자 선택" });
       expect(sheet).toBeTruthy();
-      expect((screen.getByRole("button", { name: "함께할 사람을 선택해 주세요" }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole("button", { name: "참석자를 선택해 주세요" }) as HTMLButtonElement).disabled).toBe(true);
       fireEvent.click((await screen.findAllByRole("button", { name: /김민지/ }, { timeout: 8000 }))[0]);
       fireEvent.click(await screen.findByRole("button", { name: "참석자 1명 추가하기" }, { timeout: 8000 }));
       expect(onConfirm).toHaveBeenCalledWith(["김민지"]);

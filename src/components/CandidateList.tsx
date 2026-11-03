@@ -100,7 +100,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
               badge={state.badge}
               reasons={reasons}
               canSelect={state.canSelect}
-              compact={isMobile ? { summary: `${state.badge.text} · 참석 가능 ${candidate.available}명` } : undefined}
+              compact={isMobile ? { summary: state.badge.text, detail: `${candidate.conflictCount === 0 ? "일정 충돌 없음" : `일정 충돌 ${candidate.conflictCount}명`} · 참석 가능 응답 ${candidate.manualAvailableCount}명` } : undefined}
               onSelect={() => onSelect(candidate)}
               compare={isMobile && candidates.length > 1 ? { checked: picked.includes(candidate.id), disabled: picked.length >= 3, onToggle: () => setPicked((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id]) } : undefined}
               details={(

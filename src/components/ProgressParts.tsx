@@ -9,7 +9,7 @@ export type EditableField = "title" | "purpose" | "durationMinutes" | "attendees
 // 웹은 헤더 아래로 펼치고, 모바일은 바텀시트로 열어요. 응답 대기는 별도 단계가 아니라 2단계 안의 상태예요.
 export type Stage = 1 | 2 | 3 | 4;
 // sub: 현재 단계 안의 하위 진행(예: "질문 3/8 · 회의 시간"). 전체 단계(1/4)와 분리해서 보여줘요.
-export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string; sub?: string };
+export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string; sub?: string; count?: string };
 
 export function ProgressHeader({ info }: { info: ProgressInfo }) {
   const [open, setOpen] = useState(false);
@@ -43,7 +43,8 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
       <button type="button" className="progress-bar-button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)}>
         <span className="progress-line">
           <strong>{info.stage}/{STAGE_TITLES.length} · {STAGE_TITLES[info.stage - 1]}</strong>
-          <span className="progress-chip">{info.status}</span>
+          {info.status !== "입력 중" && <span className="progress-chip">{info.status}</span>}
+          {info.count && <span className="progress-count" aria-label={`질문 ${info.count}`}>{info.count}</span>}
         </span>
         <span className="progress-segments" aria-hidden="true">
           {STAGE_TITLES.map((title, index) => <i key={title} className={stateOf(index)} />)}
@@ -65,6 +66,7 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
           <section className="progress-sheet" id={panelId} role="dialog" aria-modal="true" aria-label="진행 상태">
             <span className="sheet-handle" aria-hidden="true" />
             <p className="progress-title">{info.title}</p>
+            {(info.sub || info.helper) && <p className="progress-note">{[info.sub, info.helper].filter(Boolean).join(" · ")}</p>}
             {list}
             <p className="progress-next">다음 행동 · {info.next}</p>
             <button type="button" className="primary-button" onClick={() => setOpen(false)}>확인</button>

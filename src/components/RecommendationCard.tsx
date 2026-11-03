@@ -21,7 +21,7 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
   disabledLabel?: string;
   compare?: { checked: boolean; disabled: boolean; onToggle: () => void };
   // 모바일 압축 리스트: 처음에는 순위·시간·한 줄 요약만 보여주고, 눌러야 추천 이유·세부 정보·행동이 펼쳐져요.
-  compact?: { summary: string };
+  compact?: { summary: string; detail?: string };
 }) {
   const [open, setOpen] = useState(false);
   if (compact && !open) {
@@ -29,7 +29,7 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
       <li className={`rcard rcard-compact ${top ? "top" : ""}`}>
         <button type="button" className="rcard-row" aria-expanded="false" onClick={() => setOpen(true)}>
           <span className={`rcard-rank ${top ? "best" : ""}`}>{label}</span>
-          <span className="rcard-row-copy"><strong>{slotLabel(start)}</strong><small>{minutesBetween(start, end)}분 · {compact.summary}</small></span>
+          <span className="rcard-row-copy"><strong>{slotLabel(start)}</strong><small>{minutesBetween(start, end)}분 · {compact.summary}</small>{compact.detail && <small>{compact.detail}</small>}</span>
           <ChevronDown aria-hidden="true" />
         </button>
       </li>

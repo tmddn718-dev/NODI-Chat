@@ -2482,3 +2482,47 @@ body.demo-on { --demo-h: 32px; }
   .send-button { min-width: 44px; min-height: 44px; }
   .app-tabbar span { font-size: 12px; }
 }
+
+/* UX/UI 명세 v2.0 P0(11/02): 진행 헤더 압축, 입력창, 내 회의 배지 */
+.progress-count { flex: none; margin-left: auto; font-size: var(--fs-14, 14px); font-weight: 700; color: #3654D4; }
+.progress-note { margin: 8px 0 0; font-size: 14px; line-height: 20px; color: #47566D; }
+.meeting-list-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.meeting-list-row .status-badge { white-space: nowrap; width: fit-content; }
+.meeting-list-row { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.more-pop button[aria-checked="true"] { font-weight: 700; color: #3654D4; }
+@media (max-width: 767px) {
+  .meeting-list-row { grid-template-columns: 40px minmax(0, 1fr); }
+  .meeting-list-badges { grid-column: 2; }
+  /* 진행 헤더: 단계명 + 질문 번호 + 진행 바 두 줄만. 질문 이름·도움말은 펼쳤을 때 보여줘요 */
+  .progress-bar-button { gap: 8px; padding: 10px 40px 10px 14px; }
+  .progress-sub, .progress-helper { display: none; }
+  .progress-line { gap: 8px; }
+  /* 입력창: 입력 + 전송만. 언어는 더보기 메뉴로 옮겼어요 */
+  .composer-mobile { padding: 6px 60px 6px 16px; border-radius: 28px; }
+  .composer-mobile textarea { font-size: 16px; line-height: 24px; min-height: 36px; padding: 6px 0; }
+  .composer-mobile .send-button { right: 8px; top: 50%; width: 44px; height: 44px; margin-top: -22px; }
+}
+@media (max-width: 767px) {
+  /* 주의: .message-stream에 mask/filter/transform을 걸면 안에 있는 position: fixed 시트(참석자 선택·후보 비교)까지 잘리고 헤더·탭 아래로 깔려요 */
+  .message-stream { scroll-padding-block: 16px; }
+}
+
+/* 채팅 배경 통일(11/02): 웹·모바일이 같은 토큰을 쓰고, 모바일은 강도만 약하게. 그라디언트는 스크롤되지 않는 .conversation 배경 레이어에만 둬요 */
+:root {
+  --nodi-chat-bg-start: #E9EEFF; /* --nodi-action-subtle은 뒤쪽 :root 덮어쓰기로 회색이 되므로 값을 직접 정의 */
+  --nodi-chat-bg-mid: #F4F6FF;
+  --nodi-chat-bg-end: #FFFFFF;
+  --nodi-chat-bg: linear-gradient(180deg, var(--nodi-chat-bg-start) 0%, var(--nodi-chat-bg-mid) 38%, var(--nodi-chat-bg-end) 100%);
+  /* 모바일: 같은 색 구성에서 시작·중간 색을 약 절반 강도로. 흰 카드가 또렷하게 보이도록 */
+  --nodi-chat-bg-soft-start: #EEF2FF;
+  --nodi-chat-bg-soft-mid: #F7F9FF;
+  --nodi-chat-bg-soft: linear-gradient(180deg, var(--nodi-chat-bg-soft-start) 0%, var(--nodi-chat-bg-soft-mid) 38%, var(--nodi-chat-bg-end) 100%);
+}
+.conversation { background: var(--nodi-chat-bg); }
+.message-stream { background: transparent; }
+@media (max-width: 767px) {
+  .conversation { background: var(--nodi-chat-bg-soft); }
+  .message-stream { background: transparent; }
+  /* 진행 헤더는 배경 위에서 카드처럼 보이도록 반투명 흰색(웹 ≥768px의 흰색 헤더와 같은 방향) */
+  .progress-header { background: rgb(255 255 255 / .78); }
+}

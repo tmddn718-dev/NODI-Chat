@@ -43,11 +43,13 @@ export function MeetingsList({
                 <button className="meeting-list-row" key={event.id} onClick={() => onSelect(event)}>
                   <span className="meeting-list-icon"><Calendar /></span>
                   <span className="meeting-list-copy"><strong>{event.meeting.title}</strong><small>{formatDate(event.candidate.start)} · {event.meeting.attendees?.length ?? 0}명</small></span>
+                  <span className="meeting-list-badges">
                   <span className={`status-badge ${event.status === "confirmed" ? "status-success" : "status-warning"}`}>
                     {event.status === "confirmed" ? <CircleCheck /> : <TriangleAlert />}
                     {event.status === "confirmed" ? "시간 정함" : "취소했어요"}
                   </span>
                   <span className={`status-badge ${event.calendarSyncStatus === "synced" ? "status-success" : event.calendarSyncStatus === "failed" ? "status-error" : "status-neutral"}`}>{event.calendarSyncStatus === "synced" ? "캘린더 반영" : event.calendarSyncStatus === "failed" ? "동기화 실패" : "캘린더 미반영"}</span>
+                  </span>
                 </button>
               ))}
             </div>
