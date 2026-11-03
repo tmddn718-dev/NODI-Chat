@@ -254,7 +254,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
     return (
       <section className="attendee-picker apick-mobile" aria-labelledby="attendee-picker-title">
         {heading}
-        <p className="apick-lead">{ko ? "이름이나 팀으로 검색해서 참석자를 골라요. 한 번에 최대 50명까지 넣을 수 있어요." : "Search by name or team and pick attendees (up to 50)."}</p>
+        <p className="apick-lead">{ko ? "이름이나 팀으로 검색해 고르세요. 최대 50명까지 넣을 수 있어요." : "Search by name or team and pick attendees (up to 50)."}</p>
         {selected.length > 0 && <p className="apick-picked"><strong>{ko ? `선택한 참석자 ${selected.length}명` : `${selected.length} selected`}</strong><span>{namesLabel(selected)}</span></p>}
         {selected.length > 0 && !sheetOpen && <button className="primary-button attendee-confirm" onClick={() => onConfirm(selected)}>{confirmLabel}</button>}
         <button className={selected.length ? "secondary-button apick-open" : "primary-button apick-open"} onClick={() => setSheetOpen(true)}>{selected.length ? (ko ? "참석자 더 고르기" : "Pick more") : (ko ? "참석자 선택하기" : "Choose attendees")}</button>

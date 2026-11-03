@@ -9,7 +9,9 @@ export type EditableField = "title" | "purpose" | "durationMinutes" | "attendees
 // 웹은 헤더 아래로 펼치고, 모바일은 바텀시트로 열어요. 응답 대기는 별도 단계가 아니라 2단계 안의 상태예요.
 export type Stage = 1 | 2 | 3 | 4;
 // sub: 현재 단계 안의 하위 진행(예: "질문 3/8 · 회의 시간"). 전체 단계(1/4)와 분리해서 보여줘요.
-export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string; sub?: string; count?: string };
+export type ProgressInfo = { stage: Stage; status: string; title: string; helper: string; next: string; sub?: string; count?: string; task?: string };
+// 상태 칩 문구: 화면 위쪽에는 "지금 무슨 상태인지"만 짧게 보여줘요. 단계 번호(1/4)·질문 번호(4/8)는 펼쳐야 보여요.
+const CHIP: Record<string, string> = { "입력 중": "조건 입력 중", "탐색 중": "시간 탐색 중", "확정 검토": "확정 전 확인" };
 
 export function ProgressHeader({ info }: { info: ProgressInfo }) {
   const [open, setOpen] = useState(false);
@@ -40,22 +42,15 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
 
   return (
     <div className="progress-header">
-      <button type="button" className="progress-bar-button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)}>
-        <span className="progress-line">
-          <strong>{info.stage}/{STAGE_TITLES.length} · {STAGE_TITLES[info.stage - 1]}</strong>
-          {info.status !== "입력 중" && <span className="progress-chip">{info.status}</span>}
-          {info.count && <span className="progress-count" aria-label={`질문 ${info.count}`}>{info.count}</span>}
-        </span>
-        <span className="progress-segments" aria-hidden="true">
-          {STAGE_TITLES.map((title, index) => <i key={title} className={stateOf(index)} />)}
-        </span>
-        {info.sub && <span className="progress-sub">{info.sub}</span>}
-        {info.helper && <span className="progress-helper">{info.helper}</span>}
+      <button type="button" className="progress-bar-button" aria-expanded={open} aria-controls={panelId} aria-label={`${CHIP[info.status] ?? info.status} ${info.task ?? info.helper ?? info.title} 진행 상태 보기`} onClick={() => setOpen((value) => !value)}>
+        <span className="progress-chip">{CHIP[info.status] ?? info.status}</span>
+        <span className="progress-task">{info.task ?? (info.helper || info.title)}</span>
         <ChevronDown aria-hidden="true" className={`progress-chevron ${open ? "up" : ""}`} />
       </button>
       {open && !mobile && (
         <div className="progress-detail" id={panelId}>
           <p className="progress-title">{info.title}</p>
+          {info.sub && <p className="progress-note">{info.sub}</p>}
           {list}
           <p className="progress-next">다음 행동 · {info.next}</p>
         </div>

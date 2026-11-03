@@ -69,7 +69,7 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
     title: ko ? "회의 종류" : "Meeting type",
     question: ko ? "어떤 회의를 잡을까요?" : "What kind of meeting are you planning?",
     inputPlaceholder: ko ? "예: 내일 오후 30분 회의 잡아줘" : "e.g. 30 min sync tomorrow PM",
-    hint: ko ? "한 문장으로 여러 조건을 말해도 돼요. 예: 다음 주 오후에 권서안 님과 30분 정기 회의 잡아줘" : "You can give several conditions in one sentence. e.g. A 30-minute team sync with Minji next week afternoon",
+    hint: ko ? "한 문장에 여러 조건을 말해도 돼요.\n예: 다음 주 오후에 권서안 님과 30분 정기 회의 잡아줘" : "You can give several conditions in one sentence. e.g. A 30-minute team sync with Minji next week afternoon",
     choices: ["팀 정기 회의", "프로젝트 킥오프", "업무 리뷰", "1:1 미팅"].map((label) => ({
       label: ko ? label : ({ "팀 정기 회의": "Team sync", "프로젝트 킥오프": "Project kickoff", "업무 리뷰": "Work review", "1:1 미팅": "1:1 meeting" }[label]!),
       message: ko ? `회의 종류는 ${label}야.` : `The meeting type is ${{ "팀 정기 회의": "team sync", "프로젝트 킥오프": "project kickoff", "업무 리뷰": "work review", "1:1 미팅": "1:1 meeting" }[label]}.`,

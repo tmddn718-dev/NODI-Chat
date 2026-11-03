@@ -155,10 +155,17 @@ export function ChatScreen({
   // 조건 설정이 끝났다면 앞선 대화를 한 줄 요약으로 접고 최근 2개만 남겨요(요약을 누르면 다시 펼쳐요).
   const conditionsDone = reviewed || recommendLoading || recommendationComplete || !!roundToken || !!selected;
   useEffect(() => { if (conditionsDone) setShowAllMessages(false); }, [conditionsDone]);
+  // 조건을 입력하는 중에도 지난 질문·답변은 "지금까지 정한 조건" 요약으로 접고, 지금 답할 질문(마지막 NODI 메시지)만 펼쳐요.
+  const history0 = messages.filter((message) => message.id !== "intro");
+  const inFlow = !!guidedStep && !conditionsDone;
+  const inputFold = inFlow && history0.length > 3 && !showAllMessages;
+  const keepCount = history0.at(-1)?.role === "assistant" ? 1 : 2;
+  useEffect(() => { setShowAllMessages(false); }, [guidedStep?.key]);
   const doneFold = conditionsDone && messages.length > 3 && !showAllMessages;
-  const foldable = !doneFold && messages.length > 10 && !showAllMessages;
-  const visibleMessages = doneFold ? messages.slice(-2) : foldable ? [messages[0], ...messages.slice(-6)] : messages;
-  const hiddenCount = doneFold || foldable ? messages.length - visibleMessages.length : 0;
+  const foldable = !doneFold && !inputFold && messages.length > 10 && !showAllMessages;
+  const visibleMessages = doneFold ? messages.slice(-2) : inputFold ? history0.slice(-keepCount) : foldable ? [messages[0], ...messages.slice(-6)] : messages;
+  const foldCard = conditionsDone ? messages.length > 3 : inFlow && history0.length > 3;
+  const hiddenCount = doneFold || foldable ? messages.length - visibleMessages.length : inFlow ? Math.max(0, history0.length - keepCount) : 0;
   // 진행 헤더 모델: 단계(1~4) · 상태 · 다음 행동을 분리해서 계산해요. 응답 대기는 2단계 안의 상태예요.
   const requiredCount = meeting.requiredAttendees?.length ?? 0;
   const hasRound = requiredCount > 0 && (meeting.attendees?.length ?? 0) > requiredCount;
@@ -173,7 +180,7 @@ export function ChatScreen({
     // "탐색 중"은 실제로 추천 시간을 계산하는 동안에만 써요. 조건 확인 뒤 입력을 기다릴 때는 "입력 필요"예요.
     : recommendLoading ? { stage: 2, status: "탐색 중", title: "가능한 시간을 찾고 있어요", helper: "캘린더를 확인하고 있어요", next: "탐색 결과 확인하기" }
     : reviewed ? { stage: 2, status: "입력 필요", title: "참석 가능 시간을 입력해 주세요", helper: hasRound ? "필요한 참석자에게 가능 여부를 물어볼 수 있어요" : "참석자별 가능 시간을 입력하면 추천 후보를 계산해요", next: hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기" }
-    : { stage: 1, status: "입력 중", title: "회의 조건을 입력하고 있어요", helper: guidedStep ? "" : "조건을 확인해 주세요", next: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} 답하기` : hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기", sub: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} · ${guidedStep.title}` : `질문 ${STEP_TOTAL}/${STEP_TOTAL} · 조건 확인`, count: guidedStep ? `${guidedStep.number}/${guidedStep.total}` : `${STEP_TOTAL}/${STEP_TOTAL}` };
+    : { stage: 1, status: "입력 중", title: "회의 조건을 입력하고 있어요", helper: guidedStep ? "" : "조건을 확인해 주세요", next: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} 답하기` : hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기", task: guidedStep?.title ?? "조건 확인", sub: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} · ${guidedStep.title}` : `질문 ${STEP_TOTAL}/${STEP_TOTAL} · 조건 확인`, count: guidedStep ? `${guidedStep.number}/${guidedStep.total}` : `${STEP_TOTAL}/${STEP_TOTAL}` };
   // 모바일에서 선택·추천 작업 중에는 입력창이 주요 버튼과 경쟁하지 않게 한 줄로 줄이고, 눌러야 펼쳐요.
   const selectionTask = guidedStep?.key === "attendees" || guidedStep?.key === "availabilityRule" || guidedStep?.key === "dateStart" || guidedStep?.key === "dateEnd" || Boolean(roundToken) || recommendationComplete;
   const compactComposer = isMobile && selectionTask && !composerOpen && !input && !loading;
@@ -285,6 +292,13 @@ export function ChatScreen({
   // 위쪽 내용을 읽는 중이면 새 메시지가 와도 강제로 끌어내리지 않고, 맨 아래로 가는 버튼만 보여줘요.
   useEffect(() => {
     const last = messages[messages.length - 1];
+    // 조건을 묻는 중에는 맨 아래가 아니라 "지금 답할 질문"이 위로 보이게 맞춰요. 긴 선택 카드 때문에 질문이 화면 밖으로 밀리지 않게 하려는 거예요.
+    const stream = streamRef.current;
+    const anchor = stream?.querySelector<HTMLElement>(".cdone") ?? [...(stream?.querySelectorAll<HTMLElement>(".message.assistant") ?? [])].at(-1);
+    if (stream && anchor && inFlow && last?.role === "assistant" && !showAllMessages) {
+      stream.scrollTo?.({ top: Math.max(0, anchor.getBoundingClientRect().top - stream.getBoundingClientRect().top + stream.scrollTop - 8), behavior: "smooth" });
+      return;
+    }
     if (nearBottomRef.current || last?.role === "user") endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, candidates, loading]);
 
@@ -833,8 +847,8 @@ export function ChatScreen({
           <div className="message-stream" aria-live="polite" ref={streamRef} onScroll={(event) => { const el = event.currentTarget; setShowTop(el.scrollTop > 240); const near = el.scrollHeight - el.scrollTop - el.clientHeight < 160; nearBottomRef.current = near; setAwayFromBottom(!near); }}>
             {!online && <div className="offline-banner" role="status"><WifiOff /><span><strong>인터넷에 연결되지 않았어요</strong> 입력한 내용은 이 기기에 보관하고 있어요.</span></div>}
             {syncStatus === "conflict" && <div className="sync-conflict" role="alert"><span><strong>다른 기기에서 내용이 바뀌었어요</strong> 불러오면 이 화면에서 아직 저장하지 않은 내용은 사라져요.</span><button className="secondary-button" onClick={() => void loadServerDraft()}>새 내용 불러오기</button></div>}
-            {conditionsDone && messages.length > 3
-              ? <ConditionsDone meeting={meeting} hiddenCount={Math.max(0, messages.length - 2)} open={showAllMessages} onToggle={() => setShowAllMessages((value) => !value)} />
+            {foldCard
+              ? <ConditionsDone meeting={meeting} done={conditionsDone} hiddenCount={conditionsDone ? Math.max(0, messages.length - 2) : hiddenCount} open={showAllMessages} onToggle={() => setShowAllMessages((value) => !value)} />
               : hiddenCount > 0 && <button className="step-fold" onClick={() => setShowAllMessages(true)}>이전 대화 {hiddenCount}개 펼치기</button>}
             {visibleMessages.map((message) => (
               message.id === "intro" ? (

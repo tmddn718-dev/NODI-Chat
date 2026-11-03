@@ -2538,3 +2538,51 @@ body.demo-on { --demo-h: 32px; }
   .required-bulk { justify-content: stretch; }
   .required-bulk button { flex: 1 1 140px; justify-content: center; }
 }
+
+/* 진행 상태: 큰 진행률 카드 대신 "상태 칩 + 지금 하는 일" 한 줄로 줄여요. 단계(1/4)·질문(4/8) 번호는 눌러서 펼칠 때만 보여요. */
+.progress-header { margin: 2px 28px 10px; background: transparent; border: 0; border-radius: 0; }
+.progress-bar-button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 4px 0; background: transparent; border: 0; border-radius: 10px; text-align: left; }
+.progress-bar-button .progress-chip { flex: none; padding: 3px 10px; font-size: var(--fs-12); font-weight: 600; line-height: 18px; }
+.progress-task { flex: 1; min-width: 0; overflow: hidden; color: var(--nodi-text-secondary); font-size: var(--fs-13); font-weight: 500; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.progress-bar-button .progress-chevron { position: static; flex: none; width: 16px; height: 16px; margin: 0; }
+.progress-detail { margin-top: 4px; padding: 4px 16px 14px; background: #fff; border: 1px solid #DDE4EF; border-radius: 14px; }
+.progress-detail .progress-note { margin: 0 0 12px; }
+@media (max-width: 767px) {
+  .progress-header { margin: 0 16px 8px; }
+  .progress-bar-button { min-height: 36px; padding: 2px 0; }
+}
+
+/* ───── 모바일 가독성 (≤767px) ─────
+   글자: 캡션·칩 13px, 보조·설명 14px, 본문 15px 이상(토큰 램프를 한 단계씩 올려서 모든 화면에 같이 적용해요).
+   아이콘: 단독 버튼·접기 화살표 20px, 글자 곁 상태 아이콘 18px 이상(터치 영역은 44px 유지).
+   긴 문장은 어절 단위로 줄바꿈하고 줄 간격을 1.5 이상으로 둬요. */
+@media (max-width: 767px) {
+  :root { --fs-11: 13px; --fs-12: 13px; --fs-13: 14px; }
+  .guided-hint, .range-help, .required-note, .required-desc, .apick-lead, .progress-note, .composer-meta, .person-copy small, .rd-caption { line-height: 1.55; word-break: keep-all; text-wrap: pretty; }
+  .guided-hint { white-space: pre-line; }
+  .demo-ribbon { height: auto; min-height: 32px; padding: 6px 12px; font-size: 13px; line-height: 1.4; }
+  .demo-ribbon span { white-space: normal; text-align: center; }
+  .demo-ribbon svg { width: 18px; height: 18px; }
+  .app-tabbar span { font-size: 13px; }
+  .draft-sync, .progress-chip, .summary-sub, .soft-pill.row-edit, .progress-stage-state, .progress-node { font-size: 13px; }
+  .progress-task { font-size: 14px; }
+  .progress-bar-button .progress-chevron { width: 20px; height: 20px; }
+  .cdone-icon { width: 36px; height: 36px; }
+  .cdone-icon svg { width: 20px; height: 20px; }
+  .cdone-chevron { width: 22px; height: 22px; }
+  .cdone-copy small { font-size: 14px; }
+  .range-help svg, .calendar-provider svg, .summary-list li svg, .summary-sheet li svg { width: 18px; height: 18px; }
+  .selected-people svg, .attendee-picker .selected-people svg, .selected-people button svg { width: 20px; height: 20px; }
+  .attendee-picker .people-stack .person-add-icon { width: 26px; height: 26px; }
+  .attendee-picker .people-stack .person-add-icon svg, .person-add-icon svg, .required-people i svg { width: 20px; height: 20px; }
+  .required-people i { width: 26px; height: 26px; }
+  .required-people .req-toggle b { font-size: 14px; }
+  .person-avatar { font-size: 14px; }
+  .people-section-title svg, .summary-needs li svg, .need-list li svg, .summary-card li svg { width: 18px; height: 18px; }
+  .chat-welcome .welcome-logo { width: 40px; height: 40px; }
+  .chat-welcome .welcome-logo svg { width: 22px; height: 22px; }
+  .calendar-provider strong, .calendar-provider b { font-size: 15px; }
+  /* 닫기(X) 버튼이 오른쪽 위에 떠 있어서, 시트 맨 위 줄이 그 밑으로 들어가 겹치지 않게 비켜 줘요 */
+  .context-panel .summary-card > .section-heading { padding-right: 48px; }
+}
+
