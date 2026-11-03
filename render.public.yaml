@@ -6,7 +6,7 @@ services:
     name: nodi-public
     runtime: node
     plan: free
-    branch: feat/amplitude-public-prototype
+    branch: main
     autoDeploy: false          # 공개 서비스는 확인한 뒤 수동으로 배포해요
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
