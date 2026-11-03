@@ -173,7 +173,7 @@ export function ChatScreen({
     // "탐색 중"은 실제로 추천 시간을 계산하는 동안에만 써요. 조건 확인 뒤 입력을 기다릴 때는 "입력 필요"예요.
     : recommendLoading ? { stage: 2, status: "탐색 중", title: "가능한 시간을 찾고 있어요", helper: "캘린더를 확인하고 있어요", next: "탐색 결과 확인하기" }
     : reviewed ? { stage: 2, status: "입력 필요", title: "참석 가능 시간을 입력해 주세요", helper: hasRound ? "필요한 참석자에게 가능 여부를 물어볼 수 있어요" : "참석자별 가능 시간을 입력하면 추천 후보를 계산해요", next: hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기" }
-    : { stage: 1, status: "입력 중", title: "회의 조건을 입력하고 있어요", helper: guidedStep ? `다음 질문 · ${guidedStep.title}` : "조건을 확인해 주세요", next: guidedStep ? `${guidedStep.title} 정하기` : hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기", sub: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} · ${guidedStep.title}` : `질문 ${STEP_TOTAL}/${STEP_TOTAL} · 조건 확인`, count: guidedStep ? `${guidedStep.number}/${guidedStep.total}` : `${STEP_TOTAL}/${STEP_TOTAL}` };
+    : { stage: 1, status: "입력 중", title: "회의 조건을 입력하고 있어요", helper: guidedStep ? "" : "조건을 확인해 주세요", next: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} 답하기` : hasRound ? "가능한 시간 찾기" : "참석 가능 시간 입력하기", sub: guidedStep ? `질문 ${guidedStep.number}/${guidedStep.total} · ${guidedStep.title}` : `질문 ${STEP_TOTAL}/${STEP_TOTAL} · 조건 확인`, count: guidedStep ? `${guidedStep.number}/${guidedStep.total}` : `${STEP_TOTAL}/${STEP_TOTAL}` };
   // 모바일에서 선택·추천 작업 중에는 입력창이 주요 버튼과 경쟁하지 않게 한 줄로 줄이고, 눌러야 펼쳐요.
   const selectionTask = guidedStep?.key === "attendees" || guidedStep?.key === "availabilityRule" || guidedStep?.key === "dateStart" || guidedStep?.key === "dateEnd" || Boolean(roundToken) || recommendationComplete;
   const compactComposer = isMobile && selectionTask && !composerOpen && !input && !loading;

@@ -1,7 +1,6 @@
-import { Check, CircleUser, Search, ShieldCheck } from "lucide-react";
+import { Check, Search, Users } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { NodiMark } from "./NodiMark";
 
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
@@ -47,15 +46,19 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
 
   return (
     <section className="required-picker" aria-labelledby="required-picker-title">
-      <div className="guided-heading">
-        <span className="heading-logo"><NodiMark /></span>
-        <div><p>{ko ? "회의 조건 입력" : "Meeting details"}</p><h2 id="required-picker-title">{ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required?"}</h2></div>
+      <div className="required-head">
+        <p className="required-step">{ko ? "회의 조건 입력 · 질문 5/8" : "Meeting details · Question 5/8"}<span>{ko ? "참석 조건" : "Attendance"}</span></p>
+        <h2 id="required-picker-title">{ko ? "누가 꼭 참석해야 하나요?" : "Who must attend?"}</h2>
+        <p className="required-desc">{ko ? "필수 참석자 모두 가능한 시간을 우선 추천합니다. 나머지는 선택 참석자로 유지돼요." : "We prioritize times that work for every required attendee. Everyone else stays optional."}</p>
       </div>
 
-      <div className="required-toolbar">
-        <p>{ko ? "반드시 참석해야 하는 사람을 선택해 주세요. 선택하지 않은 사람은 참석 가능한 경우 함께하는 선택 참석자로 설정돼요. 필수 참석자가 모두 가능해야 확정할 수 있어요." : "Pick the people who must attend. Everyone else joins when they can. Only slots that work for all required attendees can be confirmed."}</p>
-        <div className="required-counts" aria-live="polite"><strong>{ko ? `필수 ${selected.length}명` : `${selected.length} required`}</strong><span>/</span><strong>{ko ? `선택 ${attendees.length - selected.length}명` : `${attendees.length - selected.length} optional`}</strong></div>
-        <div><button onClick={() => setSelected(attendees)}>{ko ? "모두 필수로" : "All required"}</button><button onClick={() => setSelected([])}>{ko ? "모두 선택으로" : "All optional"}</button></div>
+      <div className="required-summary-bar" aria-live="polite">
+        <Users aria-hidden="true" />
+        <p>{ko ? <><strong>필수 참석 {selected.length}명</strong> · 선택 참석 {attendees.length - selected.length}명</> : <><strong>{selected.length} required</strong> · {attendees.length - selected.length} optional</>}</p>
+      </div>
+      <div className="required-bulk">
+        <button type="button" onClick={() => setSelected(attendees)}>{ko ? "모두 필수로 지정" : "Make all required"}</button>
+        <button type="button" onClick={() => setSelected([])}>{ko ? "모두 선택으로 변경" : "Make all optional"}</button>
       </div>
 
       {many && (
@@ -72,10 +75,10 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
             {names.map((attendee) => {
               const checked = selected.includes(attendee);
               return (
-                <button key={attendee} className={checked ? "selected" : ""} onClick={() => toggle(attendee)} aria-pressed={checked}>
+                <button key={attendee} type="button" role="checkbox" aria-checked={checked} className={checked ? "selected" : ""} onClick={() => toggle(attendee)}>
                   <span className="person-avatar" aria-hidden="true">{attendee.includes("@") ? "@" : initials(attendee)}</span>
-                  <span><span className="req-name"><strong>{attendee}</strong><em className={`req-tag ${checked ? "on" : ""}`}>{checked ? (ko ? "필수" : "Required") : (ko ? "선택" : "Optional")}</em></span><small>{checked ? (ko ? "이 사람이 가능한 시간만 추천해요" : "Availability required") : (ko ? "가능한 경우 함께해요 · 눌러서 필수로 바꿔요" : "Select to make required")}</small></span>
-                  <i aria-hidden="true">{checked ? <Check /> : <CircleUser />}</i>
+                  <span><strong>{attendee}</strong><small>{checked ? (ko ? "이 사람의 가능한 시간을 기준으로 추천해요." : "Recommendations follow this person's availability.") : (ko ? "참석 가능하면 함께해요" : "Joins if available")}</small></span>
+                  <span className="req-toggle"><i aria-hidden="true">{checked && <Check />}</i><b>{ko ? "필수" : "Required"}</b></span>
                 </button>
               );
             })}
@@ -84,10 +87,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
         {many && !groups.length && <p className="rd-caption">{ko ? "일치하는 참석자가 없어요." : "No matching attendee."}</p>}
       </div>
 
-      <div className="required-selection-summary" aria-live="polite">
-        <span>{selected.length ? <ShieldCheck /> : <CircleUser />}</span>
-        <p><strong>{selected.length ? (ko ? `필수 참석자 ${selected.length}명` : `${selected.length} required`) : (ko ? "필수 참석자 없음" : "No required attendees")}</strong><small>{selected.length ? short(selected) : (ko ? "모든 참석자를 선택 참석자로 보고, 가능한 사람이 가장 많은 시간을 찾아요." : "Everyone is optional; we look for the time most people can attend.")}</small></p>
-      </div>
+      <p className="required-note">{selected.length ? (ko ? `필수 참석자: ${short(selected)}` : `Required: ${short(selected)}`) : (ko ? "필수 참석자를 지정하지 않으면 참석 가능한 사람이 가장 많은 시간을 추천합니다." : "With no required attendee, we recommend the time most people can attend.")}</p>
 
       <button className="primary-button required-confirm" onClick={() => onConfirm(selected)}>{ko ? "이 조건으로 계속하기" : "Continue with this rule"}</button>
       <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 알려주기" : "Describe the rule instead"}</button>

@@ -50,7 +50,7 @@ export function ProgressHeader({ info }: { info: ProgressInfo }) {
           {STAGE_TITLES.map((title, index) => <i key={title} className={stateOf(index)} />)}
         </span>
         {info.sub && <span className="progress-sub">{info.sub}</span>}
-        <span className="progress-helper">{info.helper}</span>
+        {info.helper && <span className="progress-helper">{info.helper}</span>}
         <ChevronDown aria-hidden="true" className={`progress-chevron ${open ? "up" : ""}`} />
       </button>
       {open && !mobile && (

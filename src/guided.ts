@@ -120,8 +120,8 @@ export function getGuidedStep(meeting: MeetingDraft, language: "ko" | "en", now 
     const first = attendees[0];
     return {
       key: "availabilityRule", number: 5, total: 8,
-      title: ko ? "꼭 참석할 사람" : "Availability rule",
-      question: ko ? "이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?" : "Whose availability is required to hold the meeting?",
+      title: ko ? "필수 참석자 지정" : "Availability rule",
+      question: ko ? "누가 꼭 참석해야 하나요?" : "Whose availability is required to hold the meeting?",
       inputPlaceholder: ko ? "예: 김민지는 꼭 참석해야 해" : "e.g. Minji must be available",
       choices: [
         {

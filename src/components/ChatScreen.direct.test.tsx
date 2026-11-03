@@ -58,7 +58,7 @@ describe("direct input follows the scheduling flow", () => {
     expect(await screen.findByText(/김민지님을 참석자로 체크했어요/)).toBeTruthy();
     expect(mocks.chat.mock.calls.length).toBe(callsBefore); // AI를 거치지 않았어요
     fireEvent.click(await screen.findByRole("button", { name: "참석자 1명 추가하기" })); // 체크가 반영되면 계속 버튼이 켜져요
-    await waitFor(() => expect(heading()).toBe("이 회의를 진행하려면 반드시 참석해야 하는 사람은 누구인가요?"));
+    await waitFor(() => expect(heading()).toBe("누가 꼭 참석해야 하나요?"));
     fireEvent.click(screen.getByRole("button", { name: "직접 알려주기" }));
     expect((document.getElementById("chat-input") as HTMLTextAreaElement).placeholder).toContain("꼭 참석");
     fireEvent.click(screen.getByRole("button", { name: "이 조건으로 계속하기" }));
