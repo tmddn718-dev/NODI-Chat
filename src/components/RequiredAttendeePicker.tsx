@@ -1,6 +1,7 @@
 import { Check, Search, Users } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import { SEARCH_INPUT, isComposingEnter } from "../inputProps";
 
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
@@ -65,7 +66,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
         <div className="people-search">
           <Search aria-hidden="true" />
           <label className="sr-only" htmlFor="required-filter">{ko ? "참석자 중에서 찾기" : "Find among attendees"}</label>
-          <input id="required-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={ko ? "참석자 중에서 이름·팀으로 찾기" : "Find by name or team"} autoComplete="off" />
+          <input id="required-filter" {...SEARCH_INPUT} value={filter} onChange={(event) => setFilter(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !isComposingEnter(event)) event.currentTarget.blur(); }} placeholder={ko ? "참석자 중에서 이름·팀으로 찾기" : "Find by name or team"} />
         </div>
       )}
       <div className={`required-people ${many ? "required-many" : ""}`} role="group" aria-label={ko ? "꼭 참석할 사람" : "Required attendees"}>

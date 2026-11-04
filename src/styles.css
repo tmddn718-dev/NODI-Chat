@@ -2111,7 +2111,7 @@ a.brand:focus-visible { outline: 2px solid var(--nodi-action-primary); outline-o
 .restart-dialog p { margin: 0 0 20px; font-size: 14px; color: var(--nodi-text-body); line-height: 1.5; }
 .summary-interpreted { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-13); color: var(--nodi-text-primary); }
 .summary-interpreted li::before { content: "· "; color: var(--nodi-action-primary); font-weight: 700; }
-.workspace.kb-open .app-tabbar { display: none; }
+.workspace.kb-open ~ .app-tabbar { display: none; } /* 탭 바는 .workspace의 형제라서 자손 선택자로는 안 걸렸어요 */
 .composer { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 @media (prefers-reduced-motion: reduce) { .progress-segments i { transition: none; } }
 .chat-welcome h2, .chat-welcome small { display: block; }
@@ -2609,4 +2609,19 @@ p, small, li, dd, h1, h2, h3, label { word-break: keep-all; overflow-wrap: anywh
 .compare-overlay .compare-body { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); overscroll-behavior: contain; gap: 0; }
 .compare-overlay .cmp-head { position: sticky; top: -16px; z-index: 2; margin: -16px -16px 12px; padding: 16px; background: var(--nodi-bg-canvas); }
 @media (max-width: 767px) { .compare { padding: 20px; } }
+
+/* ───── 모바일 키보드·입력 (탐색 → 입력 → 복귀) ─────
+   입력 모드(.kb-open): 하단 탭은 숨기고, 화면 높이를 "실제로 보이는 영역"(--nodi-vvh, useKeyboard가 갱신)에 맞춰 입력창이 키보드 바로 위에 와요.
+   키보드 높이를 고정값으로 가정하지 않고, 추가 슬라이드 애니메이션도 넣지 않아요(OS 키보드 움직임을 그대로 따라가요). */
+input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { display: none; -webkit-appearance: none; }
+.composer textarea { overflow-y: auto; }
+@media (max-width: 767px) {
+  .composer textarea { max-height: 160px; }
+  .workspace.kb-open { height: calc(min(100dvh, var(--nodi-vvh, 100dvh)) - var(--demo-h, 0px) - 56px); }
+  .workspace.kb-open .composer { margin-bottom: 8px; }
+  /* 보이는 영역이 낮을 때는 필터 줄을 접어 검색 결과 자리를 지켜요 */
+  .asheet.tight .people-filters { display: none; }
+  /* iOS는 16px 미만 입력칸에 포커스하면 화면을 확대해요. 글자를 입력하는 칸은 모바일에서 16px 이상으로 맞춰요 */
+  .people-search input, .composer textarea, input[type="search"], input[type="text"], input:not([type]), input[type="number"], .edit-form input, .summary-edit-form input, .summary-edit-form textarea, .feedback textarea, .attendee-picker .people-search input, .required-picker .people-search input, .people-filters select, .asheet .people-filters select { font-size: 16px; }
+}
 

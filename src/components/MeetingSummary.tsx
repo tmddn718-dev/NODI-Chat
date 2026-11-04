@@ -2,6 +2,7 @@ import { Calendar, CircleAlert, Clock, Globe, MapPin, Users, Video } from "lucid
 import { type FormEvent, useEffect, useState } from "react";
 import type { MeetingDraft } from "../types";
 import { namesLabel } from "../format";
+import { NUMBER_INPUT, TEXT_INPUT } from "../inputProps";
 
 const labels = {
   morning: "오전 선호",
@@ -53,11 +54,11 @@ export function MeetingSummary({ meeting, onChange, proposal, status, onEditFiel
       </div>
       {editing ? (
         <form className="summary-edit-form" onSubmit={save}>
-          <label>회의명<input value={draft.title ?? ""} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
+          <label>회의명<input {...TEXT_INPUT} value={draft.title ?? ""} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
           <label>목적<textarea rows={2} value={draft.purpose ?? ""} onChange={(event) => setDraft({ ...draft, purpose: event.target.value })} /></label>
-          <label>소요 시간(분)<input type="number" min="15" max="480" step="15" value={draft.durationMinutes ?? ""} onChange={(event) => setDraft({ ...draft, durationMinutes: Number(event.target.value) || undefined })} /></label>
-          <label>참석자(쉼표로 구분)<input value={attendeeText} onChange={(event) => setAttendeeText(event.target.value)} /></label>
-          <label>꼭 참석할 사람<input value={requiredText} onChange={(event) => setRequiredText(event.target.value)} /></label>
+          <label>소요 시간(분)<input {...NUMBER_INPUT} type="number" min="15" max="480" step="15" value={draft.durationMinutes ?? ""} onChange={(event) => setDraft({ ...draft, durationMinutes: Number(event.target.value) || undefined })} /></label>
+          <label>참석자(쉼표로 구분)<input {...TEXT_INPUT} value={attendeeText} onChange={(event) => setAttendeeText(event.target.value)} /></label>
+          <label>꼭 참석할 사람<input {...TEXT_INPUT} value={requiredText} onChange={(event) => setRequiredText(event.target.value)} /></label>
           <div className="summary-date-fields"><label>시작일<input type="date" value={draft.dateStart ?? ""} onChange={(event) => setDraft({ ...draft, dateStart: event.target.value })} /></label><label>종료일<input type="date" value={draft.dateEnd ?? ""} min={draft.dateStart} onChange={(event) => setDraft({ ...draft, dateEnd: event.target.value })} /></label></div>
           <label>선호 시간<select value={draft.preferredTime ?? ""} onChange={(event) => setDraft({ ...draft, preferredTime: event.target.value as MeetingDraft["preferredTime"] })}><option value="">선택</option><option value="morning">오전</option><option value="afternoon">오후</option><option value="any">상관없음</option></select></label>
           <button className="primary-button">저장하기</button>

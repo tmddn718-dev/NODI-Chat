@@ -1,8 +1,10 @@
 import { ArrowLeft, ArrowUp, ArrowDownToLine, MoreHorizontal, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { matchNames } from "../typedNames";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
+import { useKeyboard } from "../useKeyboard";
+import { isComposingEnter } from "../inputProps";
 import { getGuidedStep, matchChoice, STEP_TOTAL, type GuidedChoice } from "../guided";
 import type { AvailabilityResponse, Candidate, NextAction, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
@@ -129,7 +131,6 @@ export function ChatScreen({
   const isMobile = useMedia(MOBILE_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [serverReady, setServerReady] = useState(false);
   // 분석용: 이번 흐름에서 선택지와 직접 입력을 어떻게 썼는지(내용이 아니라 방식만 기억해요).
@@ -148,6 +149,14 @@ export function ChatScreen({
   const draftVersionRef = useRef(0);
   const availabilityRef = useRef(availability);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 입력한 줄 수만큼 입력창이 자라고(최대 160px), 넘으면 입력창 안에서 스크롤돼요. 전송해서 비우면 한 줄로 돌아와요.
+  useLayoutEffect(() => {
+    const element = inputRef.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
+  }, [input]);
   const guidedStep = getGuidedStep(meeting, language);
   const started = messages.length > 1 || Boolean(meeting.title);
   const pendingDecision = !!proposal || !!pickPerson || !!meaning;
@@ -276,18 +285,11 @@ export function ChatScreen({
 
   useEffect(() => { setComposerOpen(false); }, [guidedStep?.key, roundToken, recommendationComplete]);
 
-  // 모바일 키보드: 키보드가 열리면 하단 탭을 숨기고, 입력창이 가려지지 않게 맨 아래로 맞춰요.
+  // 모바일 키보드: 입력 모드가 되면 하단 탭을 숨기고 화면 높이를 보이는 영역에 맞춰요. 읽던 위치는 강제로 바꾸지 않고, 맨 아래를 보고 있을 때만 입력창이 보이게 따라가요.
+  const keyboardOpen = useKeyboard(isMobile);
   useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const update = () => {
-      const open = isMobile && viewport.height < window.innerHeight * 0.75;
-      setKeyboardOpen(open);
-      if (open) requestAnimationFrame(() => document.getElementById("chat-input")?.scrollIntoView({ block: "end" }));
-    };
-    viewport.addEventListener("resize", update);
-    return () => viewport.removeEventListener("resize", update);
-  }, [isMobile]);
+    if (keyboardOpen && nearBottomRef.current) requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: "end" }));
+  }, [keyboardOpen]);
 
   // 위쪽 내용을 읽는 중이면 새 메시지가 와도 강제로 끌어내리지 않고, 맨 아래로 가는 버튼만 보여줘요.
   useEffect(() => {
@@ -996,15 +998,18 @@ export function ChatScreen({
             <label htmlFor="chat-input" className="sr-only">메시지 입력</label>
             <textarea
               id="chat-input"
+              ref={inputRef}
               rows={1}
               maxLength={2000}
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              // 모바일: Enter는 줄바꿈, 전송은 버튼. 웹: Enter 전송(Shift+Enter 줄바꿈). 어디서나 Ctrl/Cmd+Enter 전송. 한글 조합 중 Enter는 무시해요.
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  submit(event);
-                }
+                if (event.key !== "Enter" || isComposingEnter(event)) return;
+                if (event.metaKey || event.ctrlKey || (!isMobile && !event.shiftKey)) submit(event);
               }}
+              enterKeyHint={isMobile ? "enter" : "send"}
+              autoComplete="off"
               placeholder={customPlaceholder || guidedStep?.inputPlaceholder || "편하게 입력해 주세요"}
               disabled={loading}
             />

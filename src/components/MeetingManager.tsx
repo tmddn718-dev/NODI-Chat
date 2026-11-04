@@ -2,6 +2,7 @@ import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { MeetingDraft, MeetingEvent } from "../types";
 import { namesLabel } from "../format";
+import { TEXT_INPUT } from "../inputProps";
 
 export function MeetingManager({
   event,
@@ -128,9 +129,9 @@ export function MeetingManager({
             ) : (
               <form onSubmit={review} className="edit-form">
                 <label htmlFor="event-title">회의 제목</label>
-                <input id="event-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                <input id="event-title" {...TEXT_INPUT} value={title} onChange={(e) => setTitle(e.target.value)} />
                 <label htmlFor="event-purpose">회의 목적</label>
-                <input id="event-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+                <input id="event-purpose" {...TEXT_INPUT} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
                 <div><button className="ghost-button" type="button" onClick={() => setEditing(false)}>취소</button><button className="primary-button" disabled={!changes.length}>변경 확인</button></div>
               </form>
             )

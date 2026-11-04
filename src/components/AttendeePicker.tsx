@@ -5,6 +5,7 @@ import { MAX_ATTENDEES, type OrgTree, type PersonSummary } from "../types";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
 import { namesLabel } from "../format";
 import { NodiMark } from "./NodiMark";
+import { SEARCH_INPUT, isComposingEnter } from "../inputProps";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -13,6 +14,9 @@ const CHIPS_SHOWN = 8;
 const RECENT_SHOWN = 6; // 최근 함께한 사람은 먼저 6명만 보여주고 나머지는 접어요
 
 // 구성원이 수백 명이어도 쓸 수 있게: 검색 중심, 부서·팀 필터, 일부만 불러오고 더 보기, 팀 전체 추가, 선택 요약.
+// 키보드가 열려 보이는 영역이 이만큼보다 낮으면 부서·팀 필터 줄을 잠깐 접어 목록 자리를 확보해요(키보드를 닫으면 돌아와요).
+const TIGHT_HEIGHT = 560;
+
 export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, draft, onDraft }: {
   language: "ko" | "en";
   onConfirm: (attendees: string[]) => void;
@@ -170,7 +174,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
       <div className="people-search">
         <Search aria-hidden="true" />
         <label className="sr-only" htmlFor="attendee-search">{ko ? "참석자 검색" : "Search attendees"}</label>
-        <input id="attendee-search" value={query} onChange={(event) => { setQuery(event.target.value); setError(""); }} placeholder={ko ? "이름, 팀, 직무, 이메일 검색" : "Search by name, team, role or email"} autoComplete="off" />
+        <input id="attendee-search" {...SEARCH_INPUT} value={query} onChange={(event) => { setQuery(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !isComposingEnter(event)) event.currentTarget.blur(); }} placeholder={ko ? "이름, 팀, 직무, 이메일 검색" : "Search by name, team, role or email"} />
         {query && <button onClick={() => setQuery("")} aria-label={ko ? "검색어 지우기" : "Clear search"}><X /></button>}
       </div>
 
@@ -260,7 +264,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
         <button className={selected.length ? "secondary-button apick-open" : "primary-button apick-open"} onClick={() => setSheetOpen(true)}>{selected.length ? (ko ? "참석자 더 고르기" : "Pick more") : (ko ? "참석자 선택하기" : "Choose attendees")}</button>
         <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
         {sheetOpen && (
-          <div className="asheet" role="dialog" aria-modal="true" aria-labelledby="asheet-title" style={viewport ? { top: viewport.top, height: viewport.height } : undefined}>
+          <div className={`asheet ${viewport && viewport.height < TIGHT_HEIGHT ? "tight" : ""}`} role="dialog" aria-modal="true" aria-labelledby="asheet-title" style={viewport ? { top: viewport.top, height: viewport.height } : undefined}>
             <header className="asheet-head">
               <h2 id="asheet-title">{ko ? "참석자 선택" : "Choose attendees"}</h2>
               <button className="asheet-close" onClick={() => setSheetOpen(false)} aria-label={ko ? "참석자 선택 닫기" : "Close"}><X aria-hidden="true" /></button>
