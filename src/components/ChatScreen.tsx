@@ -285,6 +285,18 @@ export function ChatScreen({
 
   useEffect(() => { setComposerOpen(false); }, [guidedStep?.key, roundToken, recommendationComplete]);
 
+  // 더보기 메뉴: 바깥을 탭하거나 Esc를 누르면 닫고, 메뉴 버튼으로 포커스를 돌려줘요(모바일에서 열린 채 남아 콘텐츠를 가리지 않게).
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (event: Event) => {
+      if (event instanceof KeyboardEvent) { if (event.key === "Escape") { setMoreOpen(false); document.querySelector<HTMLElement>('.more-menu [aria-haspopup="menu"]')?.focus(); } return; }
+      if (!(event.target as Element | null)?.closest?.(".more-menu")) setMoreOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [moreOpen]);
+
   // 모바일 키보드: 입력 모드가 되면 하단 탭을 숨기고 화면 높이를 보이는 영역에 맞춰요. 읽던 위치는 강제로 바꾸지 않고, 맨 아래를 보고 있을 때만 입력창이 보이게 따라가요.
   const keyboardOpen = useKeyboard(isMobile);
   useEffect(() => {

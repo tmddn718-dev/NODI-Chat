@@ -2641,3 +2641,11 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .qa-list dt { color: #566580; } .qa-list dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 .qa-list em { margin-left: 6px; padding: 0 5px; font-style: normal; font-size: 10px; color: #3654D4; background: #E9EEFF; border-radius: 6px; }
 
+/* ───── 앱처럼 쓰는 모바일 상호작용 (브라우저·홈 화면 실행 공통) ─────
+   · 두 번 탭해 확대되는 지연과 파란 탭 하이라이트를 없애요(핀치 확대는 접근성을 위해 그대로 둬요).
+   · 글자 크기 자동 조절(가로 회전 시 커짐)을 막아요.
+   · 맨 위/아래에서 더 당길 때 페이지가 통째로 새로고침·튕기지 않게 하고, 시트·목록은 안쪽에서만 스크롤돼요. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overscroll-behavior-y: none; }
+a, button, summary, label, select, [role="button"], [role="checkbox"], [role="menuitem"], [role="menuitemradio"], input[type="checkbox"], input[type="radio"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.message-stream, .asheet-results, .compare-body, .context-panel, .progress-sheet, .required-people { overscroll-behavior: contain; }
+

@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#f4f7fb" />
+    <meta name="theme-color" content="#F5F7FB" />
+    <!-- 홈 화면에 추가하면 주소창 없이 독립 실행돼요(PWA). iOS는 상태 표시줄 아래에서 시작하는 "default" 스타일이라 앱 헤더와 겹치지 않아요.
+         서비스 워커는 두지 않았어요: 일정 조율은 서버와 실시간으로 통신해서 오프라인 캐시가 오히려 오래된 화면을 보여 줄 수 있어요. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="NODI" />
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
     <meta name="description" content="대화로 회의 시간을 찾는 NODI 미팅 스케줄러" />
     <meta name="robots" content="noindex, nofollow" />
     <meta property="og:type" content="website" />
