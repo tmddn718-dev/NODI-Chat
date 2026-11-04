@@ -52,8 +52,8 @@ describe("candidate comparison", () => {
     fireEvent.click(screen.getByRole("button", { name: "다른 시간 비교하기" }));
     const table = screen.getByRole("table");
     expect(table).toBeTruthy();
-    expect(screen.getByText("선택 참석자 응답 대기")).toBeTruthy();
-    expect(table.textContent).toContain("일정 확인 불가");
+    expect(screen.getByText("아직 응답하지 않은 선택 참석자")).toBeTruthy();
+    expect(table.textContent).toContain("일정 정보 확인 불가");
     expect(screen.getByText(/응답 대기는 불참이 아니에요/)).toBeTruthy();
   });
 });

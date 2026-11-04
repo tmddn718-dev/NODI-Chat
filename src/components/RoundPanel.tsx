@@ -237,7 +237,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           {rankNotice && <p className="rd-rank-notice" role="status">{rankNotice} <button type="button" className="text-link" onClick={() => setRankNotice("")}>확인</button></p>}
           <p className="rd-body">{round.invitedAt ? "지금까지 받은 응답을 기준으로 가장 많은 사람이 가능한 시간이에요. 응답이 오면 순위가 바뀔 수 있어요." : "요청을 보내기 전 후보예요. 아직 모든 참석자의 가능 여부가 확인된 것은 아니에요."}</p>
         </div>
-      {round.rows.length > 1 && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 닫기" : "다른 후보 비교하기"}</button>}
+      {round.rows.length > 1 && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 접기" : "다른 후보 비교하기"}</button>}
       {comparing && (
         <CompareTable
           onClose={() => setComparing(false)}

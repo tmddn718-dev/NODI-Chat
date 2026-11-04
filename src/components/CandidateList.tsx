@@ -68,7 +68,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
         <div><h2 id="candidate-title">회의 추천</h2><p>조건에 잘 맞는 순서로 정리했어요. 아직 확정 전이에요.</p></div>
         <span className="demo-badge">데모 데이터</span>
       </div>
-      {candidates.length > 1 && !isMobile && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 닫기" : "다른 시간 비교하기"}</button>}
+      {candidates.length > 1 && !isMobile && <button type="button" className="rd-more compare-toggle" aria-expanded={comparing} onClick={() => setComparing((value) => !value)}>{comparing ? "비교 접기" : "다른 시간 비교하기"}</button>}
       {comparing && <CompareTable columns={compareColumns} onClose={() => setComparing(false)} />}
       <ol className="rd-list rcard-list">
         {visible.map((candidate, index) => {
