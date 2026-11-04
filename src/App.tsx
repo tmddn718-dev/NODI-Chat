@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { ChatScreen } from "./components/ChatScreen";
 import { DemoRibbon } from "./components/DemoRibbon";
+import { QaPanel } from "./components/QaPanel";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { CandidateInviteScreen } from "./components/CandidateInviteScreen";
 import { InviteResponseScreen } from "./components/InviteResponseScreen";
@@ -21,7 +22,7 @@ import type { MeetingDraft, MeetingEvent } from "./types";
 type View = "loading" | "connect" | "chat" | "meetings" | "event" | "invited" | "calendars";
 
 export default function App() {
-  return <><DemoRibbon /><Screens /></>;
+  return <><DemoRibbon /><Screens /><QaPanel /></>;
 }
 
 function Screens() {

@@ -2625,3 +2625,19 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
   .people-search input, .composer textarea, input[type="search"], input[type="text"], input:not([type]), input[type="number"], .edit-form input, .summary-edit-form input, .summary-edit-form textarea, .feedback textarea, .attendee-picker .people-search input, .required-picker .people-search input, .people-filters select, .asheet .people-filters select { font-size: 16px; }
 }
 
+/* ───── Safe Area (모바일 브라우저·가로 화면) ─────
+   viewport-fit=cover라서 가로 화면의 노치·둥근 모서리 쪽 좌우 여백(env)을 한 번만 적용해요. 세로 화면의 Safari·Chrome은 상단 inset이 0이라 변화가 없어요.
+   하단 inset은 탭 바·입력창·시트가 이미 각자 한 번씩 쓰고 있어서 여기서 다시 더하지 않아요. */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.app-tabbar, .mobile-bottom-nav { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.asheet, .compare-overlay { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.asheet-head { padding-top: env(safe-area-inset-top); }
+
+/* ───── QA 진단 패널(개발·QA 빌드에서만 렌더돼요) ───── */
+.qa-panel { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 8px; z-index: 9999; font-size: 12px; line-height: 1.4; }
+.qa-pill { min-width: 44px; min-height: 32px; padding: 0 10px; color: #fff; background: #18243A; border: 0; border-radius: 999px; font-weight: 700; opacity: .86; }
+.qa-list { display: grid; gap: 4px; width: min(300px, calc(100vw - 16px)); margin: 6px 0 0; padding: 10px 12px; color: #18243A; background: rgb(255 255 255 / .96); border: 1px solid #DDE4EF; border-radius: 12px; box-shadow: var(--nodi-shadow-3); }
+.qa-list > div { display: flex; justify-content: space-between; gap: 12px; }
+.qa-list dt { color: #566580; } .qa-list dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.qa-list em { margin-left: 6px; padding: 0 5px; font-style: normal; font-size: 10px; color: #3654D4; background: #E9EEFF; border-radius: 6px; }
+
