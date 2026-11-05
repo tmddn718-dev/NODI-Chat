@@ -2649,3 +2649,18 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overscroll-behavi
 a, button, summary, label, select, [role="button"], [role="checkbox"], [role="menuitem"], [role="menuitemradio"], input[type="checkbox"], input[type="radio"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .message-stream, .asheet-results, .compare-body, .context-panel, .progress-sheet, .required-people { overscroll-behavior: contain; }
 
+
+/* 모바일 정리(Figma 섹션 10·11 기준): 터치 영역 44px 이상, 주요 CTA 48~52px, 체크박스 24px, 4px 간격. */
+@media (max-width: 767px) {
+  .required-bulk { justify-content: stretch; gap: 8px; margin: 12px 0; }
+  .required-bulk button { flex: 1 1 0; min-height: 44px; padding: 0 16px; border-radius: var(--nodi-radius-lg); font-size: 14px; }
+  .required-people i { width: 24px; height: 24px; }
+  .required-people > button { min-height: 64px; padding: 12px; }
+  .rd-extend .rd-btn.m, .rd-extend-custom .rd-btn.m { min-height: 44px; height: 44px; font-size: 14px; }
+  .rd-slot > .rd-btn { min-height: 44px; height: 44px; }
+  .rcard-compare { min-height: 44px; margin-top: 12px; }
+  .rcard-cta { margin-top: 12px; }
+  .compare-bar { padding: 12px 16px; }
+  .compare-bar .rd-btn, .cmp-select { min-height: 48px; }
+  .cmp-card .cmp-select { min-height: 48px; }
+}
