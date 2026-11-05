@@ -31,6 +31,16 @@ describe("CandidateList evidence", () => {
   });
 });
 
+describe("CandidateList ties", () => {
+  it("labels equal-score candidates as the same level and puts the chosen time in the button", () => {
+    const b: Candidate = { ...candidate, id: "c2", start: "2026-11-03T02:30:00.000Z", end: "2026-11-03T03:15:00.000Z" };
+    render(<CandidateList candidates={[candidate, b]} requiredNames={[]} onSelect={vi.fn()} />);
+    expect(screen.getAllByText("동일한 수준").length).toBe(2);
+    expect(screen.queryByText("가장 추천")).toBeNull();
+    expect(screen.getAllByRole("button", { name: /시.* 선택하기/ }).length).toBe(2);
+  });
+});
+
 describe("ConfirmDialog re-verification", () => {
   const base = { meeting: { title: "킥오프", attendees: ["김민지"], requiredAttendees: ["김민지"] }, candidate, loading: false, error: "", onClose: vi.fn(), onConfirm: vi.fn(), onRetry: vi.fn(), onRecheck: vi.fn() };
   it("blocks approval until the latest check passes and offers a way out on conflict", () => {

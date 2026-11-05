@@ -26,7 +26,8 @@ function CappedItems({ names, render }: { names: string[]; render: (name: string
   const limit = 8;
   return <>{names.slice(0, limit).map(render)}{names.length > limit && <li className="rcard-more"><details><summary>{`외 ${names.length - limit}명 더 보기`}</summary><ul>{names.slice(limit).map(render)}</ul></details></li>}</>;
 }
-const rankLabel = (index: number) => (index === 0 ? "가장 추천" : `대안 ${index}`);
+// 점수·근거가 같은 후보에 임의의 순위를 매기지 않아요. 같은 점수는 "동일한 수준", 근거가 있을 때만 "가장 추천"이에요.
+const rankLabel = (index: number, tiedWithTop: number) => (tiedWithTop > 1 ? (index < tiedWithTop ? "동일한 수준" : `대안 ${index - tiedWithTop + 1}`) : index === 0 ? "가장 추천" : `대안 ${index}`);
 
 function toColumn(candidate: Candidate, requiredNames: string[], onSelect: (candidate: Candidate) => void): CompareColumn {
   const optional = (candidate.evidence ?? []).filter((item) => !requiredNames.includes(item.attendee)).map((item) => item.evidence);
@@ -59,6 +60,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
     );
   }
   const visible = showAll ? candidates : candidates.slice(0, 3);
+  const tiedWithTop = candidates.filter((candidate) => candidate.score === candidates[0].score).length;
   const sameScore = candidates.every((candidate) => candidate.score === candidates[0].score);
   const compareColumns = visible.filter((candidate) => !isMobile || picked.length < 2 || picked.includes(candidate.id)).map((candidate) => toColumn(candidate, requiredNames, onSelect));
 
@@ -93,8 +95,8 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
           return (
             <RecommendationCard
               key={candidate.id}
-              top={index === 0 && ok}
-              label={rankLabel(index)}
+              top={index === 0 && ok && tiedWithTop === 1}
+              label={rankLabel(index, tiedWithTop)}
               start={candidate.start}
               end={candidate.end}
               badge={state.badge}

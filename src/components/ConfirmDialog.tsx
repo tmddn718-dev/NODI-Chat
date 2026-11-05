@@ -62,9 +62,9 @@ export function ConfirmDialog({
         <section className="cd-section cd-after" aria-label="확정 후 처리">
           <h3>확정 후 처리</h3>
           <ul>
-            <li className="ok"><Check aria-hidden="true" /><span>NODI에 회의 시간 확정</span></li>
-            <li className="plain"><span className="cd-dot" aria-hidden="true" /><span>외부 캘린더 반영 전 · 데모에서는 지원되지 않아요</span></li>
-            <li className="plain"><span className="cd-dot" aria-hidden="true" /><span>참석자 초대 발송 전 · 데모에서는 지원되지 않아요</span></li>
+            <li className="ok"><Check aria-hidden="true" /><span>NODI 회의 저장 · 지금 처리돼요</span></li>
+            <li className="plain"><span className="cd-dot" aria-hidden="true" /><span>캘린더 반영 · 아직 연결되지 않았어요</span></li>
+            <li className="plain"><span className="cd-dot" aria-hidden="true" /><span>참석자 초대 발송 · 이 데모에서는 보내지 않아요</span></li>
           </ul>
         </section>
 
@@ -90,7 +90,7 @@ export function ConfirmDialog({
         </details>
         {error && <p className="dialog-error" role="alert">{error}</p>}
         <div className="dialog-actions">
-          <button className="secondary-button" onClick={onClose} disabled={loading}>다른 시간 보기</button>
+          <button className="secondary-button" onClick={onClose} disabled={loading}>다시 검토</button>
           {verify.state === "failed"
             ? <button className="primary-button" onClick={verify.retryable ? onRecheck : onRetry}>{verify.retryable ? "다시 확인하기" : "새로운 추천 보기"}</button>
             : error

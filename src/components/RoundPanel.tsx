@@ -246,6 +246,7 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
       )}
       <ol className="rd-list rcard-list">
         {round.rows.map((row) => {
+          const tiedTop = round.rows.filter((other) => other.candidate.score === round.rows[0].candidate.score).length;
           const people = row.people;
           const waiting = [...(people?.tentative ?? []), ...(people?.noResponse ?? [])];
           const ok = row.candidate.requiredAvailable;
@@ -260,8 +261,8 @@ export function RoundPanel({ meeting, token, requestId, onTokenChange, onSelect,
           return (
             <RecommendationCard
               key={row.candidate.id}
-              top={row.rank === 1 && ok}
-              label={row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}
+              top={row.rank === 1 && ok && tiedTop === 1}
+              label={tiedTop > 1 ? (row.rank <= tiedTop ? "동일한 수준" : `대안 ${row.rank - tiedTop}`) : row.rank === 1 ? "가장 추천" : `대안 ${row.rank - 1}`}
               start={row.candidate.start}
               end={row.candidate.end}
               badge={state.badge}

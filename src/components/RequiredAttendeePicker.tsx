@@ -50,7 +50,7 @@ export function RequiredAttendeePicker({ attendees, language, onConfirm, onDirec
       <div className="required-head">
         <p className="required-step">{ko ? "회의 조건 입력 · 질문 5/8" : "Meeting details · Question 5/8"}<span>{ko ? "참석 조건" : "Attendance"}</span></p>
         <h2 id="required-picker-title">{ko ? "누가 꼭 참석해야 하나요?" : "Who must attend?"}</h2>
-        <p className="required-desc">{ko ? "필수 참석자 모두 가능한 시간을 우선 추천합니다. 나머지는 선택 참석자로 유지돼요." : "We prioritize times that work for every required attendee. Everyone else stays optional."}</p>
+        <p className="required-desc">{ko ? "필수 참석자가 모두 가능한 시간을 먼저 찾아요. 필수 지정은 참석 확정이 아니에요." : "We look for times every required attendee can make. Marking someone required is not a confirmation."}</p>
       </div>
 
       <div className="required-summary-bar" aria-live="polite">

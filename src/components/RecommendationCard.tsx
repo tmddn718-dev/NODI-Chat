@@ -2,12 +2,13 @@ import { ChevronDown, Check, Clock, TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { clockLabel, minutesBetween, slotLabel } from "../format";
 import { StatusBadge, type BadgeKind } from "./StatusBadge";
+import { splitSlot } from "./CompareTable";
 
 export type ReasonLine = { kind: "ok" | "wait" | "warn" | "plain"; text: string };
 const ICON = { ok: Check, wait: Clock, warn: TriangleAlert } as const;
 
 // 추천 카드: 시간(가장 크게) → 상태 → 추천 이유 → 남은 불확실성 → 세부 정보(펼침) → 행동. 웹·모바일이 같은 순서예요.
-export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel = "이 시간으로 확정 검토", disabledLabel = "확정 검토 불가", compare, compact }: {
+export function RecommendationCard({ label, top, start, end, badge, reasons, details, canSelect, onSelect, ctaLabel, disabledLabel = "확정 검토 불가", compare, compact }: {
   label: string;
   top?: boolean;
   start: string;
@@ -24,6 +25,8 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
   compact?: { summary: string; detail?: string };
 }) {
   const [open, setOpen] = useState(false);
+  // 버튼에 고른 시간을 넣어요. 누르면 확정이 아니라 확정 전 검토 단계로 가요.
+  const cta = ctaLabel ?? `${splitSlot(slotLabel(start)).spoken} 선택하기`;
   if (compact && !open) {
     return (
       <li className={`rcard rcard-compact ${top ? "top" : ""}`}>
@@ -63,7 +66,7 @@ export function RecommendationCard({ label, top, start, end, badge, reasons, det
           <span className="rcard-check" aria-hidden="true">{compare.checked && <Check />}</span>비교에 추가
         </button>
       )}
-      <button type="button" className="rd-btn rcard-cta" disabled={!canSelect} onClick={onSelect}>{canSelect ? ctaLabel : disabledLabel}</button>
+      <button type="button" className="rd-btn rcard-cta" disabled={!canSelect} onClick={onSelect} aria-label={canSelect ? `${cta} (확정 전 검토 단계로 이동)` : undefined}>{canSelect ? cta : disabledLabel}</button>
     </li>
   );
 }
