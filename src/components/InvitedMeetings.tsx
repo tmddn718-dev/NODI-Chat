@@ -1,18 +1,11 @@
 import { ArrowLeft, Check, ChevronRight, Clock, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { buildInvitedMeetings, loadAnswers, saveAnswers, statusOf, type InvitedAnswer, type InvitedMeeting, type InvitedStatus } from "../invited";
+import { buildInvitedMeetings, loadAnswers, saveAnswers, statusOf, type InvitedAnswer, type InvitedMeeting, type InvitedStatus, deadlineLabel } from "../invited";
 import { Brand } from "./Brand";
 
 const slotFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 const timeFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" });
 const TABS: Array<[InvitedStatus, string]> = [["pending", "응답 필요"], ["answered", "응답 완료"], ["confirmed", "확정"]];
-
-function deadlineLabel(iso: string, now = Date.now()) {
-  const diff = Date.parse(iso) - now;
-  if (diff <= 0) return "응답 마감 지남";
-  const hours = Math.ceil(diff / 3_600_000);
-  return hours < 24 ? `${hours}시간 뒤 마감` : `${Math.ceil(hours / 24)}일 뒤 마감`;
-}
 
 export function InvitedMeetings({ onBack }: { onBack: () => void }) {
   const [meetings] = useState(() => buildInvitedMeetings());

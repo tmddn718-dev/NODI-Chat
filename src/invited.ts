@@ -63,3 +63,10 @@ export function pendingInvitedCount() {
   const answers = loadAnswers();
   return buildInvitedMeetings().filter((meeting) => statusOf(meeting, answers) === "pending").length;
 }
+
+export function deadlineLabel(iso: string, now = Date.now()) {
+  const diff = Date.parse(iso) - now;
+  if (diff <= 0) return "응답 마감 지남";
+  const hours = Math.ceil(diff / 3_600_000);
+  return hours < 24 ? `${hours}시간 뒤 마감` : `${Math.ceil(hours / 24)}일 뒤 마감`;
+}

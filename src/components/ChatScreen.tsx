@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowUp, ArrowDownToLine, MoreHorizontal, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowUp, ArrowDownToLine, Bell, MoreHorizontal, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { api, ApiError } from "../api";
 import { matchNames } from "../typedNames";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
@@ -9,7 +9,9 @@ import { getGuidedStep, matchChoice, STEP_TOTAL, type GuidedChoice } from "../gu
 import type { AvailabilityResponse, Candidate, NextAction, DraftPayload, InvitationLink, MeetingDraft, MeetingEvent, Message } from "../types";
 import { AvailabilityEditor } from "./AvailabilityEditor";
 import { NodiMark } from "./NodiMark";
-import { pendingInvitedCount } from "../invited";
+import { buildInvitedMeetings, loadAnswers, pendingInvitedCount } from "../invited";
+import { buildNotifications, loadRead, saveRead, type NodiNotification } from "../notifications";
+import { NotificationSheet } from "./NotificationSheet";
 import { ReviewCard } from "./ReviewCard";
 import { AttendeePicker } from "./AttendeePicker";
 import { Brand } from "./Brand";
@@ -128,6 +130,14 @@ export function ChatScreen({
   const [meaning, setMeaning] = useState<Extract<NextAction, { type: "resolve_ambiguity" }>["ambiguity"] | null>(null);
   const [roundInfo, setRoundInfo] = useState({ loaded: false, invited: false, pending: 0, total: 0 });
   const [composerOpen, setComposerOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [readIds, setReadIds] = useState(loadRead);
+  const [invitedMeetings] = useState(() => buildInvitedMeetings());
+  // 초대 응답은 다른 화면에서 바뀔 수 있어 열 때마다 새로 읽어요.
+  const notifications = useMemo(() => buildNotifications(invitedMeetings, loadAnswers(), roundInfo), [invitedMeetings, roundInfo, notifOpen]);
+  const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
+  const markRead = (ids: string[]) => setReadIds((current) => { const next = [...new Set([...current, ...ids])]; saveRead(next); return next; });
+  const openNotification = (item: NodiNotification) => { markRead([item.id]); setNotifOpen(false); if (item.target === "invited") onShowInvited(); };
   const isMobile = useMedia(MOBILE_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -814,6 +824,7 @@ export function ChatScreen({
         <div className="topbar-actions">
           <span className="mode-chip"><span /> 데모 캘린더</span>
           <button className="icon-button mobile-meetings-button" onClick={onShowMeetings} aria-label="내 회의 열기"><Calendar /></button>
+          <button className="icon-button notif-button" onClick={() => setNotifOpen(true)} aria-label={unreadCount > 0 ? `알림 열기, 안 읽은 알림 ${unreadCount}개` : "알림 열기"} aria-haspopup="dialog"><Bell />{unreadCount > 0 && <span className="notif-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>}</button>
           <button className="icon-button" onClick={onSettings} aria-label="설정 열기"><Settings /></button>
         </div>
       </header>
@@ -1073,6 +1084,7 @@ export function ChatScreen({
         </div>
       )}
       {selected && <ConfirmDialog verify={verify} onRecheck={() => void chooseCandidate(selected)} meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
+      {notifOpen && <NotificationSheet items={notifications} readIds={readIds} onClose={() => setNotifOpen(false)} onOpen={openNotification} onReadAll={() => markRead(notifications.map((item) => item.id))} />}
       <nav className="app-tabbar" aria-label="주요 메뉴">
         <button className="active" aria-current="page"><Bot /><span>회의 잡기</span></button>
         <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>
