@@ -67,3 +67,9 @@ AI 챗봇으로 회의 일정을 조율하는 서비스. 반응형 웹 + 모바�
 - 서버 비밀값(`GROQ_API_KEY`·`SUPABASE_SERVICE_ROLE_KEY`·`OPS_TOKEN`)은 서버 환경변수에서만 읽고 `VITE_`·클라이언트·로그·문서에 쓰지 않는다. 확인: `bash scripts/check-secrets.sh`.
 - 분석은 **Amplitude Browser SDK 2**(PostHog는 제거됨). 이벤트는 `src/analytics.ts`의 `EventMap`·`EVENT_PROPERTIES`에 이름·속성을 함께 추가해야 나간다. 이름·문장·일정·자유 의견 원문은 절대 속성으로 보내지 않는다. 동의 전에는 SDK 로드·요청 모두 0건. 자동 수집·Session Replay·`userId`/`identify` 금지. 클라이언트에는 Project API Key만(Secret Key 금지).
 - 문서는 `docs/public-prototype/`. 흐름이 바뀌면 `src/prototype.ts`의 `flowVersion`을 올린다.
+
+## 최신 보충 (2026-11-10, 기존 내용은 그대로 두고 덧붙임)
+- 현재 작업 브랜치는 **`ver.3`**이다(위 Git 규칙의 `ver.2`는 이전 기록). `main`·`demo`는 `ver.3`과 같은 커밋으로 맞춰 푸시하는 흐름을 쓴다(demo 먼저, 그다음 main).
+- 현재 진행 상황·미완료 작업·알려진 버그·다음 우선순위는 `docs/WORK_PROGRESS.md`에 있다. 작업을 시작하기 전에 먼저 읽는다.
+- 굵기 700은 디자인 시스템 지정을 따른다(unslop 기준 600 이하보다 디자인 시스템 우선).
+- 디자인 문서와 Figma 링크는 앱 저장소 밖(`../design/redesign/`)과 `docs/WORK_PROGRESS.md`에 정리돼 있다.
