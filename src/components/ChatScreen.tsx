@@ -1,8 +1,10 @@
-import { ArrowLeft, ArrowUp, ArrowDownToLine, Bell, MoreHorizontal, ArrowUpToLine, Bot, Calendar, CircleCheck, CircleUser, Globe, Plug, Settings, Users, WifiOff, X } from "lucide-react";
+import { Check, ArrowLeft, ArrowUp, ArrowDownToLine, Bell, Ellipsis, ArrowUpToLine, CalendarDays, CircleCheck, UserRound, Globe, Plug, WifiOff, X, Inbox, Settings2, CalendarSync, MessageSquarePlus } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { api, ApiError } from "../api";
 import { matchNames } from "../typedNames";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
+import { AccountMenu } from "./AccountMenu";
+import { AppTabBar } from "./AppTabBar";
 import { useKeyboard } from "../useKeyboard";
 import { isComposingEnter } from "../inputProps";
 import { getGuidedStep, matchChoice, STEP_TOTAL, type GuidedChoice } from "../guided";
@@ -823,21 +825,22 @@ export function ChatScreen({
         </div>
         <div className="topbar-actions">
           <span className="mode-chip"><span /> 데모 캘린더</span>
-          <button className="icon-button mobile-meetings-button" onClick={onShowMeetings} aria-label="내 회의 열기"><Calendar /></button>
           <button className="icon-button notif-button" onClick={() => setNotifOpen(true)} aria-label={unreadCount > 0 ? `알림 열기, 안 읽은 알림 ${unreadCount}개` : "알림 열기"} aria-haspopup="dialog"><Bell />{unreadCount > 0 && <span className="notif-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>}</button>
-          <button className="icon-button" onClick={onSettings} aria-label="설정 열기"><Settings /></button>
+          <AccountMenu onSettings={onSettings} onCalendars={onShowCalendars} />
         </div>
       </header>
 
-      <div className={`workspace ${keyboardOpen ? "kb-open" : ""}`}>
+      <div className={`workspace ${keyboardOpen ? "kb-open" : ""} ${history.length > 0 || recommendationComplete ? "flow-focus" : ""}`}>
         <aside className="sidebar">
           <button className="new-chat-button" onClick={requestRestart}>새 회의</button>
           <nav aria-label="서비스 상태">
             <p>작업 공간</p>
-            <a href="#main-content" className="active"><Bot /> 회의 잡기</a>
-            <button onClick={onShowMeetings}><Calendar /> 내 회의</button>
-            <button onClick={onShowInvited}><Users /> 초대받은 회의 {pendingInvited > 0 && <span className="nav-count">{pendingInvited}</span>}</button>
-            <button onClick={onShowCalendars}><Plug /> 캘린더 연결</button>
+            <a href="#main-content" className="active" aria-current="page"><MessageSquarePlus /> 회의 잡기</a>
+            <button onClick={onShowMeetings}><CalendarDays /> 내 회의</button>
+            <button onClick={onShowInvited}><Inbox /> 받은 요청 {pendingInvited > 0 && <span className="nav-count">{pendingInvited}<span className="sr-only">건 응답 필요</span></span>}</button>
+            <hr className="nav-divider" />
+            <button onClick={onSettings}><Settings2 /> 설정</button>
+            <button onClick={onShowCalendars}><CalendarSync /> 캘린더 연결</button>
           </nav>
           <div className="connection-box">
             <div><Plug /><span><strong>데모 캘린더</strong><small>가상 조직 구성원 일정 연결</small></span></div>
@@ -852,12 +855,12 @@ export function ChatScreen({
               <button className="summary-toggle" onClick={() => setSummaryOpen(true)} aria-haspopup="dialog" aria-expanded={summaryOpen}>조건 요약</button>
               {isMobile ? (
                 <div className="more-menu">
-                  <button type="button" className="icon-button" aria-label="더보기" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><MoreHorizontal /></button>
+                  <button type="button" className="icon-button" aria-label="더보기" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><Ellipsis /></button>
                   {moreOpen && (
                     <div className="more-pop" role="menu">
                       <button type="button" role="menuitem" onClick={requestRestart}>새 대화 시작</button>
-                      <button type="button" role="menuitemradio" aria-checked={language === "ko"} onClick={() => { setLanguage("ko"); setMoreOpen(false); }}>한국어{language === "ko" ? " ✓" : ""}</button>
-                      <button type="button" role="menuitemradio" aria-checked={language === "en"} onClick={() => { setLanguage("en"); setMoreOpen(false); }}>English{language === "en" ? " ✓" : ""}</button>
+                      <button type="button" role="menuitemradio" aria-checked={language === "ko"} onClick={() => { setLanguage("ko"); setMoreOpen(false); }}>한국어{language === "ko" && <Check aria-hidden="true" />}</button>
+                      <button type="button" role="menuitemradio" aria-checked={language === "en"} onClick={() => { setLanguage("en"); setMoreOpen(false); }}>English{language === "en" && <Check aria-hidden="true" />}</button>
                     </div>
                   )}
                 </div>
@@ -885,7 +888,7 @@ export function ChatScreen({
                 )
               ) : (
                 <article key={message.id} className={`message ${message.role}`}>
-                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <NodiMark /> : <CircleUser />}</span>
+                  <span className="avatar" aria-hidden="true">{message.role === "assistant" ? <NodiMark /> : <UserRound />}</span>
                   <div><span className="message-author">{message.role === "assistant" ? "NODI" : "나"}</span><p>{message.content}</p></div>
                 </article>
               )
@@ -1064,7 +1067,7 @@ export function ChatScreen({
           }} />
           <section className="calendar-status">
             <div className="section-heading"><h2>연결한 캘린더</h2><span>1개 · <button className="link-button" onClick={onShowCalendars}>관리</button></span></div>
-            <div className="calendar-provider"><span className="provider-icon"><Calendar /></span><div><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터</small></div><CircleCheck className="provider-check" /></div>
+            <div className="calendar-provider"><span className="provider-icon"><CalendarDays /></span><div><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터</small></div><CircleCheck className="provider-check" /></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">G</span><div><strong>Google Calendar</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
             <div className="calendar-provider upcoming"><span className="provider-icon">M</span><div><strong>Microsoft 365</strong><small>아직 연결할 수 없어요</small></div><span>준비 중</span></div>
           </section>
@@ -1085,13 +1088,7 @@ export function ChatScreen({
       )}
       {selected && <ConfirmDialog verify={verify} onRecheck={() => void chooseCandidate(selected)} meeting={meeting} candidate={selected} loading={confirmLoading} error={confirmError} onClose={() => setSelected(null)} onConfirm={() => void confirm()} onRetry={() => { setSelected(null); if (!roundToken) void findRecommendations(meeting, availability); }} />}
       {notifOpen && <NotificationSheet items={notifications} readIds={readIds} onClose={() => setNotifOpen(false)} onOpen={openNotification} onReadAll={() => markRead(notifications.map((item) => item.id))} />}
-      <nav className="app-tabbar" aria-label="주요 메뉴">
-        <button className="active" aria-current="page"><Bot /><span>회의 잡기</span></button>
-        <button onClick={onShowMeetings}><Calendar /><span>내 회의</span></button>
-        <button onClick={onShowInvited}><Users /><span>초대{pendingInvited > 0 ? ` ${pendingInvited}` : ""}</span></button>
-        <button onClick={onShowCalendars}><Plug /><span>캘린더</span></button>
-        <button onClick={onSettings}><Settings /><span>설정</span></button>
-      </nav>
+      {!(history.length > 0 || recommendationComplete) && <AppTabBar active="chat" pending={pendingInvited} onNavigate={(tab) => (tab === "meetings" ? onShowMeetings() : onShowInvited())} />}
     </div>
   );
 }

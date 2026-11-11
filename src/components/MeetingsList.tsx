@@ -1,5 +1,6 @@
-import { ArrowLeft, Calendar, CircleCheck, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CalendarDays, CircleCheck, TriangleAlert } from "lucide-react";
 import type { MeetingEvent } from "../types";
+import { AppTabBar, type AppTab } from "./AppTabBar";
 import { Brand } from "./Brand";
 
 const formatDate = (value: string) => new Intl.DateTimeFormat("ko-KR", {
@@ -13,11 +14,15 @@ export function MeetingsList({
   onSelect,
   onBack,
   onNew,
+  onNavigate,
+  pending = 0,
 }: {
   events: MeetingEvent[];
   onSelect: (event: MeetingEvent) => void;
   onBack: () => void;
   onNew: () => void;
+  onNavigate?: (tab: AppTab) => void;
+  pending?: number;
 }) {
   const groups = [
     { title: "동기화 실패", items: events.filter((event) => event.status === "confirmed" && event.calendarSyncStatus === "failed") },
@@ -41,7 +46,7 @@ export function MeetingsList({
             <div className="meetings-list">
               {group.items.map((event) => (
                 <button className="meeting-list-row" key={event.id} onClick={() => onSelect(event)}>
-                  <span className="meeting-list-icon"><Calendar /></span>
+                  <span className="meeting-list-icon"><CalendarDays /></span>
                   <span className="meeting-list-copy"><strong>{event.meeting.title}</strong><small>{formatDate(event.candidate.start)} · {event.meeting.attendees?.length ?? 0}명</small></span>
                   <span className="meeting-list-badges">
                   <span className={`status-badge ${event.status === "confirmed" ? "status-success" : "status-warning"}`}>
@@ -56,13 +61,14 @@ export function MeetingsList({
           </div>
         )) : (
           <div className="meetings-empty">
-            <Calendar />
+            <CalendarDays />
             <h2>아직 만든 회의가 없어요</h2>
             <p>참석자를 선택하면 NODI가 캘린더와 응답을 비교해 가장 잘 맞는 시간을 찾아드려요.</p>
             <button className="primary-button" onClick={onNew}>첫 회의 만들기</button>
           </div>
         )}
       </section>
+      {onNavigate && <AppTabBar active="meetings" pending={pending} onNavigate={onNavigate} />}
     </main>
   );
 }

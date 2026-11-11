@@ -1,4 +1,4 @@
-import { Eye, EyeOff, KeyRound, LockKeyhole, PlayCircle, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LockKeyhole, CirclePlay, ShieldCheck } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { demo } from "../demo";
 import { Brand } from "./Brand";
@@ -60,7 +60,7 @@ export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
       <section className="connect-panel" aria-labelledby="connect-title">
         {onStartDemo ? (
           <div className="connect-card">
-            <span className="key-icon"><PlayCircle size={26} /></span>
+            <span className="key-icon"><CirclePlay size={28} /></span>
             <h2 id="connect-title">{demo.mode === "public" ? "NODI 테스트에 참여해 보세요" : "바로 체험해 보세요"}</h2>
             <p className="muted">{demo.mode === "public" ? "가상 캘린더로 회의 시간을 찾는 과정을 써 보고, 느낀 점을 알려 주세요. API Key는 필요 없어요." : "가상 캘린더와 가상 조직(약 260명)으로 회의 시간을 찾는 과정을 체험할 수 있어요."}</p>
             {notice && <p className="connect-notice" role="status">{notice}</p>}
@@ -77,14 +77,14 @@ export function ConnectScreen({ onConnect, onStartDemo, notice }: Props) {
           </div>
         ) : (
         <div className="connect-card">
-          <span className="key-icon"><KeyRound size={26} /></span>
+          <span className="key-icon"><KeyRound size={28} /></span>
           <h2 id="connect-title">Groq를 연결해 주세요</h2>
           <p className="muted">AI로 회의 시간을 찾으려면 API Key가 필요해요.</p>
           {notice && <p className="connect-notice" role="status">{notice}</p>}
           <form onSubmit={submit}>
             <label htmlFor="api-key">Groq API Key</label>
             <div className={`input-with-action ${status === "error" ? "field-error" : ""}`}>
-              <LockKeyhole size={19} aria-hidden="true" />
+              <LockKeyhole size={20} aria-hidden="true" />
               <input
                 id="api-key"
                 type={showKey ? "text" : "password"}

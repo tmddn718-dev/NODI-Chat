@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import { pendingInvitedCount } from "./invited";
 import { ChatScreen } from "./components/ChatScreen";
 import { DemoRibbon } from "./components/DemoRibbon";
 import { QaPanel } from "./components/QaPanel";
@@ -154,6 +155,7 @@ function Screens() {
     setEvents((current) => current.map((item) => item.id === cancelled.id ? cancelled : item));
   }
 
+  const goTab = (tab: "chat" | "meetings" | "invited") => setView(tab);
   if (roundToken) return <CandidateInviteScreen token={roundToken} />;
   if (inviteToken) return <InviteResponseScreen token={inviteToken} />;
   const content = (() => {
@@ -161,10 +163,10 @@ function Screens() {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" />{slowBoot && <p className="boot-hint" role="status">서버를 깨우고 있어요. 처음에는 최대 1분 정도 걸릴 수 있어요.</p>}</main>;
   }
   if (view === "connect") return <ConnectScreen onConnect={connect} onStartDemo={demo.on ? startDemo : undefined} notice={notice} />;
-  if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} />;
+  if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} onNavigate={goTab} />;
   if (view === "calendars") return <CalendarConnections onBack={() => setView("chat")} />;
   if (view === "meetings") {
-    return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} />;
+    return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} onNavigate={goTab} pending={pendingInvitedCount()} />;
   }
   if (view === "event" && event) {
     return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} onFeedback={demo.mode === "public" ? () => setFeedbackOpen(true) : undefined} />;

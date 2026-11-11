@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Check, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, X } from "lucide-react";
 import { useState } from "react";
 import { Brand } from "./Brand";
 
@@ -30,7 +30,7 @@ export function CalendarConnections({ onBack }: { onBack: () => void }) {
           <h2 className="meetings-group-title">연결됨 <span>1</span></h2>
           <div className="cal-list">
             <div className="cal-row">
-              <span className="sub-avatar" aria-hidden="true"><Calendar /></span>
+              <span className="sub-avatar" aria-hidden="true"><CalendarDays /></span>
               <span className="meeting-list-copy"><strong>Demo Workspace</strong><small>가상 Free/Busy 데이터 · 구성원 5명</small></span>
               <span className="status-badge status-success"><Check /> 연결됨</span>
             </div>

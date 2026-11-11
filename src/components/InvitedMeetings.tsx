@@ -1,13 +1,14 @@
 import { ArrowLeft, Check, ChevronRight, Clock, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { buildInvitedMeetings, loadAnswers, saveAnswers, statusOf, type InvitedAnswer, type InvitedMeeting, type InvitedStatus, deadlineLabel } from "../invited";
+import { AppTabBar, type AppTab } from "./AppTabBar";
 import { Brand } from "./Brand";
 
 const slotFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 const timeFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" });
 const TABS: Array<[InvitedStatus, string]> = [["pending", "응답 필요"], ["answered", "응답 완료"], ["confirmed", "확정"]];
 
-export function InvitedMeetings({ onBack }: { onBack: () => void }) {
+export function InvitedMeetings({ onBack, onNavigate }: { onBack: () => void; onNavigate?: (tab: AppTab) => void }) {
   const [meetings] = useState(() => buildInvitedMeetings());
   const [answers, setAnswers] = useState(loadAnswers);
   const [tab, setTab] = useState<InvitedStatus>("pending");
@@ -32,10 +33,10 @@ export function InvitedMeetings({ onBack }: { onBack: () => void }) {
       </header>
       <section className="meetings-content" aria-labelledby="invited-title">
         <div className="meetings-heading">
-          <div><p className="overline">초대받은 회의</p><h1 id="invited-title">나에게 온 일정 요청</h1><p>가능한 시간을 알려 주면 주최자가 가장 잘 맞는 시간을 정해요. 이 화면은 데모 데이터예요.</p></div>
+          <div><p className="overline">받은 요청</p><h1 id="invited-title">나에게 온 일정 요청</h1><p>가능한 시간을 알려 주면 주최자가 가장 잘 맞는 시간을 정해요. 이 화면은 데모 데이터예요.</p></div>
         </div>
 
-        <div className="sub-tabs" role="tablist" aria-label="초대 상태">
+        <div className="sub-tabs" role="tablist" aria-label="받은 요청 상태">
           {TABS.map(([key, label]) => (
             <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? "on" : ""} onClick={() => setTab(key)}>{label}<span>{counts[key]}</span></button>
           ))}
@@ -69,6 +70,7 @@ export function InvitedMeetings({ onBack }: { onBack: () => void }) {
         )}
       </section>
       {open && <InvitedDialog meeting={open} answer={answers[open.id]} onClose={() => setOpenId(null)} onSubmit={(answer) => submit(open, answer)} />}
+      {onNavigate && <AppTabBar active="invited" pending={counts.pending} onNavigate={onNavigate} />}
     </main>
   );
 }

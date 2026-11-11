@@ -53,7 +53,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
   if (!candidates.length) {
     return (
       <section className="empty-candidates" role="status">
-        <Clock size={30} />
+        <Clock size={28} />
         <h3>조건에 맞는 시간이 없어요</h3>
         <p>날짜를 넓히거나 꼭 참석할 사람을 바꿔보세요.</p>
       </section>

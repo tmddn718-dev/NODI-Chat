@@ -1,4 +1,4 @@
-import { Check, History, Plus, Search, UserPlus, Users, X } from "lucide-react";
+import { Check, RotateCcwClock, Plus, Search, UserPlus, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { MAX_ATTENDEES, type OrgTree, type PersonSummary } from "../types";
@@ -224,7 +224,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
       <div className="people-stack">
         {recent.length > 0 && (
           <div className="people-section">
-            <div className="people-section-title"><span><History /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{recent.length}{ko ? "명" : ""}</small></div>
+            <div className="people-section-title"><span><RotateCcwClock /> {ko ? "최근 함께한 사람" : "Recent meeting partners"}</span><small>{recent.length}{ko ? "명" : ""}</small></div>
             <div className="recent-chips">{recentShown.map((person) => {
               const added = selected.includes(person.name);
               return (

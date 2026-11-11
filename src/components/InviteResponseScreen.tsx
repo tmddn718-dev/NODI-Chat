@@ -1,4 +1,4 @@
-import { Calendar, CircleCheck, Clock, TriangleAlert } from "lucide-react";
+import { CalendarDays, CircleCheck, Clock, TriangleAlert } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
 import type { AvailabilityStatus, InvitationSummary } from "../types";
@@ -63,11 +63,11 @@ export function InviteResponseScreen({ token }: { token: string }) {
     <main id="main-content" className="invite-view">
       <header className="invite-topbar"><Brand /><span>일정 응답</span></header>
       <section className="invite-card" aria-labelledby="invite-title">
-        <span className="invite-icon"><Calendar /></span>
+        <span className="invite-icon"><CalendarDays /></span>
         <p className="overline">NODI 회의 초대</p>
         <h1 id="invite-title">{invitation.meeting.title}</h1>
         <p className="invite-purpose">{invitation.meeting.purpose}</p>
-        <div className="invite-meta"><span><Clock /> {invitation.meeting.durationMinutes}분</span><span><Calendar /> {invitation.meeting.dateStart} – {invitation.meeting.dateEnd}</span></div>
+        <div className="invite-meta"><span><Clock /> {invitation.meeting.durationMinutes}분</span><span><CalendarDays /> {invitation.meeting.dateStart} – {invitation.meeting.dateEnd}</span></div>
         <div className="invite-identity"><strong>{invitation.attendee}님만 답할 수 있어요</strong><span>{new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(invitation.expiresAt))}까지</span></div>
         <p className="invite-progress">다른 참석자의 이름과 일정은 보여주지 않아요.</p>
         <form className="invite-form" onSubmit={submit}>
