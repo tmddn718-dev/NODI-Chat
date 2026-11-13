@@ -80,6 +80,21 @@ export function DateRangePicker({
   }).format(visibleMonth);
   const weekdays = ko ? ["월", "화", "수", "목", "금", "토", "일"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  // 자주 쓰는 범위를 한 번에: 달력에서 두 번 누르는 수고를 줄여요(최대 31일 규칙 안).
+  const dow = parseDate(today).getUTCDay();
+  const nextMonday = addDays(today, ((1 - dow + 7) % 7) || 7);
+  const presets = ko
+    ? [
+        { label: "7일 이내", start: today, end: addDays(today, 6) },
+        { label: "다음 주", start: nextMonday, end: addDays(nextMonday, 4) },
+        { label: "14일 이내", start: today, end: addDays(today, 13) },
+      ]
+    : [
+        { label: "7 days", start: today, end: addDays(today, 6) },
+        { label: "Next week", start: nextMonday, end: addDays(nextMonday, 4) },
+        { label: "14 days", start: today, end: addDays(today, 13) },
+      ];
+
   function selectDate(date: string) {
     if (!start || end) {
       setStart(date);
@@ -102,6 +117,12 @@ export function DateRangePicker({
           <p>{ko ? "회의 조건 입력" : "Meeting details"}</p>
           <h2 id="date-range-title">{ko ? "언제부터 언제까지 찾아볼까요?" : "What date range should NODI search?"}</h2>
         </div>
+      </div>
+
+      <div className="range-presets" role="group" aria-label={ko ? "빠른 선택" : "Quick ranges"}>
+        {presets.map((preset) => (
+          <button type="button" key={preset.label} className={start === preset.start && end === preset.end ? "on" : ""} aria-pressed={start === preset.start && end === preset.end} onClick={() => { setStart(preset.start); setEnd(preset.end); setVisibleMonth(monthStart(preset.start)); }}>{preset.label}</button>
+        ))}
       </div>
 
       <div className="calendar-shell">

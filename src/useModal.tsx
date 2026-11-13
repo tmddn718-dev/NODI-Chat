@@ -44,7 +44,9 @@ export function useModal(onClose: () => void) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
       if (pushed && !popped && (history.state as { nodiModal?: string } | null)?.nodiModal === id) history.back();
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      // 글자 입력칸으로는 되돌리지 않아요: 시트를 닫았을 뿐인데 모바일 키보드가 올라오면 화면이 흔들려요.
+      const isTyping = opener instanceof HTMLTextAreaElement || (opener instanceof HTMLInputElement && !/^(button|checkbox|radio|submit)$/.test(opener.type)) || !!opener?.isContentEditable;
+      if (opener?.isConnected && !isTyping) opener.focus({ preventScroll: true });
     };
   }, []);
 }

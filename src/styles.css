@@ -2715,3 +2715,19 @@ a, button, summary, label, select, [role="button"], [role="checkbox"], [role="me
 .opt-chevron { display: none; }
 @media (max-width: 767px) { .guided-options button .opt-chevron { display: block; flex: none; width: 20px; height: 20px; color: var(--nodi-text-placeholder); } }
 .inline-arrow { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; color: var(--nodi-text-secondary); }
+
+/* 모바일 QA 보정 */
+/* 터치 영역 44px: 진행 상태 버튼·참석 응답 선택·달 이동·후보 단계의 보조 버튼 */
+@media (max-width: 767px) {
+  .progress-bar-button { min-height: 44px; }
+  .availability-card select, .availability-card input { min-height: 44px; }
+  .date-range-picker .calendar-month-header button { width: 44px; height: 44px; }
+  .recommendation-actions .ghost-button { min-height: 44px; }
+}
+/* 안내 문구는 오류가 아니라서 빨간색이 아닌 보조 텍스트 색과 정보 아이콘 색을 써요 */
+.availability-note { color: var(--nodi-text-secondary); }
+.availability-note svg { color: var(--nodi-action-primary); }
+/* 날짜 빠른 선택 칩 */
+.range-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.range-presets button { min-height: 44px; padding: 0 16px; color: var(--nodi-text-body); background: var(--nodi-bg-surface); border: 1px solid var(--nodi-border-default); border-radius: var(--nodi-radius-pill); font-size: var(--fs-14); font-weight: 600; }
+.range-presets button.on { color: var(--nodi-action-primary); background: #E9EEFF; border-color: #D1DCFF; }

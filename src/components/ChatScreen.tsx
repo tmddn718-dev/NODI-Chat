@@ -39,6 +39,8 @@ const intro: Message = {
 const emptyMeeting = (): MeetingDraft => ({ timezone: "Asia/Seoul", version: 1 });
 const draftStorageKey = "nodi_meeting_draft_v2";
 const historyStorageKey = "nodi_meeting_history_v1";
+// 대화 말풍선에는 2026-11-17 같은 코드 형태 대신 "11월 17일 (화)"로 보여줘요.
+const friendlyDate = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", month: "long", day: "numeric", weekday: "short" }).format(new Date(`${iso}T00:00:00Z`));
 const restoreHistory = (): Array<{ meeting: MeetingDraft; messages: Message[] }> => {
   try {
     const saved = JSON.parse(localStorage.getItem(historyStorageKey) ?? "[]");
@@ -953,9 +955,9 @@ export function ChatScreen({
                 language={language}
                 initialStart={meeting.dateStart}
                 onConfirm={(dateStart, dateEnd) => selectGuidedChoice({
-                  label: `${dateStart} – ${dateEnd}`,
+                  label: `${friendlyDate(dateStart)} – ${friendlyDate(dateEnd)}`,
                   message: language === "ko"
-                    ? `일정 탐색 범위는 ${dateStart}부터 ${dateEnd}까지로 할게.`
+                    ? `일정 탐색 범위는 ${friendlyDate(dateStart)}부터 ${friendlyDate(dateEnd)}까지로 할게.`
                     : `Search for meeting times from ${dateStart} through ${dateEnd}.`,
                   patch: { dateStart, dateEnd },
                 })}

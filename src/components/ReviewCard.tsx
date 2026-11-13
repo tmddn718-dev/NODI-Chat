@@ -67,7 +67,7 @@ export function ReviewCard({ meeting, needsAvailability = false, onEdit, onProce
         </div>
       </div>
 
-      <p className="cd-note"><Info /> 추천 시간 검색은 회의 확정이 아니에요. 확인 가능한 일정 정보를 바탕으로 후보를 제안해요. 시간대는 {meeting.timezone ?? "Asia/Seoul"} 기준이에요.</p>
+      <p className="cd-note"><Info /> 추천 시간 검색은 회의 확정이 아니에요. 확인 가능한 일정 정보를 바탕으로 후보를 제안해요. 시간대는 {(meeting.timezone ?? "Asia/Seoul") === "Asia/Seoul" ? "한국 표준시(KST)" : meeting.timezone} 기준이에요.</p>
       <div className="review-actions">
         <button className="secondary-button" onClick={onEdit}>조건 수정하기</button>
         <button className="primary-button" onClick={onProceed} disabled={!complete}>{needsAvailability ? "참석 가능 시간 입력하기" : "가능한 시간 찾기"}</button>
