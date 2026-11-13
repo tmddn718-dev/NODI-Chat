@@ -1,4 +1,4 @@
-import { ChartNoAxesColumn, KeyRound, MessageSquareText, Plug, X } from "lucide-react";
+import { ChartNoAxesColumn, KeyRound, MessageSquareText, X, CalendarSync } from "lucide-react";
 import { demo } from "../demo";
 
 export function SettingsDialog({ onClose, onDisconnect, analyticsOn, onToggleAnalytics, onFeedback }: {
@@ -39,7 +39,7 @@ export function SettingsDialog({ onClose, onDisconnect, analyticsOn, onToggleAna
           </div>
         )}
         <div className="setting-row disabled-row">
-          <span><Plug /></span>
+          <span><CalendarSync /></span>
           <div><strong>Google / Microsoft Calendar</strong><p>지금은 데모 캘린더만 사용할 수 있어요</p></div>
           <span>준비 중</span>
         </div>

@@ -1,4 +1,4 @@
-import { Check, ArrowLeft, ArrowUp, ArrowDownToLine, Bell, Ellipsis, ArrowUpToLine, CalendarDays, CircleCheck, UserRound, Globe, Plug, WifiOff, X, Inbox, Settings2, CalendarSync, MessageSquarePlus } from "lucide-react";
+import { Check, ArrowLeft, ArrowUp, ArrowDownToLine, Bell, Ellipsis, ArrowUpToLine, CalendarDays, CircleCheck, UserRound, Globe, WifiOff, X, Inbox, Settings2, CalendarSync, MessageSquarePlus } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { api, ApiError } from "../api";
 import { matchNames } from "../typedNames";
@@ -655,8 +655,8 @@ export function ChatScreen({
     trackMilestones(nextMeeting);
     const assistantMessage = nextStep
       ? language === "ko"
-        ? `${choice.label}, 좋아요. ${nextStep.question}`
-        : `Saved ${choice.label}. ${nextStep.question}`
+        ? `‘${choice.label}’ 선택을 반영했어요.` // 다음 질문은 아래 카드에 있으니 말풍선에서 되풀이하지 않아요
+        : `Saved ${choice.label}.`
       : language === "ko"
         ? "필요한 정보가 다 모였어요. 이제 참석 가능한 시간을 확인할게요."
         : "The meeting details are ready. Add each attendee's availability.";
@@ -708,6 +708,12 @@ export function ChatScreen({
     setInvitationRequestId(crypto.randomUUID());
     setProposal(null);
     setUnderstood(null);
+    if (recommendationComplete || candidates.length > 0) addStaleNotice();
+  }
+
+  // 조건이 바뀌어 이전 추천을 더는 쓰지 않을 때 이유를 알려요(후보를 말없이 지우지 않아요).
+  function addStaleNotice() {
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: language === "ko" ? "조건이 바뀌어서 이전 추천 시간은 더 이상 사용하지 않아요. 조건을 확인한 뒤 새로 찾아드릴게요." : "The conditions changed, so the earlier recommendations are no longer used. Check them and we'll search again." }]);
   }
 
   // 필수 참석자 조건만 다시 정해요. 나머지 회의 조건은 그대로 두고 후보와 응답 요청은 새로 만들어요.
@@ -843,7 +849,7 @@ export function ChatScreen({
             <button onClick={onShowCalendars}><CalendarSync /> 캘린더 연결</button>
           </nav>
           <div className="connection-box">
-            <div><Plug /><span><strong>데모 캘린더</strong><small>가상 조직 구성원 일정 연결</small></span></div>
+            <div><CalendarSync /><span><strong>데모 캘린더</strong><small>가상 조직 구성원 일정 연결</small></span></div>
             <p>실제 캘린더에는 반영되지 않아요.</p>
           </div>
         </aside>
@@ -1053,6 +1059,7 @@ export function ChatScreen({
         <aside className={`context-panel ${summaryOpen ? "open" : ""}`} aria-label="회의 조건과 캘린더">
           <button className="sheet-close rd-icon-btn" onClick={() => setSummaryOpen(false)} aria-label="회의 조건 닫기"><X /></button>
           <MeetingSummary meeting={meeting} proposal={proposal} status={summaryStatus} interpreted={understood?.changed.map((item) => `${item.field === "durationMinutes" ? "시간" : item.field === "attendees" ? "참석자" : item.field === "title" ? "회의 종류" : item.field === "purpose" ? "목적" : item.field === "requiredAttendees" ? "꼭 참석" : item.field === "dateStart" || item.field === "dateEnd" ? "날짜" : "선호 시간"} · ${item.after}`)} onEditField={clearField} onChange={(nextMeeting) => {
+            const hadRecommendations = recommendationComplete || candidates.length > 0;
             setHistory((current) => [...current, { meeting, messages }].slice(-30));
             setMeeting({ ...nextMeeting, version: (meeting.version ?? 1) + 1 });
             setReviewed(false);
@@ -1063,7 +1070,7 @@ export function ChatScreen({
     setRoundToken("");
             setInvitationLinks([]);
             setInvitationRequestId(crypto.randomUUID());
-            setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: "바꾼 내용을 반영했어요. 다시 한번 확인해 주세요." }]);
+            setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: hadRecommendations ? "조건이 바뀌어서 이전 추천 시간은 더 이상 사용하지 않아요. 바꾼 내용을 확인한 뒤 새로 찾아드릴게요." : "바꾼 내용을 반영했어요. 다시 한번 확인해 주세요." }]);
           }} />
           <section className="calendar-status">
             <div className="section-heading"><h2>연결한 캘린더</h2><span>1개 · <button className="link-button" onClick={onShowCalendars}>관리</button></span></div>

@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { STAGE_TITLES, stageOf, type GuidedChoice, type GuidedStep } from "../guided";
 import { NodiMark } from "./NodiMark";
 
@@ -25,7 +26,7 @@ export function GuidedChoices({
       <div className="guided-options" aria-label={`${step.title} 추천 목록`}>
         {step.choices.map((choice) => (
           <button key={choice.label} className={choice.label === recommended ? "recommended" : undefined} onClick={() => onSelect(choice)}>
-            {choice.label === recommended && <span className="reco-tip">추천</span>}{choice.label}
+            {choice.label === recommended && <span className="reco-tip">추천</span>}{choice.label}<ChevronRight className="opt-chevron" aria-hidden="true" />
           </button>
         ))}
       </div>

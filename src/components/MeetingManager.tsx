@@ -1,4 +1,4 @@
-import { Circle, CircleCheck, TriangleAlert } from "lucide-react";
+import { Circle, CircleCheck, TriangleAlert, ArrowRight } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { MeetingDraft, MeetingEvent } from "../types";
 import { namesLabel } from "../format";
@@ -117,7 +117,7 @@ export function MeetingManager({
               <section className="change-review" aria-label="변경 내용 확인">
                 <h3>변경 내용을 확인해 주세요</h3>
                 <ul className="change-list">
-                  {changes.map((item) => <li key={item.label}><span>{item.label}</span><strong><s>{item.before || "없음"}</s> → {item.after}</strong></li>)}
+                  {changes.map((item) => <li key={item.label}><span>{item.label}</span><strong><s>{item.before || "없음"}</s> <ArrowRight className="inline-arrow" aria-label="에서" /> {item.after}</strong></li>)}
                 </ul>
                 <p className="rd-caption">영향받는 참석자 {attendees.length}명 · 시간은 바뀌지 않아서 기존 응답은 그대로 유효해요.</p>
                 <div className="rd-options" role="radiogroup" aria-label="알림 방식">

@@ -1,4 +1,4 @@
-import { Check, RotateCcwClock, Plus, Search, UserPlus, Users, X } from "lucide-react";
+import { Check, RotateCcwClock, Plus, Search, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { MAX_ATTENDEES, type OrgTree, type PersonSummary } from "../types";
@@ -239,7 +239,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
           </div>
         )}
         <div className="people-section directory-section">
-          <div className="people-section-title"><span><UserPlus /> {myScope === "team" ? (ko ? `내 팀 · ${team}` : `My team · ${team}`) : myScope === "department" ? (ko ? `내 소속 · ${department}` : `My department · ${department}`) : filtering ? (ko ? "검색 결과" : "Results") : (ko ? "구성원" : "Directory")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : ko ? `전체 ${total}명 중 ${people.length}명 표시` : `${people.length} of ${total}`}</small></div>
+          <div className="people-section-title"><span><Users /> {myScope === "team" ? (ko ? `내 팀 · ${team}` : `My team · ${team}`) : myScope === "department" ? (ko ? `내 소속 · ${department}` : `My department · ${department}`) : filtering ? (ko ? "검색 결과" : "Results") : (ko ? "구성원" : "Directory")}</span><small>{loading ? (ko ? "검색 중" : "Searching") : ko ? `전체 ${total}명 중 ${people.length}명 표시` : `${people.length} of ${total}`}</small></div>
           {loading ? <div className="people-skeleton" role="status"><span /><span /><span /></div> : people.length ? (
             <div className="people-list">
               {listed.map((person) => <PersonRow person={person} key={person.id} />)}

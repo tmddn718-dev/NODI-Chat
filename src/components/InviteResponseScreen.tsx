@@ -1,4 +1,4 @@
-import { CalendarDays, CircleCheck, Clock, TriangleAlert } from "lucide-react";
+import { CalendarDays, CircleCheck, Clock, TriangleAlert, PenLine } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
 import type { AvailabilityStatus, InvitationSummary } from "../types";
@@ -71,7 +71,7 @@ export function InviteResponseScreen({ token }: { token: string }) {
         <div className="invite-identity"><strong>{invitation.attendee}님만 답할 수 있어요</strong><span>{new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(invitation.expiresAt))}까지</span></div>
         <p className="invite-progress">다른 참석자의 이름과 일정은 보여주지 않아요.</p>
         <form className="invite-form" onSubmit={submit}>
-          <div className="manual-response-mode"><CircleCheck /><span><strong>직접 알려주세요</strong><small>캘린더를 연결하지 않아도 괜찮아요.</small></span></div>
+          <div className="manual-response-mode"><PenLine /><span><strong>직접 알려주세요</strong><small>캘린더를 연결하지 않아도 괜찮아요.</small></span></div>
           <fieldset><legend>참석할 수 있나요?</legend><div className="response-options">{(["available", "unavailable", "tentative"] as ResponseStatus[]).map((value) => <label key={value}><input type="radio" name="status" value={value} checked={status === value} onChange={() => { setStatus(value); setSaved(false); }} /><span>{value === "available" ? "참석 가능" : value === "unavailable" ? "참석 어려움" : "아직 몰라요"}</span></label>)}</div></fieldset>
           {status === "available" && <div className="invite-time-fields"><label>가능 시작<input type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} required /></label><label>가능 종료<input type="datetime-local" value={end} min={start} onChange={(event) => setEnd(event.target.value)} required /></label></div>}
           {error && <p className="dialog-error" role="alert">{error}</p>}

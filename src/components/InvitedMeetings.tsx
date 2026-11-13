@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronRight, Clock, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Clock, TriangleAlert, X, Info } from "lucide-react";
 import { useState } from "react";
 import { buildInvitedMeetings, loadAnswers, saveAnswers, statusOf, type InvitedAnswer, type InvitedMeeting, type InvitedStatus, deadlineLabel } from "../invited";
 import { AppTabBar, type AppTab } from "./AppTabBar";
@@ -98,7 +98,7 @@ function InvitedDialog({ meeting, answer, onClose, onSubmit }: { meeting: Invite
               <div><dt>일시</dt><dd>{slotFmt.format(new Date(confirmed.start))}</dd></div>
               <div><dt>시간</dt><dd>{timeFmt.format(new Date(confirmed.start))} - {timeFmt.format(new Date(confirmed.end))}</dd></div>
             </dl>
-            <p className="cd-note"><Check /> 데모에서는 내 캘린더에 반영하지 않아요.</p>
+            <p className="cd-note"><Info /> 데모에서는 내 캘린더에 반영하지 않아요.</p>
           </div>
         ) : (
           <>

@@ -1,4 +1,4 @@
-import { Check, Lightbulb, Users } from "lucide-react";
+import { Check, Lightbulb, Users, ChevronRight, ArrowRight } from "lucide-react";
 import type { MeetingDraft } from "../types";
 
 export type FieldKey = "title" | "purpose" | "durationMinutes" | "attendees" | "requiredAttendees" | "preferredTime" | "dateStart" | "dateEnd";
@@ -27,7 +27,7 @@ export function UnderstoodConditionsCard({ understood, onRevert }: { understood:
           <li key={item.field}>
             <span className="understood-label">{LABEL[item.field]}</span>
             <span className="understood-value">
-              <strong>{item.before ? <><s>{item.before}</s> → {item.after}</> : item.after}</strong>
+              <strong>{item.before ? <><s>{item.before}</s> <ArrowRight className="inline-arrow" aria-label="에서" /> {item.after}</> : item.after}</strong>
               {onRevert && <button type="button" className="soft-pill" onClick={() => onRevert(item.field)} aria-label={`${LABEL[item.field]} 되돌리기`}>되돌리기</button>}
             </span>
           </li>
@@ -64,7 +64,7 @@ export function AmbiguityResolver({ title = "누구를 말씀하신 건가요?",
     <section className="proposal-card" aria-label="해석 선택">
       <p className="understood-title"><Users aria-hidden="true" />{title}</p>
       <div className="guided-options">
-        {options.map((option) => <button key={option.id} type="button" onClick={() => onPick(option.id)}>{option.label}</button>)}
+        {options.map((option) => <button key={option.id} type="button" onClick={() => onPick(option.id)}>{option.label}<ChevronRight className="opt-chevron" aria-hidden="true" /></button>)}
       </div>
       {onDirect && <button type="button" className="direct-input-button" onClick={onDirect}>직접 입력할게요</button>}
     </section>

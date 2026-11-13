@@ -1,4 +1,4 @@
-import { CalendarDays, CircleCheck, Clock, Copy, Link, Users } from "lucide-react";
+import { CalendarDays, Clock, Copy, Link, UserRound, Info, CircleCheck } from "lucide-react";
 import { useState } from "react";
 import type { AvailabilityResponse, AvailabilityStatus, InvitationLink } from "../types";
 
@@ -118,7 +118,7 @@ export function AvailabilityEditor({
       <div className={`availability-list ${method === "invite" ? "invite-mode" : ""}`}>
         {responses.map((response) => (
           <article className="availability-row" key={response.attendee}>
-            <div className="availability-person"><Users /><strong>{response.attendee}</strong></div>
+            <div className="availability-person"><UserRound /><strong>{response.attendee}</strong></div>
             <label>
               <span className="sr-only">{response.attendee} 참석 상태</span>
               <select value={response.status} disabled={method === "invite"} onChange={(event) => changeStatus(response, event.target.value as AvailabilityStatus)}>
@@ -134,7 +134,7 @@ export function AvailabilityEditor({
           </article>
         ))}
       </div>
-      <div className="availability-note"><CircleCheck /> 답변 전이거나 아직 모르는 참석자는 가능한 사람으로 세지 않아요.</div>
+      <div className="availability-note"><Info /> 답변 전이거나 아직 모르는 참석자는 가능한 사람으로 세지 않아요.</div>
       <button className="primary-button availability-submit" onClick={onSubmit} disabled={loading || (method === "invite" && !inviteLinks?.length)}>{method === "invite" && !inviteLinks?.length ? "먼저 초대장을 만들어 주세요" : "추천 시간 보기"}</button>
     </section>
   );

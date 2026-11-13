@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CircleCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useState } from "react";
 import { NodiMark } from "./NodiMark";
 
@@ -163,7 +163,7 @@ export function DateRangePicker({
         <div><span>{ko ? "종료" : "End"}</span><strong>{displayDate(end, language)}</strong></div>
       </div>
       <p className="range-help">
-        <CircleCheck />
+        <Info />
         {start && !end
           ? (ko ? "종료일을 선택해 주세요. 시작일과 같은 날도 선택할 수 있어요." : "Choose an end date. It can be the same as the start date.")
           : (ko ? "오늘부터 최대 31일까지 찾을 수 있어요." : "Choose a range of up to 31 days, starting today or later.")}

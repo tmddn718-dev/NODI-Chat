@@ -1,4 +1,4 @@
-import { CalendarCheck, ChartNoAxesColumn, ShieldCheck } from "lucide-react";
+import { ChartNoAxesColumn, ShieldCheck, CalendarX } from "lucide-react";
 import { PROTOTYPE } from "../prototype";
 
 // 첫 진입 안내와 분석 동의. 동의하지 않아도 모든 기능을 쓸 수 있어요(분석 이벤트만 보내지 않아요).
@@ -10,7 +10,7 @@ export function ConsentNotice({ onDecide }: { onDecide: (analytics: boolean) => 
       <section className="dialog consent" role="dialog" aria-modal="true" aria-labelledby="consent-title">
         <h2 id="consent-title">NODI 테스트에 오신 걸 환영해요</h2>
         <ul className="consent-points">
-          <li><CalendarCheck aria-hidden="true" /><span><strong>실제 캘린더와 초대에는 반영되지 않아요</strong>테스트용 가상 일정이라 메일이나 초대도 가지 않아요.</span></li>
+          <li><CalendarX aria-hidden="true" /><span><strong>실제 캘린더와 초대에는 반영되지 않아요</strong>테스트용 가상 일정이라 메일이나 초대도 가지 않아요.</span></li>
           <li><ShieldCheck aria-hidden="true" /><span><strong>개인정보는 입력하지 마세요</strong>입력한 문장은 외부 AI 서버(Groq)로 전달돼요.</span></li>
           <li><ChartNoAxesColumn aria-hidden="true" /><span><strong>익명 사용 데이터는 선택이에요</strong>서비스 개선을 위해 어디서 막히는지만 익명으로 살펴봐요. 수집 없이도 똑같이 쓸 수 있어요.</span></li>
         </ul>

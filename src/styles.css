@@ -1835,7 +1835,6 @@ a.brand:focus-visible { outline: 2px solid var(--nodi-action-primary); outline-o
   .guided-options { grid-template-columns: 1fr; gap: 0; margin: 16px -20px 0; }
   .guided-options button { justify-content: space-between; min-height: 56px; padding: 0 20px; text-align: left; background: transparent; border: 0; border-radius: 0; border-top: 1px solid var(--nodi-border-default); font-size: var(--fs-17); font-weight: 600; }
   .guided-options button:first-child { border-top: 0; }
-  .guided-options button::after { content: "›"; color: var(--nodi-text-placeholder); font-size: var(--fs-24); font-weight: 400; line-height: 1; }
   .guided-options button:active { background: var(--nodi-bg-canvas); }
 
   /* 하단 고정 CTA */
@@ -2711,3 +2710,8 @@ a, button, summary, label, select, [role="button"], [role="checkbox"], [role="me
 /* 회의 생성 중에는 하단 탭을 숨기므로 그만큼 높이를 돌려받아요 */
 @media (max-width: 767px) { .workspace.flow-focus { height: calc(100dvh - var(--demo-h, 0px) - 56px - env(safe-area-inset-bottom)); } }
 @media (max-width: 767px) { body.demo-on { --demo-h: 52px; } } /* 좁은 화면에서는 데모 안내가 두 줄이라 실제 높이에 맞춰요 */
+
+/* 글자 기호(› →)를 Lucide 아이콘으로 바꾼 자리: 선택지 오른쪽 화살표는 모바일 목록에서만 보여요 */
+.opt-chevron { display: none; }
+@media (max-width: 767px) { .guided-options button .opt-chevron { display: block; flex: none; width: 20px; height: 20px; color: var(--nodi-text-placeholder); } }
+.inline-arrow { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; color: var(--nodi-text-secondary); }

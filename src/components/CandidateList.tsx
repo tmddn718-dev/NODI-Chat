@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { CalendarX } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { namesLabel, slotLabel } from "../format";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
@@ -53,7 +53,7 @@ export function CandidateList({ candidates, onSelect, requiredNames = [] }: { ca
   if (!candidates.length) {
     return (
       <section className="empty-candidates" role="status">
-        <Clock size={28} />
+        <CalendarX size={28} aria-hidden="true" />
         <h3>조건에 맞는 시간이 없어요</h3>
         <p>날짜를 넓히거나 꼭 참석할 사람을 바꿔보세요.</p>
       </section>

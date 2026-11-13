@@ -1,4 +1,4 @@
-import { CalendarDays, CircleAlert, Clock, Globe, MapPin, Users, Video } from "lucide-react";
+import { CalendarDays, CircleAlert, Globe, MapPin, Users, Video, Timer, UserCheck } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import type { MeetingDraft } from "../types";
 import { namesLabel } from "../format";
@@ -71,9 +71,9 @@ export function MeetingSummary({ meeting, onChange, proposal, status, onEditFiel
           </div>
           <h3 className="summary-sub">확정된 조건</h3>
           <dl className="summary-list">
-            {meeting.durationMinutes ? <div><dt><Clock /></dt><dd>{meeting.durationMinutes}분</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("durationMinutes")}>수정</button>}</div> : null}
+            {meeting.durationMinutes ? <div><dt><Timer /></dt><dd>{meeting.durationMinutes}분</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("durationMinutes")}>수정</button>}</div> : null}
             {attendees.length > 0 && <div><dt><Users /></dt><dd>{namesLabel(attendees)}</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("attendees")}>수정</button>}</div>}
-            {meeting.requiredAttendees !== undefined && <div><dt><Users /></dt><dd>{meeting.requiredAttendees.length ? `${namesLabel(meeting.requiredAttendees)} 꼭 참석` : "꼭 참석할 사람 없음"}</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("requiredAttendees")}>수정</button>}</div>}
+            {meeting.requiredAttendees !== undefined && <div><dt><UserCheck /></dt><dd>{meeting.requiredAttendees.length ? `${namesLabel(meeting.requiredAttendees)} 꼭 참석` : "꼭 참석할 사람 없음"}</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("requiredAttendees")}>수정</button>}</div>}
             {meeting.dateStart && <div><dt><CalendarDays /></dt><dd>{`${meeting.dateStart}${meeting.dateEnd && meeting.dateEnd !== meeting.dateStart ? ` - ${meeting.dateEnd}` : ""}`}</dd>{onEditField && <button type="button" className="soft-pill row-edit" onClick={() => onEditField("dateStart")}>수정</button>}</div>}
             <div><dt><Globe /></dt><dd>{meeting.timezone ?? "Asia/Seoul"} · 데모 기준</dd></div>
             {meeting.meetingType && <div><dt>{meeting.meetingType === "in-person" ? <MapPin /> : <Video />}</dt><dd>{meeting.meetingType === "in-person" ? meeting.location || "대면 회의" : "온라인 회의"}</dd></div>}
