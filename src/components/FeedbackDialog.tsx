@@ -7,6 +7,7 @@ import { deviceInfo } from "../device";
 import { experimentVariant } from "../experiment";
 import { currentRunId, isRunConfirmed } from "../flow";
 import { PROTOTYPE } from "../prototype";
+import { ModalBehavior } from "../useModal";
 
 export const FEEDBACK_TAGS: Array<[FeedbackTag, string]> = [
   ["input_hard", "조건 입력이 어려웠어요"], ["participants_hard", "참석자 고르기가 불편했어요"], ["recommendation_unclear", "추천 이유가 이해되지 않았어요"],
@@ -71,7 +72,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && state !== "sending" && onClose()}>
-      <section className="dialog feedback" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+      <section className="dialog feedback" role="dialog" aria-modal="true" aria-labelledby="feedback-title"><ModalBehavior onClose={() => state !== "sending" && onClose()} />
         <button className="dialog-close icon-button" onClick={onClose} aria-label="의견 창 닫기"><X /></button>
         {state === "done" ? (
           <div className="fb-done" role="status">

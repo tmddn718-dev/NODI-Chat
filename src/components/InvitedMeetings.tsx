@@ -3,6 +3,7 @@ import { useState } from "react";
 import { buildInvitedMeetings, loadAnswers, saveAnswers, statusOf, type InvitedAnswer, type InvitedMeeting, type InvitedStatus, deadlineLabel } from "../invited";
 import { AppTabBar, type AppTab } from "./AppTabBar";
 import { Brand } from "./Brand";
+import { ModalBehavior } from "../useModal";
 
 const slotFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 const timeFmt = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" });
@@ -84,7 +85,7 @@ function InvitedDialog({ meeting, answer, onClose, onSubmit }: { meeting: Invite
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="invited-dialog-title">
+      <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="invited-dialog-title"><ModalBehavior onClose={onClose} />
         <header className="cd-head">
           <span className="cd-badge">{confirmed ? "회의 확정" : "시간 미확정"}</span>
           <button className="dialog-close icon-button" onClick={onClose} aria-label="닫기"><X /></button>

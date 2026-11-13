@@ -1,5 +1,6 @@
 import { ChartNoAxesColumn, KeyRound, MessageSquareText, X, CalendarSync } from "lucide-react";
 import { demo } from "../demo";
+import { ModalBehavior } from "../useModal";
 
 export function SettingsDialog({ onClose, onDisconnect, analyticsOn, onToggleAnalytics, onFeedback }: {
   onClose: () => void;
@@ -12,7 +13,7 @@ export function SettingsDialog({ onClose, onDisconnect, analyticsOn, onToggleAna
   const isPublic = demo.mode === "public";
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section className="dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><ModalBehavior onClose={onClose} />
         <button className="dialog-close icon-button" onClick={onClose} aria-label="설정 닫기"><X /></button>
         <h2 id="settings-title">설정</h2>
         <div className="setting-row">

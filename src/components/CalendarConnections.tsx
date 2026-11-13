@@ -1,6 +1,7 @@
 import { ArrowLeft, CalendarDays, Check, X } from "lucide-react";
 import { useState } from "react";
 import { Brand } from "./Brand";
+import { ModalBehavior } from "../useModal";
 
 const providers = [
   { id: "google", name: "Google Calendar", mark: "G" },
@@ -66,7 +67,7 @@ export function CalendarConnections({ onBack }: { onBack: () => void }) {
 
       {target && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setTarget(null)}>
-          <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="cal-dialog-title">
+          <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="cal-dialog-title"><ModalBehavior onClose={() => setTarget(null)} />
             <header className="cd-head">
               <span className="cd-badge">캘린더 연결</span>
               <button className="dialog-close icon-button" onClick={() => setTarget(null)} aria-label="닫기"><X /></button>

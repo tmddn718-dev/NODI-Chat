@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Clock, LoaderCircle, TriangleAlert, X } from "lucide-react";
 import type { Candidate, MeetingDraft } from "../types";
 import { minutesBetween, namesLabel, slotLabel } from "../format";
+import { ModalBehavior } from "../useModal";
 
 export type VerifyState = { state: "checking" | "ok" | "failed"; message: string; retryable?: boolean };
 
@@ -32,7 +33,7 @@ export function ConfirmDialog({
   const invitees = (meeting.attendees ?? []).length;
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <section className="dialog cd" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><ModalBehavior onClose={onClose} />
         <header className="cd-head">
           <span className="cd-badge">회의 확정</span>
           <button className="dialog-close icon-button" onClick={onClose} aria-label="확인 창 닫기"><X /></button>

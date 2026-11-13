@@ -41,6 +41,29 @@ function Screens() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const viewedRef = useRef(false);
 
+  // 브라우저 뒤로 가기: 앱 화면(view)을 history에 남겨서, 뒤로 가기가 사이트 밖이 아니라 이전 화면으로 가게 해요.
+  const APP_VIEWS: View[] = ["chat", "meetings", "event", "invited", "calendars"];
+  function go(next: View) {
+    setView(next);
+    if (!APP_VIEWS.includes(next)) return;
+    try {
+      const current = history.state as { nodiView?: View; nodiDepth?: number; nodiModal?: string } | null;
+      const state = { nodiView: next, nodiDepth: (current?.nodiDepth ?? 0) + 1 };
+      // 시트가 위에 있으면 그 기록을 새 화면으로 바꾸고, 같은 화면이면 쌓지 않아요.
+      if (current?.nodiModal || current?.nodiView === next) history.replaceState({ ...state, nodiDepth: current?.nodiDepth ?? 0 }, "");
+      else history.pushState(state, "");
+    } catch { /* history를 못 쓰면 화면 이동만 해요 */ }
+  }
+  const enterChat = () => { setView("chat"); try { history.replaceState({ nodiView: "chat", nodiDepth: 0 }, ""); } catch { /* 무시 */ } };
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => {
+      const target = (event.state as { nodiView?: View } | null)?.nodiView;
+      if (target && APP_VIEWS.includes(target)) setView((current) => (current === "connect" || current === "loading" ? current : target));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 분석 동의: 처음 한 번 정하고, 설정에서 철회할 수 있어요. 거부는 로컬에만 기록하고 Amplitude에는 아무것도 보내지 않아요.
   // 철회하면 즉시 추적을 멈추고 대기 중인 이벤트와 식별자를 지워요.
   function decide(analytics: boolean) {
@@ -103,7 +126,7 @@ function Screens() {
         // 체험(demo) 버전은 접속할 때마다 첫 화면에서 시작해요. 이전 세션이 남아 있어도 이어서 열지 않아요.
         const resume = session.connected && session.mode !== "demo";
         if (resume) setEvents((await api.events()).events);
-        setView(resume ? "chat" : "connect");
+        if (resume) enterChat(); else setView("connect");
       })
       .catch(() => setView("connect"));
   }, [inviteToken, roundToken]);
@@ -113,7 +136,7 @@ function Screens() {
     setModels(session.models);
     setEvents((await api.events()).events);
     setNotice("");
-    setView("chat");
+    enterChat();
   }
 
   async function startDemo() {
@@ -123,7 +146,7 @@ function Screens() {
     setModels(session.models);
     setEvents((await api.events()).events);
     setNotice("");
-    setView("chat");
+    enterChat();
   }
 
   async function disconnect() {
@@ -159,7 +182,7 @@ function Screens() {
     setEvents((current) => current.map((item) => item.id === cancelled.id ? cancelled : item));
   }
 
-  const goTab = (tab: "chat" | "meetings" | "invited") => setView(tab);
+  const goTab = (tab: "chat" | "meetings" | "invited") => go(tab);
   if (roundToken) return <CandidateInviteScreen token={roundToken} />;
   if (inviteToken) return <InviteResponseScreen token={inviteToken} />;
   const content = (() => {
@@ -167,17 +190,17 @@ function Screens() {
     return <main id="main-content" className="boot-screen" aria-label="NODI 불러오는 중"><span className="boot-logo">N</span><div className="boot-line" />{slowBoot && <p className="boot-hint" role="status">서버를 깨우고 있어요. 처음에는 최대 1분 정도 걸릴 수 있어요.</p>}</main>;
   }
   if (view === "connect") return <ConnectScreen onConnect={connect} onStartDemo={demo.on ? startDemo : undefined} notice={notice} />;
-  if (view === "invited") return <InvitedMeetings onBack={() => setView("chat")} onNavigate={goTab} />;
-  if (view === "calendars") return <CalendarConnections onBack={() => setView("chat")} />;
+  if (view === "invited") return <InvitedMeetings onBack={() => go("chat")} onNavigate={goTab} />;
+  if (view === "calendars") return <CalendarConnections onBack={() => go("chat")} />;
   if (view === "meetings") {
-    return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); setView("event"); }} onBack={() => setView("chat")} onNew={() => setView("chat")} onNavigate={goTab} pending={pendingInvitedCount()} />;
+    return <MeetingsList events={events} onSelect={(selected) => { setEvent(selected); go("event"); }} onBack={() => go("chat")} onNew={() => go("chat")} onNavigate={goTab} pending={pendingInvitedCount()} />;
   }
   if (view === "event" && event) {
-    return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => setView("meetings")} onNew={() => { setEvent(null); setView("chat"); }} onFeedback={demo.mode === "public" ? () => setFeedbackOpen(true) : undefined} />;
+    return <MeetingManager event={event} onUpdate={updateEvent} onRetryNotify={retryNotifications} onCancel={cancelEvent} onBack={() => go("meetings")} onNew={() => { setEvent(null); go("chat"); }} onFeedback={demo.mode === "public" ? () => setFeedbackOpen(true) : undefined} />;
   }
   return (
     <>
-      <ChatScreen models={models} onSettings={() => setSettings(true)} onShowMeetings={() => setView("meetings")} onShowInvited={() => setView("invited")} onShowCalendars={() => setView("calendars")} onConfirmed={(confirmed) => { setEvent(confirmed); setEvents((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]); setView("event"); }} />
+      <ChatScreen models={models} onSettings={() => setSettings(true)} onShowMeetings={() => go("meetings")} onShowInvited={() => go("invited")} onShowCalendars={() => go("calendars")} onConfirmed={(confirmed) => { setEvent(confirmed); setEvents((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]); go("event"); }} />
       {settings && <SettingsDialog onClose={() => setSettings(false)} onDisconnect={disconnect} analyticsOn={consent?.analytics === true} onToggleAnalytics={toggleAnalytics} onFeedback={() => { setSettings(false); setFeedbackOpen(true); }} />}
     </>
   );

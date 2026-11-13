@@ -1,5 +1,6 @@
 import { Bell, CalendarCheck, Clock, Mail, X } from "lucide-react";
 import type { NodiNotification } from "../notifications";
+import { ModalBehavior } from "../useModal";
 
 const ICON = { invite: Mail, round: Clock, confirmed: CalendarCheck } as const;
 
@@ -13,7 +14,7 @@ export function NotificationSheet({ items, readIds, onClose, onOpen, onReadAll }
   const unread = items.filter((item) => !readIds.includes(item.id)).length;
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()} onKeyDown={(event) => event.key === "Escape" && onClose()}>
-      <section className="dialog notif-sheet" role="dialog" aria-modal="true" aria-labelledby="notif-title">
+      <section className="dialog notif-sheet" role="dialog" aria-modal="true" aria-labelledby="notif-title"><ModalBehavior onClose={onClose} />
         <header className="notif-head">
           <h2 id="notif-title">알림</h2>
           {unread > 0 && <button type="button" className="text-link" onClick={onReadAll}>모두 읽음</button>}

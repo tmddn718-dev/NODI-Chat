@@ -1,6 +1,7 @@
 import { Info, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MOBILE_QUERY, useMedia } from "../useMedia";
+import { ModalBehavior } from "../useModal";
 
 // 후보 간 판단 요소를 같은 순서로 비교해요. 미응답은 불참으로 세지 않고 따로 보여줘요.
 // 숫자·추천 이유는 전부 넘겨받은 데이터에서만 만들어요(없는 근거를 지어내지 않아요).
@@ -177,6 +178,7 @@ export function CompareTable({ columns, onClose }: { columns: CompareColumn[]; o
   if (mobile) {
     return (
       <div className="compare-overlay" role="dialog" aria-modal="true" aria-labelledby="cmp-title">
+      <ModalBehavior onClose={() => onClose?.()} />
         <div className="compare-body">
           {intro}
           {why}

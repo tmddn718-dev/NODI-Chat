@@ -6,6 +6,7 @@ import { MOBILE_QUERY, useMedia } from "../useMedia";
 import { namesLabel } from "../format";
 import { NodiMark } from "./NodiMark";
 import { SEARCH_INPUT, isComposingEnter } from "../inputProps";
+import { ModalBehavior } from "../useModal";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const initials = (name: string) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -265,6 +266,7 @@ export function AttendeePicker({ language, onConfirm, onDirectInput, preselect, 
         <button className="direct-input-button" onClick={() => onDirectInput?.()}>{ko ? "직접 입력할게요" : "Enter names directly"}</button>
         {sheetOpen && (
           <div className={`asheet ${viewport && viewport.height < TIGHT_HEIGHT ? "tight" : ""}`} role="dialog" aria-modal="true" aria-labelledby="asheet-title" style={viewport ? { top: viewport.top, height: viewport.height } : undefined}>
+            <ModalBehavior onClose={() => setSheetOpen(false)} />
             <header className="asheet-head">
               <h2 id="asheet-title">{ko ? "참석자 선택" : "Choose attendees"}</h2>
               <button className="asheet-close" onClick={() => setSheetOpen(false)} aria-label={ko ? "참석자 선택 닫기" : "Close"}><X aria-hidden="true" /></button>
