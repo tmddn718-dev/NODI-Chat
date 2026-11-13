@@ -100,8 +100,10 @@ function Screens() {
         demo.on = demo.mode !== "groq";
         window.dispatchEvent(new Event("nodi:demo"));
         setModels(session.models);
-        if (session.connected) setEvents((await api.events()).events);
-        setView(session.connected ? "chat" : "connect");
+        // 체험(demo) 버전은 접속할 때마다 첫 화면에서 시작해요. 이전 세션이 남아 있어도 이어서 열지 않아요.
+        const resume = session.connected && session.mode !== "demo";
+        if (resume) setEvents((await api.events()).events);
+        setView(resume ? "chat" : "connect");
       })
       .catch(() => setView("connect"));
   }, [inviteToken, roundToken]);
@@ -115,6 +117,8 @@ function Screens() {
   }
 
   async function startDemo() {
+    // 새로 시작할 때는 이 기기에 남아 있던 이전 체험 기록(초안·대화·초대 응답·알림 읽음)을 비워요.
+    try { for (const key of ["nodi_meeting_draft_v2", "nodi_meeting_history_v1", "nodi_invited_answers_v1", "nodi_notifications_read_v1"]) localStorage.removeItem(key); } catch { /* 저장소를 못 써도 진행해요 */ }
     const session = await api.startDemo();
     setModels(session.models);
     setEvents((await api.events()).events);
